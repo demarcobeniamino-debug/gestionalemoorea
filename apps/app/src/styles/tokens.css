@@ -1,0 +1,93 @@
+/* Generato da tokens.json — non modificare a mano. Tema predefinito: servizio (scuro). */
+:root, [data-tema="servizio"] {
+  --c-bg: #0f1216;
+  --c-surface: #181c22;
+  --c-surface-2: #222730;
+  --c-border: #2e3440;
+  --c-border-input: #6b7688;
+  --c-text: #f2f4f7;
+  --c-text-muted: #a3acba;
+  --c-accent: #3fb5a3;
+  --c-on-accent: #0b1512;
+  --c-danger: #f0625d;
+  --c-on-danger: #160606;
+  --c-success: #46c37b;
+  --c-on-success: #06150d;
+  --c-warning: #f2b544;
+  --c-on-warning: #1a1204;
+  --c-focus: #7cc8ff;
+  --c-tavolo-libero: #222730;
+  --c-tavolo-occupato: #f2b544;
+  --c-tavolo-prenotato: #5b9cf5;
+  --c-tavolo-conto: #b58cf0;
+  --c-tavolo-ritardo: #f0625d;
+  --c-on-tavolo: #0f1216;
+  --c-allergene: #ffd23f;
+  --c-on-allergene: #000000;
+  --c-tavolo-libero-bordo: #7d889b;
+}
+
+[data-tema="ufficio"] {
+  --c-bg: #ffffff;
+  --c-surface: #f5f6f8;
+  --c-surface-2: #eceef2;
+  --c-border: #dde1e7;
+  --c-border-input: #7c8594;
+  --c-text: #14171c;
+  --c-text-muted: #586170;
+  --c-accent: #0f6e62;
+  --c-on-accent: #ffffff;
+  --c-danger: #c22f2b;
+  --c-on-danger: #ffffff;
+  --c-success: #1c7444;
+  --c-on-success: #ffffff;
+  --c-warning: #8a5a00;
+  --c-on-warning: #ffffff;
+  --c-focus: #1f6feb;
+  --c-tavolo-libero: #222730;
+  --c-tavolo-libero-bordo: #7d889b;
+  --c-tavolo-occupato: #f2b544;
+  --c-tavolo-prenotato: #5b9cf5;
+  --c-tavolo-conto: #b58cf0;
+  --c-tavolo-ritardo: #f0625d;
+  --c-on-tavolo: #0f1216;
+  --c-allergene: #ffd23f;
+  --c-on-allergene: #000000;
+}
+
+:root {
+  --c-carta: #ffffff;
+  --c-inchiostro: #000000;
+  --font-sans: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --t-xs-size: 12px; --t-xs-line: 16px; --t-xs-weight: 500;
+  --t-sm-size: 14px; --t-sm-line: 20px; --t-sm-weight: 500;
+  --t-base-size: 16px; --t-base-line: 24px; --t-base-weight: 400;
+  --t-lg-size: 20px; --t-lg-line: 28px; --t-lg-weight: 600;
+  --t-xl-size: 28px; --t-xl-line: 34px; --t-xl-weight: 700;
+  --t-display-size: 40px; --t-display-line: 44px; --t-display-weight: 700;
+  --s-0: 0px;
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --touch-min: 48px;
+  --touch-comfortable: 56px;
+  --touch-tile: 88px;
+  --touch-keypad: 64px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+  --shadow-card: 0 1px 2px rgba(0,0,0,.25);
+  --shadow-pop: 0 16px 40px rgba(0,0,0,.45);
+  --m-fast: 100ms; --m-base: 180ms; --m-ease: cubic-bezier(.2,.8,.2,1);
+}
+
+@media (prefers-reduced-motion: reduce) { :root { --m-fast: 0ms; --m-base: 0ms; } }
+
+body { font-family: var(--font-sans); font-variant-numeric: tabular-nums; background: var(--c-bg); color: var(--c-text); }

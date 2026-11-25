@@ -106,6 +106,7 @@ describe('servizio completo (fetta verticale)', () => {
     expect(cucina.some((l) => l.includes('ALLERGIA FRUTTA A GUSCIO'))).toBe(true);
     expect(cucina.some((l) => l.includes('* niente noci'))).toBe(true);
     expect(cucina.some((l) => l.includes('Primitivo'))).toBe(false);   // il vino va al bar
+    expect(cucina.some((l) => l.includes('contiene'))).toBe(false);    // nessun piatto con frutta a guscio: niente rumore
 
     await coda.elabora();
     expect(tr.carta.filter((p) => p.dati)).toHaveLength(2);
@@ -181,6 +182,17 @@ describe('servizio completo (fetta verticale)', () => {
     const docs = db.documenti(c.id);
     expect(docs.reduce((s, d) => s + d.totaleCents, 0)).toBe(totale);
     expect(db.comanda(c.id)!.stato).toBe('chiusa');
+  });
+
+  it('piatto con un allergene del tavolo: avviso in negativo sulla riga', () => {
+    const { db } = nuovo();
+    const c = db.apriTavolo('t8', 2, 'Aldo');
+    db.impostaAllergeni(c.id, [{ allergene: 'glutine' }]);
+    db.aggiungiRiga(c.id, { articoloId: db.setup().articoli.find((a) => a.nome === 'Tiramisù')!.id });
+    const [job] = db.invia(c.id, 'k1');
+    const righe = anteprima(job.ticket!, 48);
+    const avviso = righe.find((r) => r.testo.includes('!! CONTIENE GLUTINE !!'));
+    expect(avviso?.stile.inverso).toBe(true);
   });
 
   it('storno di una riga già inviata stampa STORNO in cucina', async () => {

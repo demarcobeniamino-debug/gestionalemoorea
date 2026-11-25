@@ -48,7 +48,9 @@ export function ticketComanda(d: DatiTicketComanda): Ticket {
       for (const v of riga.varianti) r.push({ k: 'testo', testo: `${v.nome.startsWith('+') || v.nome.startsWith('-') ? '' : '- '}${v.nome}`, rientro: 4 });
       if (riga.posto) r.push({ k: 'testo', testo: `posto ${riga.posto}`, rientro: 4 });
       if (riga.note) r.push({ k: 'testo', testo: `* ${riga.note}`, rientro: 4, grassetto: true });
-      if (riga.allergeni.length) r.push({ k: 'testo', testo: `contiene: ${riga.allergeni.map((a) => ALLERGENI_ETICHETTA[a as Allergene]).join(', ')}`, rientro: 4 });
+      // Solo se il piatto contiene un allergene dichiarato al tavolo: allora in negativo, impossibile da non vedere.
+      const critici = riga.allergeni.filter((a) => d.comanda.allergeniTavolo.some((x) => x.allergene === a));
+      if (critici.length) r.push({ k: 'testo', testo: `!! CONTIENE ${critici.map((a) => ALLERGENI_ETICHETTA[a as Allergene].toUpperCase()).join(', ')} !!`, inverso: true, grassetto: true, rientro: 4 });
       if (d.tipo === 'storno' && riga.motivoStorno) r.push({ k: 'testo', testo: `motivo: ${riga.motivoStorno}`, rientro: 4 });
     }
   }
