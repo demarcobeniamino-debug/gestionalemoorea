@@ -1,0 +1,11 @@
+{
+  "name": "gestionale-ristorazione",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "npm run dev -w apps/app",
+    "build": "npm run build -w apps/app",
+    "test": "npm test -w packages/core",
+    "tauri": "npm run tauri -w apps/app"
+  }
+}
