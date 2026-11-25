@@ -7,6 +7,7 @@ import {
 import { nuovaChiave, useApp, useDati } from '../dati/contesto';
 import { Testata } from '../ui/Testata';
 import { Foglio, Icona, Pulsante, useConferma } from '../ui/primitivi';
+import { vibra } from '../dati/piattaforma';
 
 const PORTATE = [0, 1, 2, 3, 9];
 const ETICHETTA_STATO: Partial<Record<RigaComanda['stato'], string>> = {
@@ -55,6 +56,7 @@ export function ComandaSchermata() {
       const jobs = db.invia(comanda.id, nuovaChiave(), p);
       const dove = [...new Set(jobs.map((j) => setup.stampanti.find((s) => s.id === j.stampanteId)?.nome))].join(' e ');
       toast({ testo: `Inviata a ${dove || 'produzione'}`, tipo: 'ok' });
+      void vibra();
       setRiepilogoMobile(false);
     } catch (e) { toast({ testo: (e as Error).message, tipo: 'errore' }); }
     finally { setInvio(false); }

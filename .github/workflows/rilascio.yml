@@ -1,0 +1,66 @@
+# Costruisce l'installer Windows della cassa e l'APK Android dei palmari.
+# Parte a ogni tag "v*" (es. v0.1.0) o a mano da Actions → Rilascio → Run workflow.
+name: Rilascio
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm test
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --manifest-path crates/ponte/Cargo.toml
+
+  cassa-windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with: { workspaces: apps/app/src-tauri }
+      - run: npm ci
+      - name: Installer Windows (.msi e .exe)
+        working-directory: apps/app
+        run: npx tauri build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cassa-windows
+          path: |
+            apps/app/src-tauri/target/release/bundle/msi/*.msi
+            apps/app/src-tauri/target/release/bundle/nsis/*.exe
+
+  palmare-android:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - run: npm run build
+      - name: Progetto Android
+        working-directory: apps/app
+        run: |
+          npx cap add android
+          npx cap sync android
+      - name: APK
+        working-directory: apps/app/android
+        run: ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: palmare-android
+          path: apps/app/android/app/build/outputs/apk/debug/*.apk

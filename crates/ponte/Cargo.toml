@@ -1,0 +1,7 @@
+[package]
+name = "ponte"
+version = "0.1.0"
+edition = "2021"
+description = "Trasporto verso stampanti comande (ESC/POS su TCP) ed Epson RT (HTTP fpmate.cgi). Solo libreria standard."
+
+[dependencies]

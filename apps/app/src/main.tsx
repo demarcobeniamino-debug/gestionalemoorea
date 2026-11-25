@@ -12,6 +12,9 @@ import { Cucina } from './schermate/Cucina';
 import { Design } from './schermate/Design';
 import { DaFare } from './schermate/DaFare';
 import { CartaSimulata } from './schermate/CartaSimulata';
+import { tieniAcceso } from './dati/piattaforma';
+
+void tieniAcceso();
 
 function Protetta({ children }: { children: React.ReactElement }) {
   const { operatore } = useApp();
