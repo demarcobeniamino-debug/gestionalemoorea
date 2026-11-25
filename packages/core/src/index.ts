@@ -5,5 +5,6 @@ export * from './ticket';
 export * from './comande';
 export * from './epson';
 export * from './seed';
+export * from './operazioni';
 export * from './data';
 export * from './stampa';

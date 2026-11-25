@@ -2,7 +2,7 @@
 import type { AliquotaIva, Articolo, Categoria, CentroProduzione, Sala, Stampante, Tavolo, Variante } from './types';
 
 export interface Setup {
-  locale: { nome: string; citta: string; copertoCents: number; aliquotaCopertoId: string };
+  locale: { id: string; nome: string; citta: string; copertoCents: number; aliquotaCopertoId: string };
   stampanti: Stampante[];
   centri: CentroProduzione[];
   aliquote: AliquotaIva[];
@@ -11,7 +11,7 @@ export interface Setup {
   categorie: Categoria[];
   articoli: Articolo[];
   varianti: Variante[];
-  operatori: { nome: string; pin: string; ruolo: 'cameriere' | 'responsabile' }[];
+  operatori: { id: string; nome: string; pin?: string; ruolo: string }[];
 }
 
 const t = (id: string, salaId: string, numero: string, forma: Tavolo['forma'], x: number, y: number, larghezza = 1, altezza = 1, posti = 4): Tavolo =>
@@ -26,7 +26,7 @@ const a = (categoriaId: string, nome: string, euro: number, allergeni: Articolo[
 export function seedMoorea(): Setup {
   n = 0;
   return {
-    locale: { nome: 'Moorea Food Club', citta: 'Maiori', copertoCents: 200, aliquotaCopertoId: 'iva10' },
+    locale: { id: 'demo', nome: 'Moorea Food Club', citta: 'Maiori', copertoCents: 200, aliquotaCopertoId: 'iva10' },
     // IP segnaposto: si inseriscono quelli veri dopo il collaudo.
     stampanti: [
       { id: 'st-cucina', nome: 'Cucina', tipo: 'comande_escpos', host: '192.168.1.101', porta: 9100, colonne: 48 },
@@ -103,9 +103,9 @@ export function seedMoorea(): Setup {
       { id: 'v-ben-cotta', gruppo: 'Cottura', nome: 'ben cotta', deltaCents: 0 },
     ],
     operatori: [
-      { nome: 'Aldo', pin: '1111', ruolo: 'cameriere' },
-      { nome: 'Luca', pin: '2222', ruolo: 'cameriere' },
-      { nome: 'Benny', pin: '9999', ruolo: 'responsabile' },
+      { id: 'op-aldo', nome: 'Aldo', pin: '1111', ruolo: 'cameriere' },
+      { id: 'op-luca', nome: 'Luca', pin: '2222', ruolo: 'cameriere' },
+      { id: 'op-benny', nome: 'Benny', pin: '9999', ruolo: 'responsabile' },
     ],
   };
 }

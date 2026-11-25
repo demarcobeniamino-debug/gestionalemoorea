@@ -1,5 +1,10 @@
 // Primitivi dell'interfaccia (specifiche in replica/design/components.md). Solo classi dai token.
+// Regola dei raggi: pulsanti, campi e tile = md; pannelli, fogli e card = lg; chip e filtri = pill.
 import { Fragment, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import {
+  ArrowLeft, Printer, Receipt, Warning, UserCircle, MagnifyingGlass, X, Scroll, Check, CheckCircle,
+  WarningCircle, Info, Clock, ForkKnife, CookingPot, Wine, Pause, Prohibit, SignOut, Backspace,
+} from '@phosphor-icons/react';
 import { useApp, useDati } from '../dati/contesto';
 
 type Variante = 'primario' | 'conferma' | 'pericolo' | 'secondario' | 'fantasma';
@@ -18,10 +23,11 @@ export function Pulsante({ variante = 'secondario', taglia = 'lg', caricamento, 
   ButtonHTMLAttributes<HTMLButtonElement> & { variante?: Variante; taglia?: Taglia; caricamento?: boolean; icona?: ReactNode }) {
   return (
     <button
+      type="button"
       {...p}
       disabled={disabled || caricamento}
       aria-busy={caricamento || undefined}
-      className={`inline-flex items-center justify-center gap-2 rounded-md transition-transform duration-fast ease-base active:scale-[.98] disabled:opacity-40 disabled:cursor-not-allowed ${VARIANTI[variante]} ${TAGLIE[taglia]} ${className}`}
+      className={`premibile inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-md disabled:cursor-not-allowed disabled:opacity-40 ${VARIANTI[variante]} ${TAGLIE[taglia]} ${className}`}
     >
       {caricamento ? <Spinner /> : icona}
       <span>{children}</span>
@@ -30,27 +36,45 @@ export function Pulsante({ variante = 'secondario', taglia = 'lg', caricamento, 
 }
 
 export const Spinner = () => (
-  <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="42 20" /></svg>
+  <svg className="animate-spin [animation-duration:600ms]" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="42 20" strokeLinecap="round" />
+  </svg>
 );
 
-/** Icone: tratti semplici disegnati qui (stile Lucide, nessun file esterno). */
+/** Icone: solo Phosphor, peso "bold" per le azioni, 20px. */
+const I = { size: 20, weight: 'bold' as const, 'aria-hidden': true };
 export const Icona = {
-  indietro: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>,
-  stampa: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="M6 9V3h12v6" /><rect x="4" y="9" width="16" height="8" rx="2" /><path d="M7 14h10v7H7z" /></svg>,
-  scontrino: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z" /><path d="M9 7h6M9 11h6M9 15h4" /></svg>,
-  avviso: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><path d="M12 9v4M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>,
-  utente: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></svg>,
-  cerca: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>,
-  chiudi: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>,
-  carta: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M7 3h10v18l-2.5-1.5L12 21l-2.5-1.5L7 21z" /></svg>,
+  indietro: <ArrowLeft {...I} />,
+  stampa: <Printer {...I} />,
+  scontrino: <Receipt {...I} size={22} />,
+  avviso: <Warning {...I} weight="fill" />,
+  utente: <UserCircle {...I} />,
+  cerca: <MagnifyingGlass {...I} size={18} />,
+  chiudi: <X {...I} />,
+  carta: <Scroll {...I} size={18} />,
+  spunta: <Check {...I} size={16} />,
+  orologio: <Clock {...I} size={14} />,
+  pausa: <Pause {...I} size={14} weight="fill" />,
+  storno: <Prohibit {...I} size={14} />,
+  esci: <SignOut {...I} size={18} />,
+  cancella: <Backspace {...I} size={24} />,
+  cucina: <CookingPot {...I} size={18} />,
+  bar: <Wine {...I} size={18} />,
+  sala: <ForkKnife {...I} size={18} />,
 };
 
 /** Indicatore stato stampanti: legge la coda (lavori in coda / in errore per stampante). */
 export function StatoStampanti({ compatto = false }: { compatto?: boolean }) {
   const { stampanti, lavori } = useDati((db) => ({ stampanti: db.setup().stampanti, lavori: db.lavori() }));
+  const stato = (id: string) => {
+    const miei = lavori.filter((j) => j.stampanteId === id);
+    const errore = miei.find((j) => j.stato === 'errore' || j.stato === 'da_verificare');
+    const inCoda = miei.filter((j) => j.stato === 'in_coda' || j.stato === 'preso').length;
+    return errore ? { cls: 'bg-danger', testo: errore.stato === 'da_verificare' ? 'da verificare' : 'errore' } : inCoda ? { cls: 'bg-warning', testo: `${inCoda} in coda` } : { cls: 'bg-success', testo: '' };
+  };
   if (compatto) {
-    const problemi = stampanti.filter((s) => lavori.some((j) => j.stampanteId === s.id && (j.stato === 'errore' || j.stato === 'da_verificare')));
-    const coda = lavori.filter((j) => j.stato === 'in_coda' || j.stato === 'preso').length;
+    const problemi = stampanti.filter((s) => stato(s.id).cls === 'bg-danger');
+    const coda = stampanti.some((s) => stato(s.id).cls === 'bg-warning');
     return (
       <span aria-live="polite" className="flex items-center gap-1.5 text-xs font-semibold text-text-muted">
         <i aria-hidden="true" className={`block h-2.5 w-2.5 rounded-pill ${problemi.length ? 'bg-danger' : coda ? 'bg-warning' : 'bg-success'}`} />
@@ -61,16 +85,12 @@ export function StatoStampanti({ compatto = false }: { compatto?: boolean }) {
   return (
     <ul aria-label="Stato stampanti" aria-live="polite" className="flex gap-3 text-xs font-semibold text-text-muted">
       {stampanti.map((s) => {
-        const miei = lavori.filter((j) => j.stampanteId === s.id);
-        const errore = miei.find((j) => j.stato === 'errore' || j.stato === 'da_verificare');
-        const inCoda = miei.filter((j) => j.stato === 'in_coda' || j.stato === 'preso').length;
-        const colore = errore ? 'bg-danger' : inCoda ? 'bg-warning' : 'bg-success';
-        const testo = errore ? (errore.stato === 'da_verificare' ? 'da verificare' : 'errore') : inCoda ? `${inCoda} in coda` : '';
+        const st = stato(s.id);
         return (
           <li key={s.id} className="flex items-center gap-1.5">
-            <i className={`block h-2 w-2 rounded-pill ${colore}`} aria-hidden="true" />
-            <span>{s.nome}{testo ? ` · ${testo}` : ''}</span>
-            <span className="sr-only">{testo || 'pronta'}</span>
+            <i className={`block h-2 w-2 rounded-pill ${st.cls}`} aria-hidden="true" />
+            <span className={st.cls === 'bg-danger' ? 'text-danger' : ''}>{s.nome}{st.testo ? ` · ${st.testo}` : ''}</span>
+            <span className="sr-only">{st.testo || 'pronta'}</span>
           </li>
         );
       })}
@@ -79,25 +99,20 @@ export function StatoStampanti({ compatto = false }: { compatto?: boolean }) {
 }
 
 /** Tastierino numerico. */
-export function Tastierino({ onTasto, extra }: { onTasto: (t: string) => void; extra?: { etichetta: string; valore: string }[] }) {
+export function Tastierino({ onTasto }: { onTasto: (t: string) => void }) {
   const tasti = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '00', '0', ','];
   return (
-    <div className={`grid gap-2 ${extra ? 'grid-cols-4' : 'grid-cols-3'}`}>
-      {tasti.map((t, i) => (
+    <div className="grid grid-cols-3 gap-2">
+      {tasti.map((t) => (
         <Fragment key={t}>
-          <button type="button" onClick={() => onTasto(t)} className="h-14 rounded-md bg-surface-2 text-xl font-semibold tabular-nums active:scale-[.98]">{t}</button>
-          {extra && i % 3 === 2 && (
-            <button type="button" onClick={() => onTasto(extra[Math.floor(i / 3)]?.valore ?? '')} className="h-14 rounded-md bg-border text-base font-semibold">
-              {extra[Math.floor(i / 3)]?.etichetta}
-            </button>
-          )}
+          <button type="button" onClick={() => onTasto(t)} className="premibile h-14 rounded-md bg-surface-2 text-xl font-semibold tabular-nums">{t}</button>
         </Fragment>
       ))}
     </div>
   );
 }
 
-/** Pannello che sale dal basso (palmare) o finestra (cassa). Dialog nativo: focus intrappolato, Esc chiude. */
+/** Foglio: sale dal basso sul palmare, compare al centro su cassa. Dialog nativo: focus intrappolato, Esc chiude. */
 export function Foglio({ aperto, onChiudi, titolo, children }: { aperto: boolean; onChiudi: () => void; titolo: string; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -107,24 +122,32 @@ export function Foglio({ aperto, onChiudi, titolo, children }: { aperto: boolean
   }, [aperto]);
   return (
     <dialog ref={ref} onClose={onChiudi} aria-label={titolo}
-      className="m-0 mt-auto w-full max-w-none rounded-t-lg bg-surface-2 p-0 text-text shadow-pop backdrop:bg-black/60 sm:m-auto sm:w-[520px] sm:rounded-lg">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      onClick={(e) => { if (e.target === ref.current) onChiudi(); }}
+      className="foglio m-0 mt-auto max-h-[92dvh] w-full max-w-none overflow-hidden rounded-t-lg border border-border bg-surface p-0 text-text shadow-pop sm:m-auto sm:w-[540px] sm:rounded-lg">
+      <div className="mx-auto mt-2 h-1 w-10 rounded-pill bg-border-input sm:hidden" aria-hidden="true" />
+      <div className="flex items-center justify-between px-5 pb-2 pt-3 sm:pt-4">
         <h2 className="text-lg font-semibold">{titolo}</h2>
-        <button type="button" onClick={onChiudi} aria-label="Chiudi" className="grid h-touch w-touch place-items-center rounded-md hover:bg-surface">{Icona.chiudi}</button>
+        <button type="button" onClick={onChiudi} aria-label="Chiudi" className="premibile grid h-touch w-touch place-items-center rounded-md text-text-muted hover:bg-surface-2">{Icona.chiudi}</button>
       </div>
-      <div className="p-4">{children}</div>
+      <div className="max-h-[calc(92dvh-72px)] overflow-y-auto px-5 pb-5">{children}</div>
     </dialog>
   );
 }
 
+const ICONA_AVVISO = {
+  ok: <CheckCircle size={20} weight="fill" aria-hidden="true" />,
+  errore: <WarningCircle size={20} weight="fill" aria-hidden="true" />,
+  info: <Info size={20} weight="fill" aria-hidden="true" />,
+};
+
 export function Toasts() {
   const { toasts } = useApp();
   return (
-    <div aria-live="assertive" className="pointer-events-none fixed bottom-24 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-2">
+    <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex flex-col items-center gap-2 px-4 md:bottom-auto md:top-16">
       {toasts.map((t) => (
         <div key={t.id} role={t.tipo === 'errore' ? 'alert' : 'status'}
-          className={`pointer-events-auto max-w-[90vw] rounded-md px-4 py-3 text-base font-semibold shadow-pop ${t.tipo === 'errore' ? 'bg-danger text-on-danger' : t.tipo === 'ok' ? 'bg-success text-on-success' : 'bg-surface-2 text-text'}`}>
-          {t.testo}
+          className={`avviso pointer-events-auto flex max-w-[min(92vw,520px)] items-center gap-2.5 rounded-lg px-4 py-3 text-[15px] font-semibold shadow-pop ${t.tipo === 'errore' ? 'bg-danger text-on-danger' : t.tipo === 'ok' ? 'bg-success text-on-success' : 'bg-surface-2 text-text'}`}>
+          {ICONA_AVVISO[t.tipo]}{t.testo}
         </div>
       ))}
     </div>
@@ -132,15 +155,18 @@ export function Toasts() {
 }
 
 export function useConferma() {
-  const [stato, set] = useState<{ testo: string; ok: () => void } | null>(null);
+  const [stato, set] = useState<{ testo: string; azione: string; ok: () => void } | null>(null);
   const ui = (
     <Foglio aperto={!!stato} onChiudi={() => set(null)} titolo="Conferma">
-      <p className="mb-4 text-base">{stato?.testo}</p>
+      <p className="mb-5 text-base text-text-muted">{stato?.testo}</p>
       <div className="flex justify-end gap-2">
         <Pulsante onClick={() => set(null)}>Annulla</Pulsante>
-        <Pulsante variante="pericolo" onClick={() => { stato?.ok(); set(null); }}>Conferma</Pulsante>
+        <Pulsante variante="pericolo" onClick={() => { stato?.ok(); set(null); }}>{stato?.azione ?? 'Conferma'}</Pulsante>
       </div>
     </Foglio>
   );
-  return { chiedi: (testo: string, ok: () => void) => set({ testo, ok }), ui };
+  return { chiedi: (testo: string, ok: () => void, azione = 'Conferma') => set({ testo, ok, azione }), ui };
 }
+
+export const IconaCentro = ({ nome }: { nome: string }) => (/bar/i.test(nome) ? Icona.bar : Icona.cucina);
+export { Check, CheckCircle, Clock, Warning };

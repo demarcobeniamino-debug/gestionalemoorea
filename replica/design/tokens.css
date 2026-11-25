@@ -58,8 +58,8 @@
 :root {
   --c-carta: #ffffff;
   --c-inchiostro: #000000;
-  --font-sans: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: 'Geist Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
   --t-xs-size: 12px; --t-xs-line: 16px; --t-xs-weight: 500;
   --t-sm-size: 14px; --t-sm-line: 20px; --t-sm-weight: 500;
   --t-base-size: 16px; --t-base-line: 24px; --t-base-weight: 400;
@@ -85,9 +85,10 @@
   --r-pill: 999px;
   --shadow-card: 0 1px 2px rgba(0,0,0,.25);
   --shadow-pop: 0 16px 40px rgba(0,0,0,.45);
-  --m-fast: 100ms; --m-base: 180ms; --m-ease: cubic-bezier(.2,.8,.2,1);
+  --m-press: 160ms; --m-fast: 140ms; --m-base: 200ms; --m-drawer: 300ms;
+  --ease-out: cubic-bezier(.23,1,.32,1); --ease-drawer: cubic-bezier(.32,.72,0,1);
 }
 
-@media (prefers-reduced-motion: reduce) { :root { --m-fast: 0ms; --m-base: 0ms; } }
+@media (prefers-reduced-motion: reduce) { :root { --m-press: 0ms; --m-drawer: 160ms; --ease-drawer: ease; } }
 
 body { font-family: var(--font-sans); font-variant-numeric: tabular-nums; background: var(--c-bg); color: var(--c-text); }

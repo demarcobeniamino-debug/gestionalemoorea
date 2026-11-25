@@ -1,7 +1,7 @@
 # Build log
 
 Decisione del 25/11: **app, non sito.** Cassa su PC touch Windows (Tauri, con il ponte stampanti dentro), palmari Android (Capacitor), back office anche web.
-Dati ancora **in memoria** (FakeDataLayer con la stessa interfaccia del backend): il prossimo passo è `/replica-backend`.
+**25/11 pomeriggio: collegata a Supabase.** Due modalità: *locale* (database vero, tempo reale) e *demo* (dati in memoria). Le operazioni delicate sono funzioni del server, idempotenti e testate su Postgres locale e sul progetto.
 
 | ID | data | stato | cosa manca | più difficile del previsto |
 | --- | --- | --- | --- | --- |
@@ -26,3 +26,13 @@ Verifiche:
 - guscio Tauri: `cargo check` ok su Linux; l'installer Windows si costruisce in GitHub Actions (non compilabile qui).
 
 Screenshot in `replica/clone-screens/`.
+
+## 25/11: database collegato e rifinitura design
+
+| cosa | stato | note |
+| --- | --- | --- |
+| Funzioni server (PIN, apri tavolo, invio, storno, preconto, incasso, coda stampa, esiti, inizializzazione) | fatto | testate su Postgres 16 locale e sul progetto Supabase (in transazione annullata) |
+| App su Supabase (cache + Realtime, RPC, accesso dispositivo) | fatto, da collaudare | la prova end-to-end col database vero si fa al primo collegamento di Benny: la creazione di un account di prova direttamente nelle tabelle utenti è stata bloccata, giustamente |
+| Solo la cassa stampa | fatto | coda presa con `for update skip locked`; un browser col database vero non stampa |
+| Design: Geist, icone Phosphor, movimento (pressione 0.97, fogli dal basso, avvisi), categorie più calme, colonna "In sala adesso", stati vuoti | fatto | `/design-taste-frontend` applicata solo nelle parti valide per un gestionale; launcher di `/impeccable` non disponibile qui |
+| Schermata per cambiare i PIN | da fare | i PIN iniziali (1111, 2222, 9999) vanno cambiati prima del servizio |

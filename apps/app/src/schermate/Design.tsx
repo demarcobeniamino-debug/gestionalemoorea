@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Icona, Pulsante, Tastierino } from '../ui/primitivi';
 
-// /design — i primitivi in isolamento, per il controllo del design system.
+// /design: i primitivi in isolamento, per il controllo del design system.
 export function Design() {
   const [tema, setTema] = useState<'servizio' | 'ufficio'>('servizio');
   const [tasti, setTasti] = useState('');
@@ -52,7 +52,7 @@ export function Design() {
 
       <section className="mb-8 max-w-sm">
         <h2 className="mb-3 text-lg font-semibold">Tastierino</h2>
-        <output className="mb-2 block h-8 text-xl tabular-nums">{tasti || '—'}</output>
+        <output className="mb-2 block h-8 text-xl tabular-nums">{tasti || '-'}</output>
         <Tastierino onTasto={(t) => setTasti((x) => (x + t).slice(-8))} />
       </section>
 

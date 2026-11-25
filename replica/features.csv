@@ -1,16 +1,16 @@
 feature,area,priority,original,clone,notes
-Login operatore con PIN e cambio rapido operatore,accesso,must,yes,partial,S01 | build: PIN su schermo e cambio operatore fatti; hash e verifica lato server con /replica-backend
+Login operatore con PIN e cambio rapido operatore,accesso,must,yes,yes,S01 | build: PIN verificato dal server con hash bcrypt; manca solo la schermata per cambiarlo
 Ruoli e permessi per collaboratore,accesso,must,yes,no,S30
 Registro operazioni (data ora operatore),accesso,should,yes,no,S26 audit storni sconti
 Sale configurabili con piantina o immagine di sfondo,sala,must,yes,no,S04
-Piantina interattiva con stato tavoli in tempo reale,sala,must,yes,partial,S03 realtime | build: stati libero/occupato/conto/ritardo fatti; tempo reale tra dispositivi con il backend
+Piantina interattiva con stato tavoli in tempo reale,sala,must,yes,yes,S03 realtime | build: tempo reale via Supabase Realtime; piantina adattiva + colonna In sala adesso
 Menu e listini diversi per sala,sala,should,yes,no,S28
 Apertura tavolo con numero coperti,sala,must,yes,yes,S05 | build: S05 + vincolo un tavolo una comanda
 Sposta comanda / unisci tavoli / trasferisci righe,sala,must,yes,no,S16
 Categorie e sottocategorie illimitate con colori o immagini,comanda,must,yes,partial,S06 S27 | build: categorie colorate fatte; sottocategorie e immagini no
 Presa comanda da cassa fissa,comanda,must,yes,yes,S06 | build: S06
 Presa comanda da palmare / smartphone / tablet (iOS e Android),comanda,must,yes,partial,PWA o app; Comanda Smart | build: layout palmare + guscio Android (APK da CI); iOS escluso per scelta
-Comanda offline sul palmare con sincronizzazione,comanda,must,yes,no,hard part; inferito dall'architettura server locale
+Comanda offline sul palmare con sincronizzazione,comanda,must,yes,no,hard part; inferito dall'architettura server locale | build: fase 2: server LAN nella cassa; ora serve internet (router 4G consigliato)
 Varianti con prezzo e note libere,comanda,must,yes,yes,"S07 | build: tocco lungo: varianti, posto, nota"
 Menu composti / degustazione / prezzo fisso,comanda,should,yes,no,S08
 Vendita a quantità / a peso / qualsiasi unità di misura,comanda,should,yes,no,S09 bilancia
@@ -21,7 +21,7 @@ Stampa comande su stampanti termiche personalizzabile,produzione,must,yes,partia
 Kitchen monitor touch con piatto pronto,produzione,must,yes,yes,"S11 | build: S11 riga/testata pronta, ritardi"
 Messaggi cucina verso sala e altri centri,produzione,should,yes,no,S11
 Monitor clienti stato ordini,produzione,could,yes,no,S12
-Articolo esaurito che si propaga a tutti i dispositivi,comanda,should,yes,partial,inferito | build: esaurito bloccato in vendita; propagazione con il backend
+Articolo esaurito che si propaga a tutti i dispositivi,comanda,should,yes,yes,inferito | build: articoli in Realtime
 Allergeni sugli articoli e avviso in comanda,comanda,must,yes,yes,"Menu Point cita filtro allergeni; per il Moorea (celiaci) è critico | build: allergie al tavolo per posto, fascia in negativo su ticket e monitor"
 Conto unico,cassa,must,yes,yes,S13
 Conti separati alla romana o manuali,cassa,must,yes,partial,S14 | build: alla romana fatto (resto sull’ultima quota); per piatti/posto no
@@ -91,7 +91,7 @@ Totem / chiosco con pagamento,self-order,could,yes,no,Menu Point S45
 Menu multilingua,self-order,should,yes,no,turisti in Costiera; AI per tradurre
 Addebito consumazioni su camera hotel,integrazioni,should,yes,no,S48 verso clone Welcome
 Multi locale con sede e sincronizzazione,multilocale,could,yes,no,S51
-Backup periodico e copia in cloud,sistema,must,yes,no,DB gestito con backup
+Backup periodico e copia in cloud,sistema,must,yes,partial,DB gestito con backup | build: database Supabase con backup giornalieri del piano; esportazione propria da fare
 AI: traduzione articoli e menu,ai,could,yes,no,LLM proprio
 AI: generazione descrizioni piatti,ai,could,yes,no,LLM proprio
 AI: previsione prenotazioni e vendite,ai,could,yes,no,modello su storico

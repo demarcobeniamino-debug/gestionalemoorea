@@ -20,7 +20,7 @@ export class TrasportoIncerto extends Error {}
 export class CodaStampa {
   private occupato = false;
   private timer?: ReturnType<typeof setInterval>;
-  constructor(private db: DataLayer, private trasporto: Trasporto, private opzioni = { tentativiComande: 3 }) {}
+  constructor(private db: DataLayer, private trasporto: Trasporto) {}
 
   avvia(intervalloMs = 500) {
     this.timer = setInterval(() => void this.elabora(), intervalloMs);
@@ -32,9 +32,8 @@ export class CodaStampa {
     if (this.occupato) return;
     this.occupato = true;
     try {
-      for (const j of this.db.lavori().filter((x) => x.stato === 'in_coda' || (x.stato === 'errore' && x.tipo !== 'documento_commerciale' && x.tentativi < this.opzioni.tentativiComande))) {
-        await this.esegui(j);
-      }
+      // Il livello dati "prende" i lavori: con il database li riceve un solo dispositivo (la cassa).
+      for (const j of await this.db.prendiLavori(10)) await this.esegui(j);
     } finally { this.occupato = false; }
   }
 
@@ -50,9 +49,9 @@ export class CodaStampa {
       try {
         const dati = renderEscPos(j.ticket!, { colonne: st.colonne });
         await this.trasporto.inviaTcp(st.host, st.porta, dati, 5000);
-        this.db.esitoLavoro(j.id, { ok: true });
+        await this.db.esitoLavoro(j.id, { ok: true });
       } catch (e) {
-        this.db.esitoLavoro(j.id, { ok: false, errore: `${st.nome}: ${(e as Error).message}` });
+        await this.db.esitoLavoro(j.id, { ok: false, errore: `${st.nome}: ${(e as Error).message}` });
       }
       return;
     }
@@ -60,11 +59,11 @@ export class CodaStampa {
     try {
       const corpo = await this.trasporto.postXml(urlFpMate({ host: st.host }), j.xml!, 15000);
       const r = leggiRispostaEpson(corpo);
-      if (r.ok) this.db.esitoLavoro(j.id, { ok: true, zNumero: r.zNumero, docNumero: r.numeroDocumento, data: r.data });
-      else this.db.esitoLavoro(j.id, { ok: false, errore: `Epson: codice ${r.codice || '?'} stato ${r.stato || '?'}` });
+      if (r.ok) await this.db.esitoLavoro(j.id, { ok: true, zNumero: r.zNumero, docNumero: r.numeroDocumento, data: r.data, matricola: st.matricolaRt });
+      else await this.db.esitoLavoro(j.id, { ok: false, errore: `Epson: codice ${r.codice || '?'} stato ${r.stato || '?'}` });
     } catch (e) {
       const incerto = e instanceof TrasportoIncerto;
-      this.db.esitoLavoro(j.id, {
+      await this.db.esitoLavoro(j.id, {
         ok: false, incerto,
         errore: incerto ? 'Risposta del registratore persa: controlla se lo scontrino è uscito prima di riprovare'
                         : `Cassa RT non raggiungibile: ${(e as Error).message}`,

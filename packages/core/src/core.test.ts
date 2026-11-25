@@ -6,6 +6,7 @@ import {
 } from './index';
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
+const OP = { id: 'op-aldo', nome: 'Aldo', ruolo: 'cameriere' };
 
 describe('soldi', () => {
   it('formatta in italiano', () => {
@@ -87,18 +88,18 @@ describe('servizio completo (fetta verticale)', () => {
 
   it('tavolo → comanda → cucina e bar → scontrino → tavolo libero', async () => {
     const { db, tr, coda } = nuovo();
-    const c = db.apriTavolo('t7', 4, 'Aldo');
-    db.impostaAllergeni(c.id, [{ allergene: 'frutta_a_guscio', posto: 2 }]);
+    const c = await db.apriTavolo('t7', 4, OP);
+    await db.impostaAllergeni(c.id, [{ allergene: 'frutta_a_guscio', posto: 2 }]);
     const s = db.setup();
     const id = (nome: string) => s.articoli.find((a) => a.nome === nome)!.id;
-    db.aggiungiRiga(c.id, { articoloId: id('Vitello tonnato') });
-    db.aggiungiRiga(c.id, { articoloId: id('Paccheri alla genovese'), varianti: [{ nome: '- pecorino', deltaCents: 0 }], note: 'niente noci', posto: 2 });
-    db.aggiungiRiga(c.id, { articoloId: id('Primitivo Desire') });
+    await db.aggiungiRiga(c.id, { articoloId: id('Vitello tonnato') });
+    await db.aggiungiRiga(c.id, { articoloId: id('Paccheri alla genovese'), varianti: [{ nome: '- pecorino', deltaCents: 0 }], note: 'niente noci', posto: 2 });
+    await db.aggiungiRiga(c.id, { articoloId: id('Primitivo Desire') });
 
-    const jobs = db.invia(c.id, 'k-invio-1');
+    const jobs = await db.invia(c.id, 'k-invio-1');
     expect(jobs.map((j) => j.stampanteId).sort()).toEqual(['st-bar', 'st-cucina']);
     // doppio tap: stessa chiave, nessun lavoro in più
-    expect(db.invia(c.id, 'k-invio-1')).toBe(jobs);
+    expect(await db.invia(c.id, 'k-invio-1')).toBe(jobs);
     expect(db.lavori()).toHaveLength(2);
 
     const cucina = anteprima(jobs.find((j) => j.stampanteId === 'st-cucina')!.ticket!, 48).map((r) => r.testo);
@@ -113,7 +114,7 @@ describe('servizio completo (fetta verticale)', () => {
 
     const conto = calcolaConto(db.righe(c.id), 4, 200);
     expect(conto.totaleCents).toBe(1400 + 1700 + 3200 + 800);
-    const { documento } = db.incassa(c.id, { pagamenti: [{ tipo: 'contanti', importoCents: 8000 }] }, 'k-incasso-1');
+    const documento = await db.incassa(c.id, { pagamenti: [{ tipo: 'contanti', importoCents: 8000 }] }, 'k-incasso-1');
     expect(documento.totaleCents).toBe(7100);
     await coda.elabora();
     await flush();
@@ -122,24 +123,24 @@ describe('servizio completo (fetta verticale)', () => {
     expect(db.comandaDelTavolo('t7')).toBeUndefined();
   });
 
-  it('non si apre due volte lo stesso tavolo', () => {
+  it('non si apre due volte lo stesso tavolo', async () => {
     const { db } = nuovo();
-    db.apriTavolo('t1', 2, 'Aldo');
-    expect(() => db.apriTavolo('t1', 2, 'Luca')).toThrow(ErroreDominio);
+    await db.apriTavolo('t1', 2, OP);
+    await expect(db.apriTavolo('t1', 2, OP)).rejects.toThrow(ErroreDominio);
   });
 
-  it('articolo esaurito non si vende', () => {
+  it('articolo esaurito non si vende', async () => {
     const { db } = nuovo();
-    const c = db.apriTavolo('t1', 2, 'Aldo');
+    const c = await db.apriTavolo('t1', 2, OP);
     const risotto = db.setup().articoli.find((a) => a.esaurito)!;
-    expect(() => db.aggiungiRiga(c.id, { articoloId: risotto.id })).toThrow(/esaurito/);
+    await expect(db.aggiungiRiga(c.id, { articoloId: risotto.id })).rejects.toThrow(/esaurito/);
   });
 
   it('stampante cucina offline: il lavoro va in errore e riparte', async () => {
     const { db, tr, coda } = nuovo();
-    const c = db.apriTavolo('t2', 2, 'Aldo');
-    db.aggiungiRiga(c.id, { articoloId: db.setup().articoli[0].id });
-    db.invia(c.id, 'k1');
+    const c = await db.apriTavolo('t2', 2, OP);
+    await db.aggiungiRiga(c.id, { articoloId: db.setup().articoli[0].id });
+    await db.invia(c.id, 'k1');
     tr.guasti['192.168.1.101'] = 'offline';
     await coda.elabora();
     expect(db.lavori()[0]).toMatchObject({ stato: 'errore' });
@@ -151,32 +152,32 @@ describe('servizio completo (fetta verticale)', () => {
 
   it('risposta Epson persa: scontrino "da verificare", nessuna ristampa automatica', async () => {
     const { db, tr, coda } = nuovo();
-    const c = db.apriTavolo('t3', 1, 'Aldo');
-    db.aggiungiRiga(c.id, { articoloId: db.setup().articoli[0].id });
-    db.invia(c.id, 'k1');
+    const c = await db.apriTavolo('t3', 1, OP);
+    await db.aggiungiRiga(c.id, { articoloId: db.setup().articoli[0].id });
+    await db.invia(c.id, 'k1');
     await coda.elabora();
     tr.guasti['192.168.1.110'] = 'incerto';
-    db.incassa(c.id, { pagamenti: [{ tipo: 'carta', importoCents: 1100 }] }, 'k2');
+    await db.incassa(c.id, { pagamenti: [{ tipo: 'carta', importoCents: 1100 }] }, 'k2');
     await coda.elabora();
     expect(db.documenti(c.id)[0].stato).toBe('da_verificare');
     delete tr.guasti['192.168.1.110'];
     await coda.elabora();
     expect(tr.carta.filter((p) => p.xml)).toHaveLength(0);           // non ha riprovato da solo
-    expect(() => db.incassa(c.id, { pagamenti: [{ tipo: 'carta', importoCents: 1100 }] }, 'k3')).toThrow(/verificare/);
+    await expect(db.incassa(c.id, { pagamenti: [{ tipo: 'carta', importoCents: 1100 }] }, 'k3')).rejects.toThrow(/verificare/);
   });
 
   it('alla romana: 5 scontrini, il tavolo si chiude all’ultimo', async () => {
     const { db, coda } = nuovo();
-    const c = db.apriTavolo('t4', 5, 'Luca');
+    const c = await db.apriTavolo('t4', 5, OP);
     const s = db.setup();
     for (const nome of ['Vitello tonnato', 'Vitello tonnato', 'Spaghettone cacio e pepe', 'Ripasso Valpolicella'])
-      db.aggiungiRiga(c.id, { articoloId: s.articoli.find((a) => a.nome === nome)!.id });
-    db.invia(c.id, 'k1'); await coda.elabora();
+      await db.aggiungiRiga(c.id, { articoloId: s.articoli.find((a) => a.nome === nome)!.id });
+    await db.invia(c.id, 'k1'); await coda.elabora();
     const totale = calcolaConto(db.righe(c.id), 5, 200).totaleCents;   // 14+14+16+37+10 = 91,00
     const quote = dividiAllaRomana(totale, 5);
     for (let i = 1; i <= 5; i++) {
       expect(db.comanda(c.id)!.stato).not.toBe('chiusa');
-      db.incassa(c.id, { pagamenti: [{ tipo: 'contanti', importoCents: quote[i - 1] }], quota: { indice: i, di: 5 } }, `q${i}`);
+      await db.incassa(c.id, { pagamenti: [{ tipo: 'contanti', importoCents: quote[i - 1] }], quota: { indice: i, di: 5 } }, `q${i}`);
       await coda.elabora();
     }
     const docs = db.documenti(c.id);
@@ -184,12 +185,12 @@ describe('servizio completo (fetta verticale)', () => {
     expect(db.comanda(c.id)!.stato).toBe('chiusa');
   });
 
-  it('piatto con un allergene del tavolo: avviso in negativo sulla riga', () => {
+  it('piatto con un allergene del tavolo: avviso in negativo sulla riga', async () => {
     const { db } = nuovo();
-    const c = db.apriTavolo('t8', 2, 'Aldo');
-    db.impostaAllergeni(c.id, [{ allergene: 'glutine' }]);
-    db.aggiungiRiga(c.id, { articoloId: db.setup().articoli.find((a) => a.nome === 'Tiramisù')!.id });
-    const [job] = db.invia(c.id, 'k1');
+    const c = await db.apriTavolo('t8', 2, OP);
+    await db.impostaAllergeni(c.id, [{ allergene: 'glutine' }]);
+    await db.aggiungiRiga(c.id, { articoloId: db.setup().articoli.find((a) => a.nome === 'Tiramisù')!.id });
+    const [job] = await db.invia(c.id, 'k1');
     const righe = anteprima(job.ticket!, 48);
     const avviso = righe.find((r) => r.testo.includes('!! CONTIENE GLUTINE !!'));
     expect(avviso?.stile.inverso).toBe(true);
@@ -197,11 +198,12 @@ describe('servizio completo (fetta verticale)', () => {
 
   it('storno di una riga già inviata stampa STORNO in cucina', async () => {
     const { db, coda } = nuovo();
-    const c = db.apriTavolo('t5', 2, 'Aldo');
-    const r = db.aggiungiRiga(c.id, { articoloId: db.setup().articoli[0].id });
-    db.invia(c.id, 'k1'); await coda.elabora();
-    expect(() => db.togliRiga(r.id)).toThrow(/stornata/);
-    const [job] = db.storna(r.id, 'errore cameriere', 'k2');
+    const c = await db.apriTavolo('t5', 2, OP);
+    const r = await db.aggiungiRiga(c.id, { articoloId: db.setup().articoli[0].id });
+    await db.invia(c.id, 'k1'); await coda.elabora();
+    await expect(db.togliRiga(r.id)).rejects.toThrow(/stornata/);
+    await db.storna(r.id, 'errore cameriere', 'k2');
+    const job = db.lavori().at(-1)!;
     expect(anteprima(job.ticket!, 48).map((x) => x.testo)).toContain('*** STORNO ***');
     expect(calcolaConto(db.righe(c.id), 2, 200).subtotaleCents).toBe(0);
   });

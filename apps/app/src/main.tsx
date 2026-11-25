@@ -12,6 +12,7 @@ import { Cucina } from './schermate/Cucina';
 import { Design } from './schermate/Design';
 import { DaFare } from './schermate/DaFare';
 import { CartaSimulata } from './schermate/CartaSimulata';
+import { Collegamento } from './schermate/Collegamento';
 import { tieniAcceso } from './dati/piattaforma';
 
 void tieniAcceso();
@@ -32,7 +33,7 @@ function App() {
         <Route path="/conto/:id" element={<Protetta><Conto /></Protetta>} />
         <Route path="/cucina" element={<Cucina />} />
         <Route path="/design" element={<Design />} />
-        {/* Schermate delle fasi successive (recon S17–S53): segnaposto con il loro scopo. */}
+        {/* Schermate delle fasi successive (recon S17-S53): segnaposto con il loro scopo. */}
         <Route path="/da-fare/:id" element={<DaFare />} />
         <Route path="*" element={<Navigate to="/sala" replace />} />
       </Routes>
@@ -44,7 +45,7 @@ function App() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <DatiProvider>
+    <DatiProvider schermataCollega={(p) => <Collegamento {...p} />}>
       <HashRouter><App /></HashRouter>
     </DatiProvider>
   </StrictMode>,

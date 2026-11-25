@@ -22,7 +22,12 @@ PIN demo: Aldo 1111 · Luca 2222 · Benny 9999. Nel browser le stampe finiscono 
 ## Database (Supabase)
 
 Progetto **gestionale-moorea** (regione Francoforte), schema in `supabase/migrations/`, 45 tabelle con regole di accesso per locale (RLS).
-Indirizzo e chiave pubblica in `apps/app/.env`. L'app usa ancora i dati in memoria: il collegamento al database è il prossimo passo.
+Indirizzo e chiave pubblica in `apps/app/.env`.
+
+**Primo avvio con il database:** schermata *Collega questo dispositivo* → *Crea l'account del locale* (email e password del Moorea) → conferma dall'email → *Collega*. Al primo collegamento il database crea il locale con sale, tavoli, piatti di esempio e tre operatori (PIN 9999, 1111, 2222 da cambiare). Ogni altro dispositivo si collega con lo stesso account.
+Solo l'app Windows di cassa stampa. Per una prova da browser: in console `localStorage.setItem('gr.stampa','simulata')`.
+
+*Prova la demo* usa dati in memoria e non tocca il database.
 
 ## Test
 

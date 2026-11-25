@@ -46,8 +46,8 @@ export default {
       spacing: { touch: 'var(--touch-min)', 'touch-comodo': 'var(--touch-comfortable)', tile: 'var(--touch-tile)', tasto: 'var(--touch-keypad)' },
       borderRadius: { sm: 'var(--r-sm)', md: 'var(--r-md)', lg: 'var(--r-lg)', pill: 'var(--r-pill)' },
       boxShadow: { card: 'var(--shadow-card)', pop: 'var(--shadow-pop)' },
-      transitionDuration: { fast: 'var(--m-fast)', base: 'var(--m-base)' },
-      transitionTimingFunction: { base: 'var(--m-ease)' },
+      transitionDuration: { press: 'var(--m-press)', fast: 'var(--m-fast)', base: 'var(--m-base)', drawer: 'var(--m-drawer)' },
+      transitionTimingFunction: { out: 'var(--ease-out)', drawer: 'var(--ease-drawer)' },
     },
   },
 } satisfies Config

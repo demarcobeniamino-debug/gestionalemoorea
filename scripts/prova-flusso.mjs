@@ -12,6 +12,10 @@ const pagina = async (w, h) => {
 };
 const p = await pagina(1280, 800);
 await p.goto(URL + '/#/accesso');
+await p.waitForTimeout(400);
+await p.screenshot({ path: `${OUT}/S00-collegamento.png` });
+await p.getByRole('button', { name: 'Prova la demo, senza account' }).click();
+await p.waitForTimeout(300);
 await p.screenshot({ path: `${OUT}/S01-accesso.png` });
 for (const c of '1111') await p.getByRole('button', { name: c, exact: true }).click();
 await p.waitForURL(/#\/sala/);
@@ -38,7 +42,7 @@ await p.getByRole('button', { name: /^Paccheri alla genovese/ }).click({ button:
 await p.getByRole('button', { name: '- pecorino' }).click();
 await p.locator('dialog[open]').getByRole('button', { name: '2', exact: true }).click();
 await p.getByPlaceholder('es. niente noci, poco sale').fill('niente noci');
-await p.locator('dialog[open]').getByRole('button', { name: 'Aggiungi', exact: true }).click();
+await p.locator('dialog[open]').getByRole('button', { name: /^Aggiungi/ }).click();
 await p.getByRole('button', { name: /^Spaghettone cacio e pepe/ }).click();
 await p.getByRole('button', { name: 'Vini', exact: true }).first().click();
 await p.getByRole('button', { name: /^Primitivo Desire/ }).click();
@@ -48,6 +52,12 @@ await p.screenshot({ path: `${OUT}/S06-comanda-prima-invio.png` });
 await p.getByRole('button', { name: /^Invia \(4\)/ }).click();
 await p.waitForTimeout(900);
 await p.screenshot({ path: `${OUT}/S06-comanda-inviata.png` });
+const urlComanda = p.url();
+await p.getByRole('link', { name: 'Indietro' }).click();
+await p.waitForTimeout(600);
+await p.screenshot({ path: `${OUT}/S03-sala-occupata.png` });
+await p.goto(urlComanda);
+await p.waitForTimeout(300);
 
 // carta simulata
 await p.getByRole('button', { name: 'Apri la carta simulata' }).click();
@@ -77,6 +87,8 @@ const libero = await p.getByRole('button', { name: /^Tavolo 7, libero/ }).count(
 // palmare
 const m = await pagina(390, 844);
 await m.goto(URL + '/#/accesso');
+await m.getByRole('button', { name: 'Prova la demo, senza account' }).click();
+await m.waitForTimeout(300);
 for (const c of '2222') await m.getByRole('button', { name: c, exact: true }).click();
 await m.getByRole('button', { name: /^Tavolo 4, libero/ }).click();
 await m.getByRole('button', { name: 'Apri e prendi la comanda' }).click();
@@ -86,6 +98,8 @@ await m.screenshot({ path: `${OUT}/S06-palmare.png` });
 
 // design
 const d = await pagina(1280, 900);
+await d.goto(URL + '/#/accesso');
+await d.getByRole('button', { name: 'Prova la demo, senza account' }).click();
 await d.goto(URL + '/#/design');
 await d.screenshot({ path: `${OUT}/design.png`, fullPage: true });
 
