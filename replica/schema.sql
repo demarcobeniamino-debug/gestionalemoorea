@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Gestionale ristorazione (clone clean-room delle funzioni di Passepartout Menu)
--- Migrazione 0001 — Postgres 15+ su Supabase
+-- Schema completo, identico al progetto Supabase gestionale-moorea (applicato il 25/11/2026 in 3 migrazioni)
 -- Convenzioni:
 --   * id uuid, created_at/updated_at timestamptz (UTC)
 --   * soldi in centesimi (integer) + valuta
@@ -8,13 +8,13 @@
 --   * gli stati sono vincoli CHECK, non testo libero
 -- =====================================================================
 
-create extension if not exists btree_gist;   -- per i vincoli di esclusione (prenotazioni)
+create extension if not exists btree_gist with schema extensions;   -- per i vincoli di esclusione (prenotazioni)
 
 -- ---------------------------------------------------------------------
 -- utilità
 -- ---------------------------------------------------------------------
 create or replace function set_updated_at() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = '' as $$
 begin
   new.updated_at := now();
   return new;
@@ -164,6 +164,7 @@ create table sale (
   updated_at timestamptz not null default now()
 );
 create index on sale (locale_id);
+create index on sale (listino_id);
 
 create table tavoli (
   id uuid primary key default gen_random_uuid(),
@@ -226,6 +227,7 @@ create table articoli (
         'frutta_a_guscio','sedano','senape','sesamo','solfiti','lupini','molluschi']::text[])
 );
 create index on articoli (locale_id, categoria_id);
+create index on articoli (categoria_id);
 create index on articoli (aliquota_iva_id);
 create index on articoli (centro_produzione_id);
 
@@ -335,6 +337,7 @@ create table prenotazioni (
 create index on prenotazioni (locale_id, inizio_at);
 create index on prenotazioni (cliente_id);
 create index on prenotazioni (tavolo_id);
+create index on prenotazioni (operatore_id);
 create unique index on prenotazioni (locale_id, fonte, ext_id) where ext_id is not null;
 
 create table lista_attesa (
@@ -369,6 +372,7 @@ create table comande (
   stato text not null default 'aperta' check (stato in ('aperta','preconto','chiusa','annullata')),
   orario_ritiro_at timestamptz,             -- asporto/domicilio
   note text,
+  allergeni_tavolo jsonb not null default '[]',  -- [{"allergene":"glutine","posto":2}]
   aperta_at timestamptz not null default now(),
   chiusa_at timestamptz,
   version integer not null default 1,       -- lock ottimistico tra palmari
@@ -384,6 +388,7 @@ create index on comande (locale_id, stato);
 create index on comande (cliente_id);
 create index on comande (prenotazione_id);
 create index on comande (operatore_id);
+create index on comande (listino_id);
 
 -- ogni "Invia" / "Marcia" crea un invio: è l'unità che la cucina riceve e stampa
 create table invii_produzione (
@@ -398,6 +403,7 @@ create table invii_produzione (
   unique (locale_id, idempotency_key)
 );
 create index on invii_produzione (comanda_id);
+create index on invii_produzione (operatore_id);
 
 create table righe_comanda (
   id uuid primary key default gen_random_uuid(),
@@ -419,6 +425,7 @@ create table righe_comanda (
   stato text not null default 'da_inviare'
     check (stato in ('da_inviare','in_attesa_marcia','inviata','in_preparazione','pronta','servita','stornata')),
   invio_id uuid references invii_produzione(id) on delete set null,
+  inviata_at timestamptz,
   stornata_da uuid references operatori(id) on delete set null,
   motivo_storno text,
   operatore_id uuid references operatori(id) on delete set null,
@@ -431,6 +438,10 @@ create index on righe_comanda (locale_id, centro_produzione_id, stato);   -- kit
 create index on righe_comanda (articolo_id);
 create index on righe_comanda (invio_id);
 create index on righe_comanda (parent_riga_id);
+create index on righe_comanda (centro_produzione_id);
+create index on righe_comanda (aliquota_iva_id);
+create index on righe_comanda (stornata_da);
+create index on righe_comanda (operatore_id);
 
 -- =====================================================================
 -- 7. CODA DI STAMPA (comande e documenti fiscali)
@@ -461,6 +472,7 @@ create index on print_jobs (locale_id, stato, created_at);
 create index on print_jobs (stampante_id);
 create index on print_jobs (invio_id);
 create index on print_jobs (documento_id);
+create index on print_jobs (preso_da);
 
 -- =====================================================================
 -- 8. CONTI, DOCUMENTI, PAGAMENTI
@@ -482,6 +494,8 @@ create table documenti (
   totale_cents integer not null,
   sconto_cents integer not null default 0,
   valuta char(3) not null default 'EUR',
+  quota_indice integer,                     -- alla romana: quota n. ...
+  quota_di integer,                         -- ... su quote totali
   -- dati restituiti dall'RT (servono per annulli e resi)
   stampante_id uuid references stampanti(id) on delete restrict,
   rt_matricola text,
@@ -496,6 +510,7 @@ create table documenti (
   sdi_ref text,
   documento_origine_id uuid references documenti(id) on delete restrict,  -- per annulli/resi
   operatore_id uuid references operatori(id) on delete set null,
+  errore text,
   idempotency_key text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -511,6 +526,7 @@ create index on documenti (comanda_id);
 create index on documenti (cliente_id);
 create index on documenti (stampante_id);
 create index on documenti (documento_origine_id);
+create index on documenti (operatore_id);
 
 alter table print_jobs
   add constraint print_jobs_documento_fk foreign key (documento_id) references documenti(id) on delete restrict;
@@ -523,7 +539,7 @@ create table righe_documento (
   quantita numeric(10,3) not null,
   prezzo_unitario_cents integer not null,
   importo_cents integer not null,
-  aliquota_iva_id uuid not null references aliquote_iva(id) on delete restrict,
+  aliquota_iva_id uuid references aliquote_iva(id) on delete restrict,   -- nulla per le quote alla romana
   reparto_rt integer not null
 );
 create index on righe_documento (documento_id);
@@ -574,6 +590,7 @@ create table chiusure (
   unique (locale_id, giorno_servizio, stampante_id)
 );
 create index on chiusure (stampante_id);
+create index on chiusure (operatore_id);
 
 create table audit_log (
   id bigint generated always as identity primary key,
@@ -589,6 +606,7 @@ create table audit_log (
 );
 create index on audit_log (locale_id, at desc);
 create index on audit_log (operatore_id);
+create index on audit_log (dispositivo_id);
 
 -- =====================================================================
 -- 9. FIDELITY E MARKETING (fase 2)
@@ -711,6 +729,7 @@ create table movimenti_magazzino (
 create index on movimenti_magazzino (locale_id, data);
 create index on movimenti_magazzino (fornitore_id);
 create index on movimenti_magazzino (locale_collegato_id);
+create index on movimenti_magazzino (operatore_id);
 
 create table righe_movimento (
   id uuid primary key default gen_random_uuid(),
@@ -801,7 +820,7 @@ begin
     join information_schema.tables tb on tb.table_name = c.table_name and tb.table_schema = c.table_schema
     where c.table_schema = 'public' and c.column_name = 'updated_at' and tb.table_type = 'BASE TABLE'
   loop
-    execute format('create trigger %I before update on %I for each row execute function set_updated_at()',
+    execute format('create trigger %I before update on public.%I for each row execute function public.set_updated_at()',
                    t || '_updated_at', t);
   end loop;
 end $$;
@@ -812,16 +831,26 @@ end $$;
 -- Le operazioni delicate (invio, conto, storno, chiusura) passano da funzioni RPC
 -- che controllano anche il PIN/permessi dell'operatore.
 -- =====================================================================
-create or replace function mio_locale(l uuid) returns boolean
-language sql stable security definer set search_path = public as $$
-  select exists (select 1 from membri m where m.locale_id = l and m.user_id = auth.uid());
+-- Le funzioni di controllo stanno nello schema "privato", non esposto dalle API.
+create schema if not exists privato;
+revoke all on schema privato from public;
+grant usage on schema privato to authenticated;
+
+create or replace function privato.mio_locale(l uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.membri m where m.locale_id = l and m.user_id = (select auth.uid()));
 $$;
 
-create or replace function mio_gruppo(g uuid) returns boolean
-language sql stable security definer set search_path = public as $$
-  select exists (select 1 from membri m join locali lo on lo.id = m.locale_id
-                 where lo.gruppo_id = g and m.user_id = auth.uid());
+create or replace function privato.mio_gruppo(g uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.membri m join public.locali lo on lo.id = m.locale_id
+                 where lo.gruppo_id = g and m.user_id = (select auth.uid()));
 $$;
+
+revoke all on function privato.mio_locale(uuid) from public, anon;
+revoke all on function privato.mio_gruppo(uuid) from public, anon;
+grant execute on function privato.mio_locale(uuid) to authenticated;
+grant execute on function privato.mio_gruppo(uuid) to authenticated;
 
 do $$
 declare t text;
@@ -833,62 +862,62 @@ begin
       and table_name in (select table_name from information_schema.tables
                          where table_schema = 'public' and table_type = 'BASE TABLE')
   loop
-    execute format('alter table %I enable row level security', t);
-    execute format('create policy %I on %I for all using (mio_locale(locale_id)) with check (mio_locale(locale_id))',
+    execute format('alter table public.%I enable row level security', t);
+    execute format('create policy %I on public.%I for all to authenticated using (privato.mio_locale(locale_id)) with check (privato.mio_locale(locale_id))',
                    t || '_locale', t);
   end loop;
   -- tabelle con gruppo_id
   foreach t in array array['clienti','promozioni','carte_fidelity','campagne','fornitori','mag_articoli'] loop
-    execute format('alter table %I enable row level security', t);
-    execute format('create policy %I on %I for all using (mio_gruppo(gruppo_id)) with check (mio_gruppo(gruppo_id))',
+    execute format('alter table public.%I enable row level security', t);
+    execute format('create policy %I on public.%I for all to authenticated using (privato.mio_gruppo(gruppo_id)) with check (privato.mio_gruppo(gruppo_id))',
                    t || '_gruppo', t);
   end loop;
 end $$;
 
 alter table locali enable row level security;
-create policy locali_membri on locali for select using (mio_locale(id));
+create policy locali_membri on locali for select to authenticated using (privato.mio_locale(id));
 alter table gruppi enable row level security;
-create policy gruppi_membri on gruppi for select using (mio_gruppo(id));
+create policy gruppi_membri on gruppi for select to authenticated using (privato.mio_gruppo(id));
 
 -- tabelle figlie senza locale_id: accesso tramite il padre
 alter table prezzi_listino enable row level security;
-create policy prezzi_listino_via_listino on prezzi_listino for all
-  using (exists (select 1 from listini l where l.id = listino_id and mio_locale(l.locale_id)))
-  with check (exists (select 1 from listini l where l.id = listino_id and mio_locale(l.locale_id)));
+create policy prezzi_listino_via_listino on prezzi_listino for all to authenticated
+  using (exists (select 1 from listini l where l.id = listino_id and privato.mio_locale(l.locale_id)))
+  with check (exists (select 1 from listini l where l.id = listino_id and privato.mio_locale(l.locale_id)));
 
 alter table articolo_varianti enable row level security;
-create policy articolo_varianti_via_articolo on articolo_varianti for all
-  using (exists (select 1 from articoli a where a.id = articolo_id and mio_locale(a.locale_id)))
-  with check (exists (select 1 from articoli a where a.id = articolo_id and mio_locale(a.locale_id)));
+create policy articolo_varianti_via_articolo on articolo_varianti for all to authenticated
+  using (exists (select 1 from articoli a where a.id = articolo_id and privato.mio_locale(a.locale_id)))
+  with check (exists (select 1 from articoli a where a.id = articolo_id and privato.mio_locale(a.locale_id)));
 
 alter table menu_componenti enable row level security;
-create policy menu_componenti_via_articolo on menu_componenti for all
-  using (exists (select 1 from articoli a where a.id = menu_id and mio_locale(a.locale_id)))
-  with check (exists (select 1 from articoli a where a.id = menu_id and mio_locale(a.locale_id)));
+create policy menu_componenti_via_articolo on menu_componenti for all to authenticated
+  using (exists (select 1 from articoli a where a.id = menu_id and privato.mio_locale(a.locale_id)))
+  with check (exists (select 1 from articoli a where a.id = menu_id and privato.mio_locale(a.locale_id)));
 
 alter table righe_documento enable row level security;
-create policy righe_documento_via_documento on righe_documento for all
-  using (exists (select 1 from documenti d where d.id = documento_id and mio_locale(d.locale_id)))
-  with check (exists (select 1 from documenti d where d.id = documento_id and mio_locale(d.locale_id)));
+create policy righe_documento_via_documento on righe_documento for all to authenticated
+  using (exists (select 1 from documenti d where d.id = documento_id and privato.mio_locale(d.locale_id)))
+  with check (exists (select 1 from documenti d where d.id = documento_id and privato.mio_locale(d.locale_id)));
 
 alter table movimenti_fidelity enable row level security;
-create policy movimenti_fidelity_via_carta on movimenti_fidelity for all
-  using (exists (select 1 from carte_fidelity c where c.id = carta_id and mio_gruppo(c.gruppo_id)))
-  with check (exists (select 1 from carte_fidelity c where c.id = carta_id and mio_gruppo(c.gruppo_id)));
+create policy movimenti_fidelity_via_carta on movimenti_fidelity for all to authenticated
+  using (exists (select 1 from carte_fidelity c where c.id = carta_id and privato.mio_gruppo(c.gruppo_id)))
+  with check (exists (select 1 from carte_fidelity c where c.id = carta_id and privato.mio_gruppo(c.gruppo_id)));
 
 alter table distinte enable row level security;
-create policy distinte_via_articolo on distinte for all
-  using (exists (select 1 from articoli a where a.id = articolo_id and mio_locale(a.locale_id)))
-  with check (exists (select 1 from articoli a where a.id = articolo_id and mio_locale(a.locale_id)));
+create policy distinte_via_articolo on distinte for all to authenticated
+  using (exists (select 1 from articoli a where a.id = articolo_id and privato.mio_locale(a.locale_id)))
+  with check (exists (select 1 from articoli a where a.id = articolo_id and privato.mio_locale(a.locale_id)));
 
 alter table righe_movimento enable row level security;
-create policy righe_movimento_via_movimento on righe_movimento for all
-  using (exists (select 1 from movimenti_magazzino m where m.id = movimento_id and mio_locale(m.locale_id)))
-  with check (exists (select 1 from movimenti_magazzino m where m.id = movimento_id and mio_locale(m.locale_id)));
+create policy righe_movimento_via_movimento on righe_movimento for all to authenticated
+  using (exists (select 1 from movimenti_magazzino m where m.id = movimento_id and privato.mio_locale(m.locale_id)))
+  with check (exists (select 1 from movimenti_magazzino m where m.id = movimento_id and privato.mio_locale(m.locale_id)));
 
 -- I documenti fiscali emessi non si modificano né si cancellano: si annullano con un nuovo documento.
 create or replace function blocca_documento_emesso() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = '' as $$
 begin
   if tg_op = 'DELETE' and old.stato = 'emesso' then
     raise exception 'Documento emesso: non si cancella, si annulla';
@@ -905,7 +934,6 @@ create trigger documenti_immutabili before update or delete on documenti
 
 -- =====================================================================
 -- 14. REALTIME: tabelle che sala, cucina e ponte ascoltano
--- (eseguire su Supabase; la publication esiste già)
--- alter publication supabase_realtime add table comande, righe_comanda, print_jobs,
---   tavoli, prenotazioni, lista_attesa, articoli, documenti;
+alter publication supabase_realtime add table comande, righe_comanda, print_jobs,
+  tavoli, prenotazioni, lista_attesa, articoli, documenti;
 -- =====================================================================

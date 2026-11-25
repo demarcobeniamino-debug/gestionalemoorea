@@ -19,6 +19,11 @@ npm run dev            # http://localhost:1420
 
 PIN demo: Aldo 1111 · Luca 2222 · Benny 9999. Nel browser le stampe finiscono nel pannello **Carta** (in basso a sinistra), dove puoi anche simulare una stampante spenta o la risposta dell'Epson persa.
 
+## Database (Supabase)
+
+Progetto **gestionale-moorea** (regione Francoforte), schema in `supabase/migrations/`, 45 tabelle con regole di accesso per locale (RLS).
+Indirizzo e chiave pubblica in `apps/app/.env`. L'app usa ancora i dati in memoria: il collegamento al database è il prossimo passo.
+
 ## Test
 
 ```bash
