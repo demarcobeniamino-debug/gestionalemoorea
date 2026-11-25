@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Ticket stampati — comanda e preconto</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.p{width:360px;background:#fff;color:#000;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;line-height:18px;padding:18px 16px 26px;box-sizing:border-box;box-shadow:0 16px 40px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:2px}
+.row{display:flex;justify-content:space-between;white-space:pre}
+.hr{border-top:1px dashed #000;margin:6px 0}
+.big{font-size:24px;line-height:30px;font-weight:800}
+.dh{font-size:18px;line-height:24px;font-weight:700}
+.inv{background:#000;color:#fff;font-weight:800;padding:4px 6px;text-align:center}
+.ind{padding-left:28px}
+</style>
+</helmet>
+<div style="width:860px;height:900px;background:#0f1216;color:#f2f4f7;font-family:Inter,system-ui,sans-serif;padding:28px;box-sizing:border-box;display:flex;flex-direction:column;gap:20px">
+  <div style="display:flex;justify-content:space-between;align-items:baseline">
+    <h1 style="margin:0;font-size:20px;font-weight:700">Anteprima carta · Matchpower 80 mm, 48 colonne</h1>
+    <span style="font-size:13px;color:#a3acba">ESC/POS · doppia altezza per quantità e tavolo</span>
+  </div>
+  <div style="display:flex;gap:44px;align-items:flex-start">
+
+    <figure style="margin:0;display:flex;flex-direction:column;gap:10px">
+      <figcaption style="font-size:14px;font-weight:600;color:#a3acba">Stampante Cucina — invio 2ª portata</figcaption>
+      <div class="p">
+        <div class="row"><span>CUCINA</span><span>#0137</span></div>
+        <div class="big">TAVOLO 7</div>
+        <div class="row"><span>4 coperti · Interno</span><span>20:47</span></div>
+        <div>Cameriere: Aldo</div>
+        <div class="hr"></div>
+        <div class="inv">!! ALLERGIA FRUTTA A GUSCIO · POSTO 2 !!</div>
+        <div class="hr"></div>
+        <div class="dh">--- 2ª PORTATA ---</div>
+        <div class="dh">1 x Polpo crema zucca</div>
+        <div class="dh">1 x Paccheri genovese</div>
+        <div class="ind">- senza pecorino</div>
+        <div class="ind">* posto 2: niente noci</div>
+        <div class="hr"></div>
+        <div>In attesa: nessuna</div>
+        <div>Già uscite: 1ª portata</div>
+        <div style="margin-top:12px;text-align:center;letter-spacing:2px">- - - - - taglio - - - - -</div>
+      </div>
+    </figure>
+
+    <figure style="margin:0;display:flex;flex-direction:column;gap:10px">
+      <figcaption style="font-size:14px;font-weight:600;color:#a3acba">Stampante Preconto — non fiscale</figcaption>
+      <div class="p">
+        <div style="text-align:center;font-weight:700">MOOREA FOOD CLUB</div>
+        <div style="text-align:center">Maiori</div>
+        <div class="hr"></div>
+        <div class="row"><span>PRECONTO  Tavolo 4</span><span>20:51</span></div>
+        <div class="row"><span>5 coperti</span><span>Op. Luca</span></div>
+        <div class="hr"></div>
+        <div class="row"><span>2 Vitello tonnato</span><span>28,00</span></div>
+        <div class="row"><span>3 Spaghettone cacio e pepe</span><span>48,00</span></div>
+        <div class="row"><span>1 Ripasso Valpolicella</span><span>37,00</span></div>
+        <div class="row"><span>2 Tiramisù</span><span>16,00</span></div>
+        <div class="row"><span>5 Coperto</span><span>10,00</span></div>
+        <div class="row"><span>3 Acqua 0,75</span><span>9,00</span></div>
+        <div class="row"><span>Sconto</span><span>-5,50</span></div>
+        <div class="hr"></div>
+        <div class="row dh"><span>TOTALE EUR</span><span>142,50</span></div>
+        <div class="row"><span>Alla romana (5)</span><span>28,50</span></div>
+        <div class="hr"></div>
+        <div style="text-align:center;font-weight:700">NON VALIDO COME</div>
+        <div style="text-align:center;font-weight:700">DOCUMENTO FISCALE</div>
+        <div style="text-align:center;margin-top:6px">Lo scontrino lo emette la cassa</div>
+        <div style="margin-top:12px;text-align:center;letter-spacing:2px">- - - - - taglio - - - - -</div>
+      </div>
+    </figure>
+  </div>
+  <p style="margin:0;font-size:13px;line-height:20px;color:#a3acba;max-width:780px">Lo scontrino fiscale non si disegna qui: lo compone e lo stampa l’Epson RT con il suo formato omologato. Il gestionale gli passa solo righe, reparti IVA e pagamenti.</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":860,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

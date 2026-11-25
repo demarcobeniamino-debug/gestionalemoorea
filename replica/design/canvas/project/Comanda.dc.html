@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Comanda — cassa</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button{font-family:inherit;cursor:pointer}
+.cat{height:64px;border:none;border-radius:10px;font-size:16px;font-weight:700;text-align:left;padding:0 14px}
+.art{min-height:96px;border:1px solid #2e3440;border-radius:10px;background:#181c22;color:#f2f4f7;text-align:left;padding:12px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;font-size:15px;font-weight:600;line-height:20px}
+.art small{font-size:14px;font-weight:500;color:#a3acba;font-variant-numeric:tabular-nums;display:flex;justify-content:space-between;align-items:center}
+.al{font-size:11px;font-weight:700;background:#ffd23f;color:#000;border-radius:4px;padding:1px 5px}
+.r{display:flex;justify-content:space-between;gap:8px;font-size:15px;font-variant-numeric:tabular-nums}
+.sub{font-size:13px;color:#a3acba;padding-left:22px}
+</style>
+</helmet>
+<div style="width:1280px;height:800px;background:#0f1216;color:#f2f4f7;font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden">
+
+  <header style="height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px;background:#181c22;border-bottom:1px solid #2e3440">
+    <a href="Main.dc.html" aria-label="Torna alla sala" style="height:40px;width:40px;border-radius:10px;background:#222730;color:#f2f4f7;display:flex;align-items:center;justify-content:center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+    <div style="font-size:20px;font-weight:700">Tavolo 7</div>
+    <div style="font-size:14px;color:#a3acba;font-weight:500">4 coperti · Interno · listino Sala</div>
+    <div style="flex:1"></div>
+    <label style="height:40px;width:300px;border-radius:10px;border:1px solid #6b7688;background:#0f1216;display:flex;align-items:center;gap:8px;padding:0 12px;box-sizing:border-box;color:#a3acba;font-size:14px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+      <span style="position:absolute;left:-9999px">Cerca articolo</span>
+      <input placeholder="Cerca articolo o codice" style="border:none;background:transparent;color:#f2f4f7;font-size:14px;outline:none;width:100%;font-family:inherit">
+    </label>
+    <div aria-label="Stato stampanti" style="display:flex;gap:10px;font-size:12px;font-weight:600;color:#a3acba">
+      <span style="display:flex;align-items:center;gap:6px"><i style="width:8px;height:8px;border-radius:50%;background:#46c37b;display:block"></i>Cucina</span>
+      <span style="display:flex;align-items:center;gap:6px"><i style="width:8px;height:8px;border-radius:50%;background:#f2b544;display:block"></i>Bar · 1 in coda</span>
+    </div>
+    <div style="font-size:14px;font-weight:600">Aldo</div>
+  </header>
+
+  <div style="flex:1;display:flex;min-height:0">
+    <nav aria-label="Categorie" style="width:176px;flex:none;padding:12px;display:flex;flex-direction:column;gap:8px;background:#0f1216;border-right:1px solid #2e3440">
+      <button class="cat" style="background:#e9c46a;color:#1a1204">Tapas</button>
+      <button class="cat" style="background:#f4a261;color:#1a0d04">Antipasti</button>
+      <button class="cat" style="background:#f2f4f7;color:#0f1216;outline:3px solid #7cc8ff;outline-offset:2px">Primi</button>
+      <button class="cat" style="background:#e76f51;color:#160604">Secondi</button>
+      <button class="cat" style="background:#8ab17d;color:#06150d">Contorni</button>
+      <button class="cat" style="background:#c9a7eb;color:#140a1e">Dessert</button>
+      <button class="cat" style="background:#7cc8ff;color:#04121c">Cocktail</button>
+      <button class="cat" style="background:#d4a5a5;color:#1c0a0a">Vini</button>
+      <button class="cat" style="background:#a3acba;color:#0f1216">Acqua e bibite</button>
+    </nav>
+
+    <main style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div role="tablist" aria-label="Portata" style="display:flex;gap:6px;padding:12px 16px;border-bottom:1px solid #2e3440;align-items:center">
+        <span style="font-size:13px;color:#a3acba;font-weight:600;margin-right:4px">Portata</span>
+        <button role="tab" style="height:40px;padding:0 14px;border-radius:999px;border:1px solid #2e3440;background:#181c22;color:#a3acba;font-size:14px;font-weight:600">Bevande ✓</button>
+        <button role="tab" style="height:40px;padding:0 14px;border-radius:999px;border:1px solid #2e3440;background:#181c22;color:#a3acba;font-size:14px;font-weight:600">1ª ✓</button>
+        <button role="tab" aria-selected="true" style="height:40px;padding:0 14px;border-radius:999px;border:none;background:#3fb5a3;color:#0b1512;font-size:14px;font-weight:700">2ª</button>
+        <button role="tab" style="height:40px;padding:0 14px;border-radius:999px;border:1px solid #2e3440;background:#181c22;color:#f2f4f7;font-size:14px;font-weight:600">3ª</button>
+        <button role="tab" style="height:40px;padding:0 14px;border-radius:999px;border:1px solid #2e3440;background:#181c22;color:#f2f4f7;font-size:14px;font-weight:600">Dessert</button>
+      </div>
+      <div style="flex:1;padding:16px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-content:start">
+        <button class="art">Spaghettone cacio e pepe<small><span>€ 16,00</span><span class="al">GLUTINE · LATTE</span></small></button>
+        <button class="art">Linguine ai frutti di mare<small><span>€ 22,00</span><span class="al">GLUTINE · MOLLUSCHI</span></small></button>
+        <button class="art">Gnocchi alla sorrentina<small><span>€ 15,00</span><span class="al">GLUTINE · LATTE</span></small></button>
+        <button class="art">Scialatielli Amalfi<small><span>€ 18,00</span><span class="al">GLUTINE · PESCE</span></small></button>
+        <button class="art" style="border-color:#3fb5a3">Paccheri alla genovese<small><span>€ 17,00</span><span style="background:#3fb5a3;color:#0b1512;border-radius:999px;padding:0 8px;font-weight:700">× 1</span></small></button>
+        <button class="art">Ravioli capresi<small><span>€ 16,00</span><span class="al">GLUTINE · LATTE · UOVA</span></small></button>
+        <button class="art" aria-disabled="true" style="opacity:.55">Risotto al limone<small><span style="text-decoration:line-through">€ 18,00</span><span style="color:#f0625d;font-weight:700">Esaurito</span></small></button>
+        <button class="art">Pasta senza glutine<small><span>€ 16,00</span><span style="color:#3fb5a3;font-weight:700">varianti ●</span></small></button>
+      </div>
+      <p style="margin:0;padding:0 16px 12px;font-size:12px;color:#a3acba">Tocco = aggiungi · tocco lungo = varianti e note · dati di esempio</p>
+    </main>
+
+    <aside aria-label="Comanda" style="width:392px;flex:none;background:#181c22;border-left:1px solid #2e3440;display:flex;flex-direction:column">
+      <div style="padding:10px 16px;background:#ffd23f;color:#000;font-weight:700;font-size:14px">⚠ ALLERGIA FRUTTA A GUSCIO · posto 2</div>
+      <div style="flex:1;overflow:hidden;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:12px;font-weight:700;color:#a3acba;display:flex;justify-content:space-between"><span>BEVANDE</span><span>inviata 19:58</span></div>
+        <div class="r" style="color:#a3acba"><span>1 × Primitivo Desire</span><span>32,00</span></div>
+        <div style="font-size:12px;font-weight:700;color:#a3acba;display:flex;justify-content:space-between;padding-top:6px"><span>1ª PORTATA</span><span>inviata 20:02</span></div>
+        <div class="r" style="color:#a3acba"><span>1 × Vitello tonnato</span><span>14,00</span></div>
+        <div class="r" style="color:#a3acba"><span>1 × Fresella, alici di Cetara</span><span>12,00</span></div>
+        <div class="r" style="color:#a3acba"><span>2 × Spaghettone cacio e pepe</span><span>32,00</span></div>
+        <div style="font-size:12px;font-weight:700;color:#3fb5a3;display:flex;justify-content:space-between;padding-top:6px"><span>2ª PORTATA</span><span>da inviare</span></div>
+        <div style="border-left:3px solid #3fb5a3;padding-left:10px;display:flex;flex-direction:column;gap:2px">
+          <div class="r"><span>1 × Polpo, crema di zucca</span><span>22,00</span></div>
+        </div>
+        <div style="border-left:3px solid #3fb5a3;padding-left:10px;display:flex;flex-direction:column;gap:2px;background:#222730;border-radius:0 8px 8px 0;padding-top:6px;padding-bottom:6px">
+          <div class="r"><span>1 × Paccheri alla genovese</span><span>17,00</span></div>
+          <div class="sub">– senza pecorino</div>
+          <div class="sub" style="font-style:italic">posto 2 · niente noci</div>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:#a3acba;display:flex;justify-content:space-between;padding-top:6px"><span>COPERTO</span><span></span></div>
+        <div class="r" style="color:#a3acba"><span>4 × Coperto</span><span>8,00</span></div>
+      </div>
+      <div style="padding:12px 16px;border-top:1px solid #2e3440;display:flex;justify-content:space-between;align-items:baseline">
+        <span style="color:#a3acba;font-weight:600">Totale</span><span style="font-size:32px;font-weight:700;font-variant-numeric:tabular-nums">€ 137,00</span>
+      </div>
+      <div style="padding:0 16px 16px;display:flex;gap:8px">
+        <button style="height:64px;flex:1;border-radius:10px;border:none;background:#222730;color:#f2f4f7;font-size:16px;font-weight:600">Preconto</button>
+        <a href="Pagamento.dc.html" style="height:64px;flex:1;border-radius:10px;background:#222730;color:#f2f4f7;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;text-decoration:none">Conto</a>
+        <button style="height:64px;flex:1.6;border-radius:10px;border:none;background:#46c37b;color:#06150d;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg>Invia 2ª</button>
+      </div>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

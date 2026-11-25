@@ -1,0 +1,53 @@
+// Generato da tokens.json. Uso: className="bg-surface text-muted" — mai hex nei componenti.
+import type { Config } from 'tailwindcss'
+
+export default {
+  content: ['./index.html', './src/**/*.{ts,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        'accent': 'var(--c-accent)',
+        'allergene': 'var(--c-allergene)',
+        'bg': 'var(--c-bg)',
+        'border': 'var(--c-border)',
+        'border-input': 'var(--c-border-input)',
+        'danger': 'var(--c-danger)',
+        'focus': 'var(--c-focus)',
+        'on-accent': 'var(--c-on-accent)',
+        'on-allergene': 'var(--c-on-allergene)',
+        'on-danger': 'var(--c-on-danger)',
+        'on-success': 'var(--c-on-success)',
+        'on-tavolo': 'var(--c-on-tavolo)',
+        'on-warning': 'var(--c-on-warning)',
+        'success': 'var(--c-success)',
+        'surface': 'var(--c-surface)',
+        'surface-2': 'var(--c-surface-2)',
+        'tavolo-conto': 'var(--c-tavolo-conto)',
+        'tavolo-libero': 'var(--c-tavolo-libero)',
+        'tavolo-libero-bordo': 'var(--c-tavolo-libero-bordo)',
+        'tavolo-occupato': 'var(--c-tavolo-occupato)',
+        'tavolo-prenotato': 'var(--c-tavolo-prenotato)',
+        'tavolo-ritardo': 'var(--c-tavolo-ritardo)',
+        'text': 'var(--c-text)',
+        'text-muted': 'var(--c-text-muted)',
+        'warning': 'var(--c-warning)',
+        carta: 'var(--c-carta)',
+        inchiostro: 'var(--c-inchiostro)',
+      },
+      fontFamily: { sans: ['var(--font-sans)'], mono: ['var(--font-mono)'] },
+      fontSize: {
+        xs: ['12px', { lineHeight: '16px', fontWeight: '500' }],
+        sm: ['14px', { lineHeight: '20px', fontWeight: '500' }],
+        base: ['16px', { lineHeight: '24px', fontWeight: '400' }],
+        lg: ['20px', { lineHeight: '28px', fontWeight: '600' }],
+        xl: ['28px', { lineHeight: '34px', fontWeight: '700' }],
+        display: ['40px', { lineHeight: '44px', fontWeight: '700' }],
+      },
+      spacing: { touch: 'var(--touch-min)', 'touch-comodo': 'var(--touch-comfortable)', tile: 'var(--touch-tile)', tasto: 'var(--touch-keypad)' },
+      borderRadius: { sm: 'var(--r-sm)', md: 'var(--r-md)', lg: 'var(--r-lg)', pill: 'var(--r-pill)' },
+      boxShadow: { card: 'var(--shadow-card)', pop: 'var(--shadow-pop)' },
+      transitionDuration: { fast: 'var(--m-fast)', base: 'var(--m-base)' },
+      transitionTimingFunction: { base: 'var(--m-ease)' },
+    },
+  },
+} satisfies Config

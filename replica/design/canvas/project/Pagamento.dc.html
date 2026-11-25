@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Conto e pagamento — cassa</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button{font-family:inherit;cursor:pointer}
+.k{height:56px;border:none;border-radius:10px;background:#222730;color:#f2f4f7;font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
+.pm{height:56px;border-radius:10px;border:1px solid #2e3440;background:#181c22;color:#f2f4f7;font-size:16px;font-weight:600;display:flex;align-items:center;gap:10px;padding:0 14px}
+.r{display:flex;justify-content:space-between;font-size:15px;font-variant-numeric:tabular-nums}
+</style>
+</helmet>
+<div style="width:1280px;height:800px;background:#0f1216;color:#f2f4f7;font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden">
+
+  <header style="height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px;background:#181c22;border-bottom:1px solid #2e3440">
+    <a href="Comanda.dc.html" aria-label="Torna alla comanda" style="height:40px;width:40px;border-radius:10px;background:#222730;color:#f2f4f7;display:flex;align-items:center;justify-content:center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+    <div style="font-size:20px;font-weight:700">Conto · Tavolo 4</div>
+    <div style="flex:1"></div>
+    <span style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#a3acba"><i style="width:8px;height:8px;border-radius:50%;background:#46c37b;display:block"></i>Cassa RT Epson · pronta</span>
+  </header>
+
+  <div style="flex:1;display:flex;min-height:0">
+    <section aria-label="Dividi il conto" style="flex:1;min-width:0;padding:20px;display:flex;flex-direction:column;gap:16px">
+      <div role="tablist" style="display:flex;gap:4px;background:#181c22;border-radius:12px;padding:4px;width:max-content">
+        <button role="tab" style="height:48px;padding:0 20px;border-radius:9px;border:none;background:transparent;color:#a3acba;font-size:15px;font-weight:600">Conto unico</button>
+        <button role="tab" aria-selected="true" style="height:48px;padding:0 20px;border-radius:9px;border:none;background:#3fb5a3;color:#0b1512;font-size:15px;font-weight:700">Alla romana</button>
+        <button role="tab" style="height:48px;padding:0 20px;border-radius:9px;border:none;background:transparent;color:#a3acba;font-size:15px;font-weight:600">Per piatti</button>
+        <button role="tab" style="height:48px;padding:0 20px;border-radius:9px;border:none;background:transparent;color:#a3acba;font-size:15px;font-weight:600">Per posto</button>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:16px">
+        <span style="font-size:16px;font-weight:600">Persone</span>
+        <button aria-label="Meno" style="height:56px;width:56px;border-radius:10px;border:none;background:#222730;color:#f2f4f7;font-size:26px">−</button>
+        <span style="font-size:32px;font-weight:700;width:40px;text-align:center">5</span>
+        <button aria-label="Più" style="height:56px;width:56px;border-radius:10px;border:none;background:#222730;color:#f2f4f7;font-size:26px">+</button>
+        <span style="font-size:14px;color:#a3acba">€ 142,50 ÷ 5 = € 28,50 a testa</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px">
+        <div style="border-radius:12px;background:#181c22;border:1px solid #46c37b;padding:14px;display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:13px;color:#a3acba;font-weight:600">Quota 1</span><span style="font-size:22px;font-weight:700">€ 28,50</span>
+          <span style="font-size:13px;color:#46c37b;font-weight:700">✓ Carta · scontrino 0042</span></div>
+        <div style="border-radius:12px;background:#181c22;border:1px solid #46c37b;padding:14px;display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:13px;color:#a3acba;font-weight:600">Quota 2</span><span style="font-size:22px;font-weight:700">€ 28,50</span>
+          <span style="font-size:13px;color:#46c37b;font-weight:700">✓ Contanti · 0043</span></div>
+        <div style="border-radius:12px;background:#222730;outline:3px solid #7cc8ff;padding:14px;display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:13px;color:#a3acba;font-weight:600">Quota 3</span><span style="font-size:22px;font-weight:700">€ 28,50</span>
+          <span style="font-size:13px;color:#7cc8ff;font-weight:700">in pagamento</span></div>
+        <div style="border-radius:12px;background:#181c22;border:1px solid #2e3440;padding:14px;display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:13px;color:#a3acba;font-weight:600">Quota 4</span><span style="font-size:22px;font-weight:700">€ 28,50</span>
+          <span style="font-size:13px;color:#a3acba">da pagare</span></div>
+        <div style="border-radius:12px;background:#181c22;border:1px solid #2e3440;padding:14px;display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:13px;color:#a3acba;font-weight:600">Quota 5</span><span style="font-size:22px;font-weight:700">€ 28,50</span>
+          <span style="font-size:13px;color:#a3acba">da pagare</span></div>
+      </div>
+
+      <div style="flex:1;border-radius:12px;background:#181c22;padding:16px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:12px;font-weight:700;color:#a3acba">RIEPILOGO CONTO</div>
+        <div class="r"><span>2 × Vitello tonnato</span><span>28,00</span></div>
+        <div class="r"><span>3 × Spaghettone cacio e pepe</span><span>48,00</span></div>
+        <div class="r"><span>1 × Ripasso Valpolicella</span><span>37,00</span></div>
+        <div class="r"><span>2 × Tiramisù</span><span>16,00</span></div>
+        <div class="r"><span>5 × Coperto</span><span>10,00</span></div>
+        <div class="r"><span>3 × Acqua 0,75</span><span>9,00</span></div>
+        <div class="r" style="color:#a3acba"><span>Sconto cliente abituale</span><span>−5,50</span></div>
+        <div style="flex:1"></div>
+        <div class="r" style="font-size:20px;font-weight:700"><span>Totale</span><span>€ 142,50</span></div>
+      </div>
+    </section>
+
+    <aside aria-label="Pagamento quota 3" style="width:440px;flex:none;background:#181c22;border-left:1px solid #2e3440;padding:20px;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-size:16px;font-weight:600;color:#a3acba">Quota 3 · da incassare</span>
+        <span style="font-size:36px;font-weight:700;font-variant-numeric:tabular-nums">€ 28,50</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+        <button class="pm" style="border:2px solid #3fb5a3;background:#222730">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg>Contanti</button>
+        <button class="pm"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>Carta</button>
+        <button class="pm"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 7h18v4a2 2 0 0 0 0 4v4H3v-4a2 2 0 0 0 0-4z"/></svg>Buono</button>
+        <button class="pm" style="font-size:14px">Sospeso</button>
+        <button class="pm" style="font-size:14px">Camera hotel</button>
+        <button class="pm" style="font-size:14px">Fattura</button>
+      </div>
+      <div style="border-radius:10px;background:#0f1216;border:1px solid #6b7688;padding:10px 14px;display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-size:14px;color:#a3acba;font-weight:600">Ricevuto</span>
+        <span style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums">€ 50,00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 4px">
+        <span style="font-size:16px;font-weight:600">Resto</span>
+        <span style="font-size:30px;font-weight:700;color:#46c37b;font-variant-numeric:tabular-nums">€ 21,50</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
+        <button class="k">7</button><button class="k">8</button><button class="k">9</button><button class="k" style="font-size:16px;background:#2e3440">€ 50</button>
+        <button class="k">4</button><button class="k">5</button><button class="k">6</button><button class="k" style="font-size:16px;background:#2e3440">€ 20</button>
+        <button class="k">1</button><button class="k">2</button><button class="k">3</button><button class="k" style="font-size:16px;background:#2e3440">Esatto</button>
+        <button class="k">00</button><button class="k">0</button><button class="k">,</button><button class="k" aria-label="Cancella">⌫</button>
+      </div>
+      <div style="flex:1"></div>
+      <label style="display:flex;align-items:center;gap:10px;font-size:14px;color:#a3acba"><input type="checkbox" style="width:20px;height:20px">Codice lotteria scontrini</label>
+      <button style="height:72px;border-radius:12px;border:none;background:#46c37b;color:#06150d;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>Incassa e stampa scontrino</button>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

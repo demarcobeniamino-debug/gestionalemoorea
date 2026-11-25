@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Comanda — palmare</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button{font-family:inherit;cursor:pointer}
+.a{min-height:72px;border:1px solid #2e3440;border-radius:10px;background:#181c22;color:#f2f4f7;text-align:left;padding:10px;font-size:15px;font-weight:600;line-height:19px;display:flex;flex-direction:column;justify-content:space-between;gap:4px}
+.a small{font-size:13px;font-weight:500;color:#a3acba}
+.c{height:40px;flex:none;padding:0 14px;border-radius:999px;border:none;font-size:14px;font-weight:700}
+</style>
+</helmet>
+<div style="width:390px;height:844px;background:#0f1216;color:#f2f4f7;font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden">
+  <header style="height:56px;flex:none;display:flex;align-items:center;gap:10px;padding:0 12px;background:#181c22;border-bottom:1px solid #2e3440">
+    <button aria-label="Indietro" style="height:44px;width:44px;border-radius:10px;border:none;background:#222730;color:#f2f4f7;display:flex;align-items:center;justify-content:center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <div style="display:flex;flex-direction:column"><b style="font-size:18px">Tavolo 7</b><span style="font-size:12px;color:#a3acba;font-weight:500">4 coperti · Aldo</span></div>
+    <div style="flex:1"></div>
+    <span style="font-size:13px;font-weight:700;background:#ffd23f;color:#000;border-radius:6px;padding:4px 8px">⚠ GUSCIO</span>
+  </header>
+
+  <div style="display:flex;gap:6px;padding:10px 12px;overflow:hidden">
+    <button class="c" style="background:#222730;color:#a3acba">1ª ✓</button>
+    <button class="c" style="background:#3fb5a3;color:#0b1512">2ª</button>
+    <button class="c" style="background:#222730;color:#f2f4f7">3ª</button>
+    <button class="c" style="background:#222730;color:#f2f4f7">Dessert</button>
+    <button class="c" style="background:#222730;color:#f2f4f7">Bev.</button>
+  </div>
+
+  <div style="display:flex;gap:6px;padding:0 12px 10px;overflow:hidden">
+    <button class="c" style="background:#e9c46a;color:#1a1204;border-radius:8px">Tapas</button>
+    <button class="c" style="background:#f2f4f7;color:#0f1216;border-radius:8px">Primi</button>
+    <button class="c" style="background:#e76f51;color:#160604;border-radius:8px">Secondi</button>
+    <button class="c" style="background:#c9a7eb;color:#140a1e;border-radius:8px">Dessert</button>
+  </div>
+
+  <div style="flex:1;min-height:0;padding:0 12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-content:start">
+    <button class="a">Spaghettone cacio e pepe<small>€ 16,00</small></button>
+    <button class="a">Linguine frutti di mare<small>€ 22,00</small></button>
+    <button class="a" style="border:2px solid #3fb5a3">Paccheri alla genovese<small>€ 17,00 · × 1</small></button>
+    <button class="a">Gnocchi alla sorrentina<small>€ 15,00</small></button>
+    <button class="a">Scialatielli Amalfi<small>€ 18,00</small></button>
+    <button class="a" style="opacity:.55" aria-disabled="true">Risotto al limone<small style="color:#f0625d;font-weight:700">Esaurito</small></button>
+  </div>
+
+  <section aria-label="Foglio varianti" style="flex:none;background:#222730;border-radius:16px 16px 0 0;padding:14px 14px 10px;display:flex;flex-direction:column;gap:10px;box-shadow:0 -12px 32px rgba(0,0,0,.45)">
+    <div style="width:40px;height:4px;border-radius:2px;background:#6b7688;align-self:center"></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:18px">Paccheri alla genovese</b><span style="font-size:15px;color:#a3acba">€ 17,00</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      <button class="c" style="background:#3fb5a3;color:#0b1512;border-radius:8px">– pecorino</button>
+      <button class="c" style="background:#181c22;color:#f2f4f7;border-radius:8px;border:1px solid #2e3440">+ burrata 3,00</button>
+      <button class="c" style="background:#181c22;color:#f2f4f7;border-radius:8px;border:1px solid #2e3440">poco pepe</button>
+      <button class="c" style="background:#181c22;color:#f2f4f7;border-radius:8px;border:1px solid #2e3440">Posto 2</button>
+    </div>
+    <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;color:#a3acba;font-weight:600">Nota per la cucina
+      <input value="niente noci" style="height:44px;border-radius:10px;border:1px solid #6b7688;background:#0f1216;color:#f2f4f7;font-size:16px;padding:0 12px;font-family:inherit">
+    </label>
+  </section>
+
+  <footer style="flex:none;height:76px;display:flex;gap:8px;padding:10px 12px;background:#181c22;box-sizing:border-box">
+    <button style="flex:1;border-radius:10px;border:none;background:#222730;color:#f2f4f7;font-size:15px;font-weight:600">Conto<br><span style="font-size:13px;color:#a3acba">€ 137,00</span></button>
+    <button style="flex:1.8;border-radius:10px;border:none;background:#46c37b;color:#06150d;font-size:18px;font-weight:700">Invia 2ª · 2 righe</button>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

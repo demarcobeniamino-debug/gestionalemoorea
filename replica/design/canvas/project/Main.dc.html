@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Sala — cassa</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button{font-family:inherit;cursor:pointer}
+.tv{position:absolute;box-sizing:border-box;border:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-variant-numeric:tabular-nums}
+.tv b{font-size:26px;line-height:30px}
+.tv span{font-size:12px;line-height:16px;font-weight:600}
+</style>
+</helmet>
+<div style="width:1280px;height:800px;background:#0f1216;color:#f2f4f7;font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden">
+
+  <header style="height:56px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;background:#181c22;border-bottom:1px solid #2e3440">
+    <div style="font-weight:700;font-size:16px">Moorea Food Club</div>
+    <nav aria-label="Sale" style="display:flex;gap:4px;background:#0f1216;border-radius:10px;padding:4px">
+      <button style="height:40px;padding:0 16px;border-radius:8px;border:none;background:#3fb5a3;color:#0b1512;font-weight:600;font-size:14px">Interno</button>
+      <button style="height:40px;padding:0 16px;border-radius:8px;border:none;background:transparent;color:#a3acba;font-weight:600;font-size:14px">Pergotenda</button>
+      <button style="height:40px;padding:0 16px;border-radius:8px;border:none;background:transparent;color:#a3acba;font-weight:600;font-size:14px;display:flex;align-items:center;gap:6px">Asporto <span style="background:#f2b544;color:#1a1204;border-radius:999px;padding:0 7px;font-size:12px">2</span></button>
+    </nav>
+    <div style="flex:1"></div>
+    <div aria-label="Stato stampanti" style="display:flex;gap:12px;font-size:12px;font-weight:600;color:#a3acba">
+      <span style="display:flex;align-items:center;gap:6px"><i style="width:8px;height:8px;border-radius:50%;background:#46c37b;display:block"></i>Cucina</span>
+      <span style="display:flex;align-items:center;gap:6px"><i style="width:8px;height:8px;border-radius:50%;background:#46c37b;display:block"></i>Bar</span>
+      <span style="display:flex;align-items:center;gap:6px"><i style="width:8px;height:8px;border-radius:50%;background:#46c37b;display:block"></i>Preconto</span>
+      <span style="display:flex;align-items:center;gap:6px"><i style="width:8px;height:8px;border-radius:50%;background:#46c37b;display:block"></i>Cassa RT</span>
+    </div>
+    <button style="height:40px;padding:0 12px;border-radius:10px;border:1px solid #2e3440;background:#222730;color:#f2f4f7;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Aldo</button>
+    <div style="font-size:20px;font-weight:600;font-variant-numeric:tabular-nums">20:47</div>
+  </header>
+
+  <div style="flex:1;display:flex;min-height:0">
+    <main style="flex:1;position:relative;background:#0f1216">
+      <div style="position:absolute;left:24px;top:20px;right:24px;display:flex;gap:16px;font-size:14px;font-weight:600;color:#a3acba">
+        <span style="display:flex;align-items:center;gap:6px"><i style="width:12px;height:12px;border-radius:3px;border:2px solid #7d889b;display:block;box-sizing:border-box"></i>Liberi 5</span>
+        <span style="display:flex;align-items:center;gap:6px"><i style="width:12px;height:12px;border-radius:3px;background:#f2b544;display:block"></i>Occupati 6</span>
+        <span style="display:flex;align-items:center;gap:6px"><i style="width:12px;height:12px;border-radius:3px;background:#5b9cf5;display:block"></i>Prenotati 2</span>
+        <span style="display:flex;align-items:center;gap:6px"><i style="width:12px;height:12px;border-radius:3px;background:#b58cf0;display:block"></i>Conto 1</span>
+        <span style="display:flex;align-items:center;gap:6px"><i style="width:12px;height:12px;border-radius:3px;background:#f0625d;display:block"></i>In ritardo 1</span>
+        <div style="flex:1"></div>
+        <span style="color:#f2f4f7">48 coperti in sala</span>
+      </div>
+
+      <!-- fila 1 -->
+      <button class="tv" aria-label="Tavolo 1, occupato, 2 coperti" style="left:48px;top:84px;width:104px;height:96px;border-radius:12px;background:#f2b544;color:#0f1216"><b>1</b><span>2 cop · 38′</span><span>€ 64,00</span></button>
+      <button class="tv" aria-label="Tavolo 2, libero" style="left:192px;top:84px;width:104px;height:96px;border-radius:12px;background:#222730;border:2px solid #7d889b;color:#f2f4f7"><b>2</b><span style="color:#a3acba">4 posti</span></button>
+      <button class="tv" aria-label="Tavolo 3, prenotato alle 21:15" style="left:336px;top:84px;width:104px;height:96px;border-radius:12px;background:#5b9cf5;color:#0f1216"><b>3</b><span>21:15</span><span>Esposito · 4</span></button>
+      <button class="tv" aria-label="Tavolo 4, conto chiesto" style="left:480px;top:84px;width:104px;height:96px;border-radius:12px;background:#b58cf0;color:#0f1216"><b>4</b><span>Conto</span><span>€ 142,50</span></button>
+      <button class="tv" aria-label="Tavolo 5, occupato" style="left:624px;top:84px;width:104px;height:96px;border-radius:12px;background:#f2b544;color:#0f1216"><b>5</b><span>3 cop · 12′</span><span>€ 21,00</span></button>
+
+      <!-- fila 2: tondi -->
+      <button class="tv" aria-label="Tavolo 6, in ritardo" style="left:56px;top:236px;width:104px;height:104px;border-radius:999px;background:#f0625d;color:#0f1216"><b>6</b><span>2ª · 24′</span></button>
+      <button class="tv" aria-label="Tavolo 7, selezionato, occupato" style="left:200px;top:236px;width:104px;height:104px;border-radius:999px;background:#f2b544;color:#0f1216;outline:3px solid #7cc8ff;outline-offset:4px"><b>7</b><span>4 cop · 52′</span><span>€ 86,00</span></button>
+      <button class="tv" aria-label="Tavolo 8, libero" style="left:344px;top:236px;width:104px;height:104px;border-radius:999px;background:#222730;border:2px solid #7d889b;color:#f2f4f7"><b>8</b><span style="color:#a3acba">2 posti</span></button>
+      <button class="tv" aria-label="Tavolo 9, occupato" style="left:488px;top:236px;width:104px;height:104px;border-radius:999px;background:#f2b544;color:#0f1216"><b>9</b><span>2 cop · 65′</span><span>€ 98,00</span></button>
+
+      <!-- tavolata -->
+      <button class="tv" aria-label="Tavolo 10, prenotato alle 21:30, gruppo 14" style="left:48px;top:400px;width:392px;height:96px;border-radius:12px;background:#5b9cf5;color:#0f1216"><b>10</b><span>21:30 · Gruppo Ferraro · 14</span><span style="display:flex;align-items:center;gap:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>2 celiaci · caparra</span></button>
+      <button class="tv" aria-label="Tavolo 11, libero" style="left:480px;top:400px;width:104px;height:96px;border-radius:12px;background:#222730;border:2px solid #7d889b;color:#f2f4f7"><b>11</b><span style="color:#a3acba">4 posti</span></button>
+      <button class="tv" aria-label="Tavolo 12, occupato" style="left:624px;top:400px;width:104px;height:96px;border-radius:12px;background:#f2b544;color:#0f1216"><b>12</b><span>6 cop · 31′</span><span>€ 174,00</span></button>
+
+      <!-- bancone -->
+      <div style="position:absolute;left:48px;top:560px;width:680px;height:28px;border-radius:8px;background:#181c22;border:1px dashed #2e3440;color:#a3acba;font-size:12px;font-weight:600;display:flex;align-items:center;padding-left:12px">BANCONE BAR</div>
+      <button class="tv" aria-label="Sgabello B1, occupato" style="left:48px;top:604px;width:72px;height:72px;border-radius:999px;background:#f2b544;color:#0f1216"><b style="font-size:18px">B1</b><span>€ 14</span></button>
+      <button class="tv" aria-label="Sgabello B2, libero" style="left:136px;top:604px;width:72px;height:72px;border-radius:999px;background:#222730;border:2px solid #7d889b;color:#f2f4f7"><b style="font-size:18px">B2</b></button>
+      <button class="tv" aria-label="Sgabello B3, libero" style="left:224px;top:604px;width:72px;height:72px;border-radius:999px;background:#222730;border:2px solid #7d889b;color:#f2f4f7"><b style="font-size:18px">B3</b></button>
+    </main>
+
+    <aside aria-label="Tavolo selezionato" style="width:360px;flex:none;background:#181c22;border-left:1px solid #2e3440;display:flex;flex-direction:column">
+      <div style="padding:20px 20px 12px;display:flex;align-items:baseline;gap:12px">
+        <h1 style="margin:0;font-size:28px;line-height:34px">Tavolo 7</h1>
+        <span style="color:#a3acba;font-size:14px;font-weight:500">4 coperti · aperto 19:55 · Aldo</span>
+      </div>
+      <div style="margin:0 20px;padding:10px 12px;border-radius:10px;background:#ffd23f;color:#000;font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+        ALLERGIA: FRUTTA A GUSCIO (posto 2)
+      </div>
+      <div style="flex:1;overflow:hidden;padding:12px 20px;display:flex;flex-direction:column;gap:6px;font-size:14px">
+        <div style="color:#a3acba;font-size:12px;font-weight:600;padding-top:4px">ANTIPASTI · servita</div>
+        <div style="display:flex;justify-content:space-between"><span>1 × Vitello tonnato</span><span>€ 14,00</span></div>
+        <div style="display:flex;justify-content:space-between"><span>1 × Fresella, alici di Cetara</span><span>€ 12,00</span></div>
+        <div style="color:#a3acba;font-size:12px;font-weight:600;padding-top:8px">PRIMI · in cucina 6′</div>
+        <div style="display:flex;justify-content:space-between"><span>2 × Spaghettone cacio e pepe</span><span>€ 32,00</span></div>
+        <div style="color:#a3acba;font-size:12px;font-weight:600;padding-top:8px">SECONDI · in attesa di marcia</div>
+        <div style="display:flex;justify-content:space-between;color:#a3acba"><span>1 × Polpo, crema di zucca</span><span>€ 22,00</span></div>
+        <div style="color:#a3acba;font-size:12px;font-weight:600;padding-top:8px">BEVANDE</div>
+        <div style="display:flex;justify-content:space-between"><span>1 × Primitivo Desire</span><span>€ 32,00</span></div>
+      </div>
+      <div style="padding:12px 20px;border-top:1px solid #2e3440;display:flex;justify-content:space-between;align-items:baseline">
+        <span style="color:#a3acba;font-weight:600">Totale</span><span style="font-size:28px;font-weight:700;font-variant-numeric:tabular-nums">€ 112,00</span>
+      </div>
+      <div style="padding:0 20px 20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+        <button style="height:56px;border-radius:10px;border:none;background:#222730;color:#f2f4f7;font-size:16px;font-weight:600">Marcia 2ª</button>
+        <button style="height:56px;border-radius:10px;border:none;background:#222730;color:#f2f4f7;font-size:16px;font-weight:600">Preconto</button>
+        <button style="height:56px;border-radius:10px;border:none;background:#3fb5a3;color:#0b1512;font-size:16px;font-weight:700">Comanda</button>
+        <button style="height:56px;border-radius:10px;border:none;background:#46c37b;color:#06150d;font-size:16px;font-weight:700">Conto</button>
+      </div>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

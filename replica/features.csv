@@ -1,0 +1,104 @@
+feature,area,priority,original,clone,notes
+Login operatore con PIN e cambio rapido operatore,accesso,must,yes,partial,S01 | build: PIN su schermo e cambio operatore fatti; hash e verifica lato server con /replica-backend
+Ruoli e permessi per collaboratore,accesso,must,yes,no,S30
+Registro operazioni (data ora operatore),accesso,should,yes,no,S26 audit storni sconti
+Sale configurabili con piantina o immagine di sfondo,sala,must,yes,no,S04
+Piantina interattiva con stato tavoli in tempo reale,sala,must,yes,partial,S03 realtime | build: stati libero/occupato/conto/ritardo fatti; tempo reale tra dispositivi con il backend
+Menu e listini diversi per sala,sala,should,yes,no,S28
+Apertura tavolo con numero coperti,sala,must,yes,yes,S05 | build: S05 + vincolo un tavolo una comanda
+Sposta comanda / unisci tavoli / trasferisci righe,sala,must,yes,no,S16
+Categorie e sottocategorie illimitate con colori o immagini,comanda,must,yes,partial,S06 S27 | build: categorie colorate fatte; sottocategorie e immagini no
+Presa comanda da cassa fissa,comanda,must,yes,yes,S06 | build: S06
+Presa comanda da palmare / smartphone / tablet (iOS e Android),comanda,must,yes,partial,PWA o app; Comanda Smart | build: layout palmare + guscio Android (APK da CI); iOS escluso per scelta
+Comanda offline sul palmare con sincronizzazione,comanda,must,yes,no,hard part; inferito dall'architettura server locale
+Varianti con prezzo e note libere,comanda,must,yes,yes,"S07 | build: tocco lungo: varianti, posto, nota"
+Menu composti / degustazione / prezzo fisso,comanda,should,yes,no,S08
+Vendita a quantità / a peso / qualsiasi unità di misura,comanda,should,yes,no,S09 bilancia
+Gestione portate e ordine delle uscite,comanda,must,yes,yes,S10 | build: portata automatica per categoria o scelta a mano
+Invio ai centri di produzione completo o per portata (marcia),comanda,must,yes,partial,"S10 | build: invio completo fatto; marcia della singola portata: logica sì, pulsante no"
+Instradamento per centro di produzione (cucina bar pizzeria),produzione,must,yes,yes,"S29 | build: vino al bar, piatti in cucina (testato)"
+Stampa comande su stampanti termiche personalizzabile,produzione,must,yes,partial,ESC/POS via bridge locale | build: ESC/POS PC858 + trasporto Rust testati; manca collaudo sulle Matchpower
+Kitchen monitor touch con piatto pronto,produzione,must,yes,yes,"S11 | build: S11 riga/testata pronta, ritardi"
+Messaggi cucina verso sala e altri centri,produzione,should,yes,no,S11
+Monitor clienti stato ordini,produzione,could,yes,no,S12
+Articolo esaurito che si propaga a tutti i dispositivi,comanda,should,yes,partial,inferito | build: esaurito bloccato in vendita; propagazione con il backend
+Allergeni sugli articoli e avviso in comanda,comanda,must,yes,yes,"Menu Point cita filtro allergeni; per il Moorea (celiaci) è critico | build: allergie al tavolo per posto, fascia in negativo su ticket e monitor"
+Conto unico,cassa,must,yes,yes,S13
+Conti separati alla romana o manuali,cassa,must,yes,partial,S14 | build: alla romana fatto (resto sull’ultima quota); per piatti/posto no
+Più conti e più documenti dalla stessa comanda,cassa,must,yes,partial,S14 | build: uno scontrino per quota
+Associazione piatti al singolo cliente,cassa,should,yes,no,S14
+Sconti e maggiorazioni,cassa,must,yes,no,S13
+Coperto / servizio automatico,cassa,must,yes,yes,inferito
+Più tipi di pagamento sullo stesso documento,cassa,must,yes,partial,S15 | build: core e XML li gestiscono; interfaccia un metodo per documento
+Preconto stampato,cassa,must,yes,yes,inferito standard | build: sulla Matchpower preconto
+Emissione documento commerciale tramite registratore telematico,cassa,must,yes,partial,"driver RT via bridge; certificazione fuori scope | build: XML Epson + risposta + ""da verificare"" testati; manca collaudo sull’Epson"
+Integrazione POS carte (importo inviato al terminale),cassa,should,yes,no,via SDK ufficiale del provider (SumUp/Nexi/Stripe Terminal)
+Fattura immediata da cassa con creazione cliente,cassa,must,yes,no,S15 S20
+Generazione XML fattura elettronica,fiscale,must,yes,no,base del prodotto
+Invio e ricezione SDI con notifiche,fiscale,should,yes,no,tramite intermediario accreditato
+Conservazione digitale decennale,fiscale,could,yes,skip,servizio dell'intermediario
+Buoni pasto,cassa,should,yes,no,S15 S24
+Conti sospesi / a credito e fatturazione successiva,backoffice,must,yes,no,S24
+Fatture riepilogative e fatture su scontrino,backoffice,should,yes,no,S24
+Chiusura giornaliera con riepilogo per documento pagamento e sala,backoffice,must,yes,no,S23
+Contabilizzazione chiusure ed export su file,backoffice,should,yes,no,export per commercialista
+Registro prenotazioni,prenotazioni,must,yes,no,S19
+Indagine prenotazioni con filtri,prenotazioni,must,yes,no,S17
+Planning prenotazioni per tavolo e orario,prenotazioni,must,yes,no,S18
+Stati prenotazione (confermata arrivata mancata cancellata terminata),prenotazioni,must,yes,no,da guida Plateform
+Tavolo prenotato evidenziato in sala,prenotazioni,must,yes,no,S03 (blu)
+Collega prenotazione a comanda (recupera prenotazione),prenotazioni,must,yes,no,menu contestuale
+Caparra / garanzia carta e penale no-show per gruppi,prenotazioni,should,no,no,miglioria per il Moorea (gruppi >9; 25-30 € a persona)
+Lista d'attesa con notifica all'ospite,prenotazioni,should,yes,no,Menu App S46
+Riconoscimento chiamate (caller-ID),prenotazioni,could,yes,no,serve centralino VoIP con API
+Prenotazione online da sito (widget),prenotazioni,should,yes,no,S47; sostituisce bookings.mooreafoodclub.it
+Sincronizzazione portali prenotazione (TheFork Plateform),integrazioni,should,yes,no,solo API ufficiali partner
+Anagrafica cliente con preferenze e allergie,crm,must,yes,no,S20
+Listini e sconti automatici per cliente,crm,should,yes,no,S20
+Gruppi clienti per marketing,crm,should,yes,no,S22
+Invio SMS ed email e auguri di compleanno,crm,should,yes,no,provider SMS/email + consenso GDPR
+Carte a punti,fidelity,should,yes,no,S21
+Carte prepagate a valore e buoni,fidelity,could,yes,no,S21
+Promozioni legate ad articoli e sconti a quantità,fidelity,could,yes,no,S21
+Integrazione piattaforme marketing automation,crm,could,yes,no,webhook verso Brevo/Mailchimp
+Statistiche su qualsiasi dato con salvataggio,analisi,must,yes,no,S25
+Report pianificati e inviati via email,analisi,should,yes,no,S25
+Dashboard KPI del giorno,analisi,should,yes,no,S02
+Business intelligence multi locale (PDF Excel),analisi,could,yes,no,S52
+Anagrafica articoli con IVA immagini descrizioni,configurazione,must,yes,no,S27
+Listini per fascia oraria e canale,configurazione,should,yes,no,S28
+Configurazione fiscale aliquote pagamenti RT,configurazione,must,yes,no,S31
+Magazzino: carico e scarico,magazzino,should,yes,no,S34
+Scarico automatico da vendita tramite ingredienti,magazzino,should,yes,no,S33
+Distinta base e food cost per piatto,magazzino,should,partial,no,food cost esplicito citato solo nel modulo AI; miglioria
+Scorte minime e massime con avviso sotto scorta,magazzino,should,yes,no,S32
+Lotti e scadenze,magazzino,could,yes,no,S32 HACCP
+Inventario,magazzino,should,yes,no,S34
+Fornitori,magazzino,should,yes,no,S37 (MARR Metro Fabbrocino)
+Proposta d'ordine da fabbisogno,magazzino,could,yes,no,S35
+Ordini alla sede e trasferimenti tra locali,magazzino,could,yes,no,multi locale
+Calcolo fabbisogno di produzione per periodo o evento,magazzino,could,yes,no,S36
+Asporto: listini e fasce orarie dedicati,asporto,should,yes,no,S38 S28
+Asporto: invio automatico in cucina in base all'orario di ritiro,asporto,should,yes,no,S39
+Calcolo capacità produttiva per slot,asporto,could,yes,no,S39
+Gestione rider e consegne,delivery,could,yes,no,S40 S41
+App rider con mappa e incasso,delivery,could,yes,no,PassDelivery
+Import ordini dai portali delivery,integrazioni,could,yes,no,solo API ufficiali
+Menu QR al tavolo con ordine di gruppo,self-order,should,yes,no,MySelf S43
+Chiama cameriere e chiedi conto da smartphone,self-order,could,yes,no,MySelf
+Ordine online asporto/domicilio con pagamento,self-order,could,yes,no,S44 Stripe
+Totem / chiosco con pagamento,self-order,could,yes,no,Menu Point S45
+Menu multilingua,self-order,should,yes,no,turisti in Costiera; AI per tradurre
+Addebito consumazioni su camera hotel,integrazioni,should,yes,no,S48 verso clone Welcome
+Multi locale con sede e sincronizzazione,multilocale,could,yes,no,S51
+Backup periodico e copia in cloud,sistema,must,yes,no,DB gestito con backup
+AI: traduzione articoli e menu,ai,could,yes,no,LLM proprio
+AI: generazione descrizioni piatti,ai,could,yes,no,LLM proprio
+AI: previsione prenotazioni e vendite,ai,could,yes,no,modello su storico
+Assistente AI basato sui manuali Passepartout,ai,could,yes,skip,i manuali sono loro; un assistente sul proprio help è possibile
+Contabilità IVA liquidazioni F24 scadenzario,contabilità,could,yes,skip,competenza del commercialista; si fa solo export
+Arricchimento anagrafiche Cribis da P.IVA,integrazioni,could,yes,skip,dato a pagamento; VIES gratuito per validare
+Sito web CMS ed ecommerce Passweb,integrazioni,could,yes,skip,i siti li fai già con Lovable
+Certificazione RT / omologazione fiscale,fiscale,must,yes,skip,è dell'hardware; il clone si collega al tuo RT
+Certificazioni ISO 27001 e PCI-DSS del cloud,sistema,could,yes,skip,si usano provider già certificati
+Nomi loghi icone testi Passepartout,brand,must,yes,skip,clean-room: nome e design nuovi

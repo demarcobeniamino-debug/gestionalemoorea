@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Monitor cucina</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button{font-family:inherit;cursor:pointer}
+.tk{border-radius:12px;background:#181c22;display:flex;flex-direction:column;overflow:hidden}
+.th{padding:12px 14px;display:flex;justify-content:space-between;align-items:baseline}
+.th b{font-size:26px;line-height:30px}
+.ln{min-height:48px;border:none;border-top:1px solid #2e3440;background:transparent;color:#f2f4f7;text-align:left;padding:10px 14px;font-size:20px;line-height:26px;font-weight:600;display:flex;flex-direction:column;gap:2px}
+.ln i{font-style:normal;font-size:16px;font-weight:500;color:#a3acba}
+.pt{padding:6px 14px;font-size:13px;font-weight:700;color:#a3acba;background:#222730}
+</style>
+</helmet>
+<div style="width:1440px;height:810px;background:#0f1216;color:#f2f4f7;font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden">
+  <header style="height:56px;flex:none;display:flex;align-items:center;gap:16px;padding:0 20px;background:#181c22;border-bottom:1px solid #2e3440">
+    <div style="font-size:20px;font-weight:700">Cucina</div>
+    <div style="display:flex;gap:4px;background:#0f1216;border-radius:10px;padding:4px">
+      <button style="height:40px;padding:0 16px;border-radius:8px;border:none;background:#3fb5a3;color:#0b1512;font-weight:700;font-size:14px">Da fare 7</button>
+      <button style="height:40px;padding:0 16px;border-radius:8px;border:none;background:transparent;color:#a3acba;font-weight:600;font-size:14px">Pronti 3</button>
+      <button style="height:40px;padding:0 16px;border-radius:8px;border:none;background:transparent;color:#a3acba;font-weight:600;font-size:14px">Riepilogo piatti</button>
+    </div>
+    <div style="flex:1"></div>
+    <div style="font-size:16px;color:#a3acba;font-weight:600">Media uscita 14′</div>
+    <div style="font-size:24px;font-weight:700;font-variant-numeric:tabular-nums">20:47</div>
+  </header>
+
+  <div style="flex:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:12px;align-items:start;min-height:0">
+
+    <article class="tk" style="outline:3px solid #f0625d" aria-label="Tavolo 6, in ritardo">
+      <div class="th" style="background:#f0625d;color:#160606"><b>Tav. 6</b><span style="font-size:20px;font-weight:700">24′ ⏱</span></div>
+      <div class="pt">2ª PORTATA · Luca · 2 cop</div>
+      <button class="ln">2 × Polpo, crema di zucca</button>
+      <button class="ln">1 × Crocchetta di baccalà<i>crema di cavolfiore a parte</i></button>
+    </article>
+
+    <article class="tk" aria-label="Tavolo 10, nuovo, con allergeni" style="outline:3px solid #3fb5a3">
+      <div class="th"><b>Tav. 10</b><span style="font-size:20px;font-weight:700;color:#3fb5a3">NUOVO · 0′</span></div>
+      <div style="padding:10px 14px;background:#ffd23f;color:#000;font-size:18px;font-weight:800">⚠ CELIACI: 2 · GLUTINE</div>
+      <div class="pt">1ª PORTATA · Aldo · 14 cop</div>
+      <button class="ln">6 × Polpette al sugo</button>
+      <button class="ln">4 × Bruschetta salsiccia e provola</button>
+      <button class="ln">2 × Carpaccio di manzo<i>SENZA GLUTINE · posti 3, 9</i></button>
+      <button class="ln">2 × Mozzarella in carrozza</button>
+      <button class="ln">2 × Scamorza in foglia di limone<i>SENZA GLUTINE</i></button>
+    </article>
+
+    <article class="tk" aria-label="Tavolo 7">
+      <div class="th"><b>Tav. 7</b><span style="font-size:20px;font-weight:600;color:#a3acba">6′</span></div>
+      <div style="padding:8px 14px;background:#ffd23f;color:#000;font-size:16px;font-weight:800">⚠ FRUTTA A GUSCIO · posto 2</div>
+      <div class="pt">2ª PORTATA · Aldo · 4 cop</div>
+      <button class="ln" style="color:#a3acba;text-decoration:line-through">1 × Polpo, crema di zucca <i style="text-decoration:none;color:#46c37b">✓ pronto</i></button>
+      <button class="ln">1 × Paccheri alla genovese<i>– senza pecorino · posto 2 · niente noci</i></button>
+      <button style="margin:10px 14px 14px;height:56px;border-radius:10px;border:none;background:#46c37b;color:#06150d;font-size:18px;font-weight:700">Tutto pronto</button>
+    </article>
+
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <article class="tk" aria-label="Asporto 23">
+        <div class="th" style="background:#2e3440"><b>Asporto 23</b><span style="font-size:18px;font-weight:700">ritiro 21:00</span></div>
+        <div class="pt">Esposito · tel.</div>
+        <button class="ln">2 × Spaghettone cacio e pepe</button>
+        <button class="ln">1 × Tiramisù</button>
+      </article>
+      <article class="tk" aria-label="Storno tavolo 12">
+        <div class="th" style="background:#f0625d;color:#160606"><b>STORNO · Tav. 12</b></div>
+        <button class="ln">1 × Linguine ai frutti di mare<i>motivo: errore cameriere</i></button>
+      </article>
+      <div style="border-radius:12px;border:1px dashed #2e3440;padding:12px 14px;color:#a3acba;font-size:14px;line-height:20px">
+        <b style="color:#f2f4f7">Messaggio dalla sala · 20:45</b><br>Tav. 9 chiede i secondi tra 10 minuti.
+      </div>
+    </div>
+  </div>
+  <p style="margin:0;padding:0 20px 10px;font-size:13px;color:#a3acba">Tocca una riga = pronta · tocca la testata = tutto pronto · tocco lungo = messaggio alla sala</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":810}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
