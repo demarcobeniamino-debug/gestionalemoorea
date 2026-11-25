@@ -1,4 +1,4 @@
-# Costruisce l'installer Windows della cassa e l'APK Android dei palmari.
+# Costruisce l'installer Windows e Mac della cassa e l'APK Android dei palmari.
 # Parte a ogni tag "v*" (es. v0.1.0) o a mano da Actions → Rilascio → Run workflow.
 name: Rilascio
 
@@ -39,6 +39,26 @@ jobs:
           path: |
             apps/app/src-tauri/target/release/bundle/msi/*.msi
             apps/app/src-tauri/target/release/bundle/nsis/*.exe
+
+  cassa-mac:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: 'aarch64-apple-darwin,x86_64-apple-darwin' }
+      - uses: swatinem/rust-cache@v2
+        with: { workspaces: apps/app/src-tauri }
+      - run: npm ci
+      - name: App Mac (.dmg universale, Apple Silicon e Intel)
+        working-directory: apps/app
+        run: npx tauri build --target universal-apple-darwin --bundles dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cassa-mac
+          path: apps/app/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
 
   palmare-android:
     needs: test
