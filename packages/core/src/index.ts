@@ -9,3 +9,4 @@ export * from './operazioni';
 export * from './data';
 export * from './stampa';
 export * from './gestione';
+export * from './stampanti';

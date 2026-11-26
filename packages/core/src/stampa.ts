@@ -47,7 +47,7 @@ export class CodaStampa {
     const st = this.stampante(j.stampanteId);
     if (j.tipo === 'comanda' || j.tipo === 'preconto') {
       try {
-        const dati = renderEscPos(j.ticket!, { colonne: st.colonne });
+        const dati = renderEscPos(j.ticket!, { colonne: st.colonne, codePage: st.codePage });
         await this.trasporto.inviaTcp(st.host, st.porta, dati, 5000);
         await this.db.esitoLavoro(j.id, { ok: true });
       } catch (e) {

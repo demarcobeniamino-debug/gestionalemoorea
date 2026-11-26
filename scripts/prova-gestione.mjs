@@ -99,6 +99,28 @@ passo('carico registrato: pecorino 1,2 → 5,2 kg');
 await p.getByRole('link', { name: 'Movimenti' }).click();
 await p.screenshot({ path: `${OUT}/G07-movimenti.png` });
 
+// Stampanti: ricerca in rete (demo), nuova stampante trovata, reparto, prova
+await p.getByRole('link', { name: 'Stampanti' }).click();
+await p.getByRole('button', { name: 'Cerca in rete' }).click();
+await p.getByText(/stampanti trovate/).waitFor({ timeout: 10000 });
+await p.screenshot({ path: `${OUT}/G12-ricerca-stampanti.png` });
+await p.getByLabel('Usa 192.168.1.120 come').selectOption('nuova');
+const st = p.locator('dialog[open]');
+await st.getByLabel('Nome').fill('Pizzeria');
+await st.getByLabel('Indirizzo IP').inputValue().then((v) => { if (v !== '192.168.1.120') throw new Error('IP non precompilato: ' + v); });
+await p.screenshot({ path: `${OUT}/G13-editor-stampante.png` });
+await st.getByRole('button', { name: 'Prova caratteri' }).click();
+await p.getByText('Demo: prova inviata a Pizzeria').waitFor();
+await st.getByRole('button', { name: 'Salva' }).click();
+await p.getByText('Stampante aggiunta').waitFor();
+await p.getByText('È “Pizzeria”').waitFor();
+await p.getByLabel('Stampante del reparto Bar').selectOption({ label: 'Pizzeria · 192.168.1.120' });
+await p.getByText('Bar aggiornato').waitFor();
+await p.getByRole('button', { name: 'Stampa di prova' }).first().click();
+await p.getByText(/Demo: prova inviata/).first().waitFor();
+await p.screenshot({ path: `${OUT}/G14-stampanti.png`, fullPage: true });
+passo('stampanti: ricerca, nuova stampante, reparto, prove');
+
 // Il nuovo piatto compare in comanda col prezzo giusto
 await p.goto(URL + '/#/sala');
 await p.getByRole('button', { name: /^Tavolo 3, libero/ }).click();

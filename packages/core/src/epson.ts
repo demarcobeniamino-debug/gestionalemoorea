@@ -125,3 +125,9 @@ export function leggiRispostaEpson(xml: string): RispostaEpson {
     ora: campo(xml, 'fiscalReceiptTime'),
   };
 }
+
+/** Stampa di prova NON fiscale sull'RT (non crea documenti). COLLAUDO: confermare sul firmware del Moorea. */
+export function xmlStampaNonFiscale(righe: string[]): string {
+  const r = righe.map((t) => `<printNormal operator="1" font="1" data="${esc(descrizioneRt(t))}" />`).join('\n');
+  return busta(`<printerNonFiscal>\n<beginNonFiscal operator="1" />\n${r}\n<endNonFiscal operator="1" />\n</printerNonFiscal>`);
+}

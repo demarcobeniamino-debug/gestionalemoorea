@@ -42,3 +42,10 @@ Screenshot in `replica/clone-screens/`.
 - Database: `registra_movimento` (RPC), scarico automatico dalle ricette alla chiusura del conto (`privato.scarica_vendita` da `esito_lavoro`), Realtime esteso a listino e sale.
 - Archivio comune (`@gr/core/gestione`): in memoria per la demo, Supabase per il locale. Test: 26 unitari, e2e `scripts/prova-gestione.mjs` + `prova-flusso.mjs` verdi.
 - Versione web su GitHub Pages (`.github/workflows/web.yml`).
+
+## 2026-11-26 — Impostazioni stampanti (v0.4.0)
+- Gestione → Stampanti: elenco, modifica (IP, porta, carta 58/76/80 mm, set di caratteri, matricola RT), reparti → stampante, stampante dei preconti.
+- Ricerca automatica in rete (`ponte::scoperta`, comando Tauri `cerca_stampanti`): prova la /24 della cassa su 9100 (DLE EOT 1 per confermare ESC/POS, GS I 66/67 per marca e modello, comandi di sola lettura) e su 80 (fpmate.cgi → Epson RT, firma RCH). Provata con finte stampanti su 127.0.0.x (`cargo run --example prova_scoperta`).
+- "Driver": nessun driver di sistema; il profilo (protocollo, porta, carta, set di caratteri) si imposta dal riconoscimento. "Prova caratteri" stampa la stessa riga in PC858/PC850/WPC1252/PC437 per scegliere quello giusto.
+- Prove: stampa di prova ESC/POS con righello della carta; prova NON fiscale sull'Epson (`printerNonFiscal`, da confermare al collaudo).
+- DB: `stampanti.codepage`, `stampanti.modello`. Test: 32 unitari TS, 9 Rust, e2e Gestione verde.

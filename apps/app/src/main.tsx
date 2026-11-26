@@ -19,6 +19,7 @@ import { Articoli } from './schermate/gestione/Articoli';
 import { Categorie, Varianti } from './schermate/gestione/Menu';
 import { SaleTavoli } from './schermate/gestione/SaleTavoli';
 import { Fornitori, Movimenti, Scorte } from './schermate/gestione/Magazzino';
+import { Stampanti } from './schermate/gestione/Stampanti';
 import { tieniAcceso } from './dati/piattaforma';
 
 void tieniAcceso();
@@ -48,6 +49,7 @@ function App() {
           <Route path="magazzino" element={<Scorte />} />
           <Route path="movimenti" element={<Movimenti />} />
           <Route path="fornitori" element={<Fornitori />} />
+          <Route path="stampanti" element={<Stampanti />} />
         </Route>
         {/* Schermate delle fasi successive (recon S17-S53): segnaposto con il loro scopo. */}
         <Route path="/da-fare/:id" element={<DaFare />} />

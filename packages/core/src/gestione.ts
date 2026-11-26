@@ -11,6 +11,7 @@ export interface AliquotaRiga { id: string; locale_id: string; descrizione: stri
 export interface StampanteRiga {
   id: string; locale_id: string; nome: string; tipo: TipoStampante; host: string; porta: number;
   colonne: 32 | 42 | 48; per_preconto: boolean; matricola_rt: string | null; attiva: boolean;
+  codepage: number; modello: string | null;
 }
 export interface CentroRiga { id: string; locale_id: string; nome: string; stampante_id: string | null }
 export interface CategoriaRiga {
@@ -68,6 +69,7 @@ export interface Tabelle {
 /** Tabelle modificabili dalla Gestione e la loro chiave. */
 export const CHIAVI = {
   categorie: ['id'], articoli: ['id'], varianti: ['id'], sale: ['id'], tavoli: ['id'],
+  stampanti: ['id'], centri_produzione: ['id'],
   fornitori: ['id'], mag_articoli: ['id'],
   prezzi_listino: ['listino_id', 'articolo_id'],
   articolo_varianti: ['articolo_id', 'variante_id'],
@@ -147,7 +149,7 @@ export function setupDaTabelle(t: Omit<Tabelle, 'fornitori' | 'mag_articoli' | '
   const iva10 = t.aliquote_iva.find((a) => Number(a.percentuale) === 10) ?? t.aliquote_iva[0];
   return {
     locale: { id: t.locale.id, nome: t.locale.nome, citta: t.locale.indirizzo.split(',').pop()!.trim(), copertoCents: t.locale.coperto_cents, aliquotaCopertoId: iva10?.id },
-    stampanti: t.stampanti.filter((s) => s.attiva).map((s) => ({ id: s.id, nome: s.nome, tipo: s.tipo, host: s.host, porta: s.porta, colonne: s.colonne, perPreconto: s.per_preconto, matricolaRt: s.matricola_rt ?? undefined })),
+    stampanti: t.stampanti.filter((s) => s.attiva).map((s) => ({ id: s.id, nome: s.nome, tipo: s.tipo, host: s.host, porta: s.porta, colonne: s.colonne, perPreconto: s.per_preconto, matricolaRt: s.matricola_rt ?? undefined, codePage: s.codepage ?? 19, modello: s.modello ?? undefined })),
     centri: t.centri_produzione.map((c) => ({ id: c.id, nome: c.nome, stampanteId: c.stampante_id })),
     aliquote: t.aliquote_iva.map((a) => ({ id: a.id, descrizione: a.descrizione, percentuale: Number(a.percentuale), repartoRt: a.reparto_rt })),
     sale: [...t.sale].sort((a, b) => a.ordine - b.ordine).map((s) => ({ id: s.id, nome: s.nome, ordine: s.ordine })),
@@ -172,7 +174,7 @@ export function tabelleDaSetup(s: Setup): Tabelle {
     gruppoId: G,
     listini: [{ id: LIST, locale_id: L, nome: 'Sala', predefinito: true }],
     aliquote_iva: s.aliquote.map((a) => ({ id: a.id, locale_id: L, descrizione: a.descrizione, percentuale: a.percentuale, reparto_rt: a.repartoRt })),
-    stampanti: s.stampanti.map((x) => ({ id: x.id, locale_id: L, nome: x.nome, tipo: x.tipo, host: x.host, porta: x.porta, colonne: x.colonne, per_preconto: !!x.perPreconto, matricola_rt: x.tipo === 'comande_escpos' ? null : x.matricolaRt ?? '', attiva: true })),
+    stampanti: s.stampanti.map((x) => ({ id: x.id, locale_id: L, nome: x.nome, tipo: x.tipo, host: x.host, porta: x.porta, colonne: x.colonne, per_preconto: !!x.perPreconto, matricola_rt: x.tipo === 'comande_escpos' ? null : x.matricolaRt ?? '', attiva: true, codepage: x.codePage ?? 19, modello: x.modello ?? null })),
     centri_produzione: s.centri.map((c) => ({ id: c.id, locale_id: L, nome: c.nome, stampante_id: c.stampanteId })),
     categorie: s.categorie.map((c) => ({ id: c.id, locale_id: L, nome: c.nome, colore: c.colore, ordine: c.ordine, centro_produzione_id: c.centroProduzioneId, portata_predefinita: c.portataPredefinita })),
     articoli: s.articoli.map((a, i) => ({
@@ -246,7 +248,7 @@ export class MemoriaArchivio implements Archivio {
     const lista = this.t[tabella] as RigaDi<T>[];
     const base: any = { ...riga };
     if (CHIAVI[tabella].length === 1 && !base.id) base.id = nuovoId();
-    if ('locale_id' in base === false && ['categorie', 'articoli', 'varianti', 'sale', 'tavoli', 'scorte'].includes(tabella)) base.locale_id = this.t.locale.id;
+    if ('locale_id' in base === false && ['categorie', 'articoli', 'varianti', 'sale', 'tavoli', 'scorte', 'stampanti', 'centri_produzione'].includes(tabella)) base.locale_id = this.t.locale.id;
     if ('gruppo_id' in base === false && ['fornitori', 'mag_articoli'].includes(tabella)) base.gruppo_id = this.t.gruppoId;
     if (tabella === 'tavoli' && base.numero != null) {
       const doppio = this.t.tavoli.find((x) => x.numero === base.numero && x.id !== base.id && x.attivo);
@@ -272,6 +274,7 @@ export class MemoriaArchivio implements Archivio {
     if (tabella === 'mag_articoli') this.t.scorte = this.t.scorte.filter((s) => s.mag_articolo_id !== id);
     if (tabella === 'varianti') this.t.articolo_varianti = this.t.articolo_varianti.filter((x) => x.variante_id !== id);
     if (tabella === 'fornitori') this.t.mag_articoli = this.t.mag_articoli.map((m) => (m.fornitore_id === id ? { ...m, fornitore_id: null } : m));
+    if (tabella === 'stampanti') this.t.centri_produzione = this.t.centri_produzione.map((c) => (c.stampante_id === id ? { ...c, stampante_id: null } : c));
     if (tabella === 'categorie') this.t.articoli = this.t.articoli.filter((a) => a.categoria_id !== id);
     this.cambiato();
   }

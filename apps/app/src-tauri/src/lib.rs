@@ -21,6 +21,35 @@ async fn http_post_xml(url: String, body: String, timeout_ms: u64) -> Result<Str
     .map_err(|e| format!("INCERTO: {e}"))?
 }
 
+#[derive(serde::Serialize)]
+struct Trovata { ip: String, porta: u16, genere: &'static str, marca: Option<String>, modello: Option<String>, dettaglio: Option<String> }
+
+#[derive(serde::Serialize)]
+struct EsitoRicerca { rete: String, trovate: Vec<Trovata> }
+
+/// Cerca le stampanti nella rete del locale (porta 9100 ESC/POS e pagine web dei registratori).
+#[tauri::command]
+async fn cerca_stampanti(rete: Option<String>) -> Result<EsitoRicerca, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let (rete, v) = ponte::scoperta::cerca(rete.as_deref())?;
+        Ok(EsitoRicerca {
+            rete,
+            trovate: v.into_iter().map(|t| Trovata {
+                genere: match t.genere {
+                    ponte::scoperta::Genere::EscPos => "escpos",
+                    ponte::scoperta::Genere::Porta9100 => "porta9100",
+                    ponte::scoperta::Genere::EpsonRt => "epson_rt",
+                    ponte::scoperta::Genere::RchRt => "rch_rt",
+                    ponte::scoperta::Genere::Web => "web",
+                },
+                ip: t.ip, porta: t.porta, marca: t.marca, modello: t.modello, dettaglio: t.dettaglio,
+            }).collect(),
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
@@ -30,7 +59,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init());
     builder
-        .invoke_handler(tauri::generate_handler![tcp_send, http_post_xml])
+        .invoke_handler(tauri::generate_handler![tcp_send, http_post_xml, cerca_stampanti])
         .run(tauri::generate_context!())
         .expect("errore all'avvio dell'app di cassa");
 }

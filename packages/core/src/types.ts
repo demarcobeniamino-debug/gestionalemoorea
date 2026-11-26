@@ -23,6 +23,10 @@ export interface Stampante {
   colonne: 32 | 42 | 48;
   perPreconto?: boolean;
   matricolaRt?: string;
+  /** Set di caratteri ESC/POS (ESC t n). 19 = PC858. */
+  codePage?: number;
+  /** Marca e modello riconosciuti dalla ricerca in rete. */
+  modello?: string;
 }
 
 export interface CentroProduzione { id: string; nome: string; stampanteId: string | null; }

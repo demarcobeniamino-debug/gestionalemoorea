@@ -4,6 +4,8 @@
 //! Regola per il fiscale: distinguere "non è partito niente" (si può riprovare)
 //! da "è partito ma la risposta non è arrivata" (INCERTO: lo scontrino potrebbe essere uscito).
 
+pub mod scoperta;
+
 use std::io::{Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpStream, ToSocketAddrs};
 use std::time::Duration;
