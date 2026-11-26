@@ -4,6 +4,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import './styles/index.css';
 import { DatiProvider, useApp } from './dati/contesto';
 import { Toasts } from './ui/primitivi';
+import { Aggiornamento } from './ui/Aggiornamento';
 import { Accesso } from './schermate/Accesso';
 import { Sala } from './schermate/Sala';
 import { ComandaSchermata } from './schermate/Comanda';
@@ -39,6 +40,7 @@ function App() {
       </Routes>
       <Toasts />
       <CartaSimulata />
+      <Aggiornamento />
     </>
   );
 }

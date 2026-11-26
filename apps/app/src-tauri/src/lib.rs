@@ -23,7 +23,13 @@ async fn http_post_xml(url: String, body: String, timeout_ms: u64) -> Result<Str
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // Aggiornamenti automatici (solo Mac e Windows): l'app chiede prima di installare.
+    #[cfg(desktop)]
+    let builder = builder
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init());
+    builder
         .invoke_handler(tauri::generate_handler![tcp_send, http_post_xml])
         .run(tauri::generate_context!())
         .expect("errore all'avvio dell'app di cassa");

@@ -1,7 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Finestra principale della cassa: solo i comandi del ponte",
-  "windows": ["main"],
-  "permissions": ["core:default"]
+  "description": "Finestra principale della cassa: comandi del ponte e aggiornamenti",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "updater:default",
+    "process:allow-restart"
+  ]
 }
