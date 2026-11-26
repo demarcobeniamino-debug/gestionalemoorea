@@ -113,7 +113,7 @@ export function Tastierino({ onTasto }: { onTasto: (t: string) => void }) {
 }
 
 /** Foglio: sale dal basso sul palmare, compare al centro su cassa. Dialog nativo: focus intrappolato, Esc chiude. */
-export function Foglio({ aperto, onChiudi, titolo, children }: { aperto: boolean; onChiudi: () => void; titolo: string; children: ReactNode }) {
+export function Foglio({ aperto, onChiudi, titolo, children, piede }: { aperto: boolean; onChiudi: () => void; titolo: string; children: ReactNode; piede?: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current; if (!d) return;
@@ -124,12 +124,15 @@ export function Foglio({ aperto, onChiudi, titolo, children }: { aperto: boolean
     <dialog ref={ref} onClose={onChiudi} aria-label={titolo}
       onClick={(e) => { if (e.target === ref.current) onChiudi(); }}
       className="foglio m-0 mt-auto max-h-[92dvh] w-full max-w-none overflow-hidden rounded-t-lg border border-border bg-surface p-0 text-text shadow-pop sm:m-auto sm:w-[540px] sm:rounded-lg">
-      <div className="mx-auto mt-2 h-1 w-10 rounded-pill bg-border-input sm:hidden" aria-hidden="true" />
-      <div className="flex items-center justify-between px-5 pb-2 pt-3 sm:pt-4">
-        <h2 className="text-lg font-semibold">{titolo}</h2>
-        <button type="button" onClick={onChiudi} aria-label="Chiudi" className="premibile grid h-touch w-touch place-items-center rounded-md text-text-muted hover:bg-surface-2">{Icona.chiudi}</button>
+      <div className="flex max-h-[92dvh] flex-col">
+        <div className="mx-auto mt-2 h-1 w-10 flex-none rounded-pill bg-border-input sm:hidden" aria-hidden="true" />
+        <div className="flex flex-none items-center justify-between px-5 pb-2 pt-3 sm:pt-4">
+          <h2 className="text-lg font-semibold">{titolo}</h2>
+          <button type="button" onClick={onChiudi} aria-label="Chiudi" className="premibile grid h-touch w-touch place-items-center rounded-md text-text-muted hover:bg-surface-2">{Icona.chiudi}</button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">{children}</div>
+        {piede && <div className="flex flex-none flex-wrap items-center gap-2 border-t border-border px-5 py-4">{piede}</div>}
       </div>
-      <div className="max-h-[calc(92dvh-72px)] overflow-y-auto px-5 pb-5">{children}</div>
     </dialog>
   );
 }

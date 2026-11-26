@@ -5,7 +5,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
   ErroreDominio, nuovaRiga, preparaIncasso, preparaInvio, preparaPreconto, preparaStorno,
   type Allergene, type Comanda, type DataLayer, type Documento, type EsitoLavoro, type Incasso, type NuovaRiga,
-  type Operatore, type PrintJob, type RigaComanda, type Setup, type Categoria,
+  type Operatore, type PrintJob, type RigaComanda, type Setup, setupDaTabelle,
 } from '@gr/core';
 
 const URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -32,13 +32,6 @@ const MESSAGGI: Record<string, string> = {
 function errore(e: { message?: string } | null): never {
   const codice = Object.keys(MESSAGGI).find((k) => e?.message?.includes(k));
   throw new ErroreDominio(codice ? MESSAGGI[codice] : `Errore del server: ${e?.message ?? 'sconosciuto'}`);
-}
-
-/** Colore del testo leggibile su un colore di categoria. */
-function testoSu(hex: string) {
-  const n = parseInt(hex.replace('#', ''), 16);
-  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => { const x = c / 255; return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.18 ? '#0f1216' : '#f2f4f7';
 }
 
 type Riga = Record<string, any>;
@@ -73,25 +66,15 @@ export class SupabaseDataLayer implements DataLayer {
       q('stampanti'), q('centri_produzione'), q('aliquote_iva'), q('sale'), q('tavoli'), q('categorie'), q('articoli'),
       q('prezzi_listino'), q('listini'), q('varianti'), q('articolo_varianti'), q('operatori', 'id,nome,ruolo,attivo'),
     ]);
-    const listino = listini.find((l) => l.predefinito) ?? listini[0];
-    const prezzo = (id: string) => prezzi.find((p) => p.articolo_id === id && p.listino_id === listino?.id)?.prezzo_cents ?? 0;
-    const iva10 = aliquote.find((a) => Number(a.percentuale) === 10) ?? aliquote[0];
-    this._setup = {
-      locale: { id: locale.id, nome: locale.nome, citta: (locale.indirizzo as string).split(',').pop()!.trim(), copertoCents: locale.coperto_cents, aliquotaCopertoId: iva10?.id },
-      stampanti: stampanti.filter((s) => s.attiva).map((s) => ({ id: s.id, nome: s.nome, tipo: s.tipo, host: s.host, porta: s.porta, colonne: s.colonne, perPreconto: s.per_preconto, matricolaRt: s.matricola_rt ?? undefined })),
-      centri: centri.map((c) => ({ id: c.id, nome: c.nome, stampanteId: c.stampante_id })),
-      aliquote: aliquote.map((a) => ({ id: a.id, descrizione: a.descrizione, percentuale: Number(a.percentuale), repartoRt: a.reparto_rt })),
-      sale: sale.sort((a, b) => a.ordine - b.ordine).map((s) => ({ id: s.id, nome: s.nome, ordine: s.ordine })),
-      tavoli: tavoli.filter((t) => t.attivo).map((t) => ({ id: t.id, salaId: t.sala_id, numero: t.numero, forma: t.forma, x: Number(t.x), y: Number(t.y), larghezza: Number(t.larghezza), altezza: Number(t.altezza), posti: t.posti })),
-      categorie: categorie.sort((a, b) => a.ordine - b.ordine).map((c): Categoria => ({ id: c.id, nome: c.nome, colore: c.colore ?? '#a3acba', testoColore: testoSu(c.colore ?? '#a3acba'), ordine: c.ordine, centroProduzioneId: c.centro_produzione_id, portataPredefinita: c.portata_predefinita })),
-      articoli: articoli.filter((a) => a.attivo).sort((a, b) => a.ordine - b.ordine || a.nome.localeCompare(b.nome)).map((a) => ({
-        id: a.id, categoriaId: a.categoria_id, nome: a.nome, nomeBreve: a.nome_breve ?? undefined, prezzoCents: prezzo(a.id), aliquotaIvaId: a.aliquota_iva_id,
-        centroProduzioneId: a.centro_produzione_id, allergeni: a.allergeni, esaurito: a.esaurito, variantiIds: av.filter((x) => x.articolo_id === a.id).map((x) => x.variante_id),
-      })),
-      varianti: varianti.map((v) => ({ id: v.id, gruppo: v.gruppo ?? '', nome: v.nome, deltaCents: v.delta_cents })),
-      operatori: operatori.filter((o) => o.attivo).map((o) => ({ id: o.id, nome: o.nome, ruolo: o.ruolo })),
-    };
+    this._setup = setupDaTabelle({
+      locale: locale as any, listini: listini as any, aliquote_iva: aliquote as any, stampanti: stampanti as any,
+      centri_produzione: centri as any, categorie: categorie as any, articoli: articoli as any, prezzi_listino: prezzi as any,
+      varianti: varianti as any, articolo_varianti: av as any, sale: sale as any, tavoli: tavoli as any,
+    }, operatori.filter((o) => o.attivo).map((o) => ({ id: o.id, nome: o.nome, ruolo: o.ruolo })));
   }
+
+  /** La Gestione ha salvato: rilegge listino, sale e stampanti senza aspettare il tempo reale. */
+  async ricaricaSetup() { await this.caricaSetup(); this.emit(); }
 
   private nomeOperatore = (id?: string | null) => this._setup.operatori.find((o) => o.id === id)?.nome ?? '';
 
@@ -143,8 +126,21 @@ export class SupabaseDataLayer implements DataLayer {
     for (const t of ['comande', 'righe_comanda', 'documenti', 'print_jobs']) {
       canale.on('postgres_changes', { event: '*', schema: 'public', table: t, filter: filtro }, () => this.programmaRicarica());
     }
-    canale.on('postgres_changes', { event: '*', schema: 'public', table: 'articoli', filter: filtro }, () => { void this.caricaSetup().then(() => this.emit()); });
+    // Listino, sale e stampanti cambiati dalla Gestione (anche da un altro dispositivo).
+    for (const t of ['articoli', 'categorie', 'sale', 'tavoli', 'varianti', 'stampanti', 'centri_produzione', 'aliquote_iva']) {
+      canale.on('postgres_changes', { event: '*', schema: 'public', table: t, filter: filtro }, () => this.programmaSetup());
+    }
+    // Queste due non hanno locale_id: le regole di accesso filtrano già quelle del locale.
+    for (const t of ['prezzi_listino', 'articolo_varianti']) {
+      canale.on('postgres_changes', { event: '*', schema: 'public', table: t }, () => this.programmaSetup());
+    }
     canale.subscribe();
+  }
+
+  private ricaricaSetupTimer?: ReturnType<typeof setTimeout>;
+  private programmaSetup() {
+    clearTimeout(this.ricaricaSetupTimer);
+    this.ricaricaSetupTimer = setTimeout(() => void this.ricaricaSetup(), 250);
   }
 
   private programmaRicarica() {

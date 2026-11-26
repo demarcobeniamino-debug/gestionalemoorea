@@ -1,12 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { CodaStampa, FakeDataLayer, seedMoorea, type DataLayer, type Operatore, type TrasportoSimulato } from '@gr/core';
+import {
+  CodaStampa, FakeDataLayer, MemoriaArchivio, magazzinoDemo, seedMoorea, setupDaTabelle, tabelleDaSetup,
+  type Archivio, type DataLayer, type Operatore, type TrasportoSimulato,
+} from '@gr/core';
 import { creaTrasporto, inTauri } from './trasporto';
 import { SupabaseDataLayer, supabase, supabaseConfigurato } from './supabase';
+import { SupabaseArchivio } from './archivio';
 
 export type Modalita = 'demo' | 'locale';
 
 interface Ctx {
   db: DataLayer;
+  /** Gestione: articoli, sale e tavoli, magazzino. */
+  archivio: Archivio;
   modalita: Modalita;
   simulato?: TrasportoSimulato;
   stampaDaQui: boolean;
@@ -27,7 +33,7 @@ const deveStampare = (m: Modalita) => m === 'demo' || inTauri() || localStorage.
 type Stato =
   | { fase: 'avvio' }
   | { fase: 'collega'; errore?: string }
-  | { fase: 'pronto'; db: DataLayer; modalita: Modalita; simulato?: TrasportoSimulato };
+  | { fase: 'pronto'; db: DataLayer; archivio: Archivio; modalita: Modalita; simulato?: TrasportoSimulato };
 
 export function DatiProvider({ children, schermataCollega }: { children: ReactNode; schermataCollega: (p: { onDemo: () => void; onCollegato: () => void; errore?: string }) => ReactNode }) {
   const [stato, setStato] = useState<Stato>({ fase: 'avvio' });
@@ -35,7 +41,7 @@ export function DatiProvider({ children, schermataCollega }: { children: ReactNo
   const [toasts, setToasts] = useState<Ctx['toasts']>([]);
   const fermaCoda = useRef<(() => void) | undefined>(undefined);
 
-  const pronto = useCallback((db: DataLayer, modalita: Modalita) => {
+  const pronto = useCallback((db: DataLayer, archivio: Archivio, modalita: Modalita) => {
     fermaCoda.current?.();
     let simulato: TrasportoSimulato | undefined;
     if (deveStampare(modalita)) {
@@ -43,18 +49,22 @@ export function DatiProvider({ children, schermataCollega }: { children: ReactNo
       simulato = t.simulato;
       fermaCoda.current = new CodaStampa(db, t.trasporto).avvia(modalita === 'demo' ? 500 : 1500);
     }
-    setStato({ fase: 'pronto', db, modalita, simulato });
+    setStato({ fase: 'pronto', db, archivio, modalita, simulato });
   }, []);
 
   const avviaDemo = useCallback(() => {
     localStorage.setItem(CHIAVE_MODALITA, 'demo');
-    pronto(new FakeDataLayer(seedMoorea()), 'demo');
+    const seed = seedMoorea();
+    const db = new FakeDataLayer(seed);
+    const archivio = new MemoriaArchivio(magazzinoDemo(tabelleDaSetup(seed)), (t) => db.impostaSetup(setupDaTabelle(t, seed.operatori)));
+    pronto(db, archivio, 'demo');
   }, [pronto]);
 
   const avviaLocale = useCallback(async () => {
     try {
       localStorage.setItem(CHIAVE_MODALITA, 'locale');
-      pronto(await SupabaseDataLayer.avvia(), 'locale');
+      const db = await SupabaseDataLayer.avvia();
+      pronto(db, new SupabaseArchivio(() => void db.ricaricaSetup()), 'locale');
     } catch (e) {
       setStato({ fase: 'collega', errore: (e as Error).message });
     }
@@ -98,7 +108,7 @@ export function DatiProvider({ children, schermataCollega }: { children: ReactNo
   }
   return (
     <C.Provider value={{
-      db: stato.db, modalita: stato.modalita, simulato: stato.simulato, stampaDaQui: deveStampare(stato.modalita),
+      db: stato.db, archivio: stato.archivio, modalita: stato.modalita, simulato: stato.simulato, stampaDaQui: deveStampare(stato.modalita),
       operatore, setOperatore, toast, toasts, scollega,
     }}>{children}</C.Provider>
   );

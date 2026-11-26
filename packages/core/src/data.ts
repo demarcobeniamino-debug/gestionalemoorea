@@ -72,6 +72,8 @@ export class FakeDataLayer implements DataLayer {
   private stamp() { return this.now().toISOString() + String(++this.seq).padStart(6, '0'); }
 
   setup() { return this.s; }
+  /** Demo: la Gestione ha cambiato listino o sala. */
+  impostaSetup(s: Setup) { this.s = s; this.emit(); }
   comandeAperte() { return [...this._comande.values()].filter((c) => c.stato === 'aperta' || c.stato === 'preconto'); }
   comanda(id: string) { return this._comande.get(id); }
   comandaDelTavolo(tavoloId: string) { return this.comandeAperte().find((c) => c.tavoloId === tavoloId); }

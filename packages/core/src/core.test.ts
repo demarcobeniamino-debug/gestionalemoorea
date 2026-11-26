@@ -22,6 +22,8 @@ describe('soldi', () => {
   it('legge gli importi digitati', () => {
     expect(parseEuro('28,50')).toBe(2850);
     expect(parseEuro('€ 1.000')).toBe(100000);
+    expect(parseEuro('28.5')).toBe(2850);
+    expect(parseEuro('1.234,50')).toBe(123450);
     expect(() => parseEuro('abc')).toThrow();
   });
 });

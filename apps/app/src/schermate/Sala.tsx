@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Clock, Receipt, Warning } from '@phosphor-icons/react';
+import { Clock, GearSix, Receipt, Warning } from '@phosphor-icons/react';
 import { calcolaConto, euro, type Comanda, type Tavolo } from '@gr/core';
 import { useApp, useAzione, useDati, useOra } from '../dati/contesto';
 import { Testata } from '../ui/Testata';
+import { puoGestire } from './gestione/Layout';
 import { Foglio, Icona, Pulsante } from '../ui/primitivi';
 
 const RITARDO_MIN = 20;
@@ -104,6 +105,9 @@ export function Sala() {
             ))}
             <span className="flex-1" />
             <Link to="/cucina" className="premibile flex h-9 items-center gap-2 rounded-md border border-border px-3 text-text">{Icona.cucina}Monitor cucina</Link>
+            {puoGestire(operatore?.ruolo) && (
+              <Link to="/gestione" className="premibile flex h-9 items-center gap-2 rounded-md border border-border px-3 text-text"><GearSix size={18} weight="bold" aria-hidden="true" />Gestione</Link>
+            )}
           </div>
 
           <div ref={pianta} className="relative flex-1 overflow-auto px-4 pb-4">
