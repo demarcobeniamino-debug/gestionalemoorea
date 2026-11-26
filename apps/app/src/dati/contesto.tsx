@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  CodaStampa, FakeDataLayer, MemoriaArchivio, magazzinoDemo, seedMoorea, setupDaTabelle, tabelleDaSetup,
+  CodaStampa, FakeDataLayer, MemoriaArchivio, magazzinoDemo, prenotazioniDemo, seedMoorea, setupDaTabelle, tabelleDaSetup,
   type Archivio, type DataLayer, type Operatore, type TrasportoSimulato,
 } from '@gr/core';
 import { creaTrasporto, inTauri } from './trasporto';
@@ -56,6 +56,7 @@ export function DatiProvider({ children, schermataCollega }: { children: ReactNo
     localStorage.setItem(CHIAVE_MODALITA, 'demo');
     const seed = seedMoorea();
     const db = new FakeDataLayer(seed);
+    db.impostaPrenotazioni(prenotazioniDemo());
     const archivio = new MemoriaArchivio(magazzinoDemo(tabelleDaSetup(seed)), (t) => db.impostaSetup(setupDaTabelle(t, seed.operatori)));
     pronto(db, archivio, 'demo');
   }, [pronto]);
@@ -80,6 +81,16 @@ export function DatiProvider({ children, schermataCollega }: { children: ReactNo
     })();
     return () => fermaCoda.current?.();
   }, [avviaDemo, avviaLocale]);
+
+  // Prenotazioni da Table Flow: una lettura subito e poi ogni minuto (solo col database vero).
+  useEffect(() => {
+    if (stato.fase !== 'pronto' || !stato.db.sincronizzaPrenotazioni) return;
+    const db = stato.db;
+    const giro = () => void db.sincronizzaPrenotazioni!().catch(() => { /* senza rete: riprova al giro dopo */ });
+    giro();
+    const t = setInterval(giro, 60_000);
+    return () => clearInterval(t);
+  }, [stato]);
 
   const toast: Ctx['toast'] = useCallback(({ testo, tipo = 'info' }) => {
     const id = Date.now() + Math.random();

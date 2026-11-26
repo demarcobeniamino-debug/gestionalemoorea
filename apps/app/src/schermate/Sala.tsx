@@ -1,22 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Clock, GearSix, Receipt, Warning } from '@phosphor-icons/react';
-import { calcolaConto, euro, type Comanda, type Tavolo } from '@gr/core';
+import { CalendarCheck, Clock, GearSix, Receipt, Warning } from '@phosphor-icons/react';
+import { ALLERGENI_ETICHETTA, calcolaConto, daAccogliere, euro, type Comanda, type Prenotazione, type Tavolo } from '@gr/core';
 import { useApp, useAzione, useDati, useOra } from '../dati/contesto';
 import { Testata } from '../ui/Testata';
 import { puoGestire } from './gestione/Layout';
-import { Foglio, Icona, Pulsante } from '../ui/primitivi';
+import { Foglio, Icona, Pulsante, useConferma } from '../ui/primitivi';
 
 const RITARDO_MIN = 20;
+/** Un tavolo libero risulta prenotato da 3 ore prima a 45 minuti dopo l'orario. */
+const PRIMA_MIN = 180, DOPO_MIN = 45;
+const ora2 = (iso: string) => new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
-type Stato = 'libero' | 'occupato' | 'conto' | 'ritardo';
+type Stato = 'libero' | 'prenotato' | 'occupato' | 'conto' | 'ritardo';
 const STILE: Record<Stato, string> = {
   libero: 'bg-tavolo-libero border-2 border-tavolo-libero-bordo text-text',
+  prenotato: 'bg-tavolo-prenotato text-on-tavolo',
   occupato: 'bg-tavolo-occupato text-on-tavolo',
   conto: 'bg-tavolo-conto text-on-tavolo',
   ritardo: 'bg-tavolo-ritardo text-on-tavolo',
 };
-const NOME_STATO: Record<Stato, string> = { libero: 'Liberi', occupato: 'Occupati', conto: 'Conto chiesto', ritardo: 'In ritardo' };
+const NOME_STATO: Record<Stato, string> = { libero: 'Liberi', prenotato: 'Prenotati', occupato: 'Occupati', conto: 'Conto chiesto', ritardo: 'In ritardo' };
 
 /** Larghezza della piantina misurata, per adattare i tavoli allo schermo (da 390 a 1920 px). */
 function useLarghezza<T extends HTMLElement>() {
@@ -37,9 +41,21 @@ export function Sala() {
   const { esegui, inCorso } = useAzione();
   const nav = useNavigate();
   const ora = useOra();
-  const { sale, tavoli, aperte, copertoCents } = useDati((d) => ({
+  const { sale, tavoli, aperte, copertoCents, prenotazioni } = useDati((d) => ({
     sale: d.setup().sale, tavoli: d.setup().tavoli, aperte: d.comandeAperte(), copertoCents: d.setup().locale.copertoCents,
+    prenotazioni: d.prenotazioni(),
   }));
+  const [pren, setPren] = useState<string>('');
+  const [aspettaTavolo, setAspettaTavolo] = useState<Prenotazione | null>(null);
+  const [vista, setVista] = useState<'sala' | 'prenotazioni'>('sala');
+  const [listaAperta, setListaAperta] = useState(false);
+  const { chiedi, ui: conferma } = useConferma();
+  const daSedere = prenotazioni.filter(daAccogliere);
+  const prenotazioneDel = (t: Tavolo) => daSedere.find((p) => {
+    if (p.tavoloId !== t.id) return false;
+    const min = (new Date(p.inizio).getTime() - ora.getTime()) / 60000;
+    return min <= PRIMA_MIN && min >= -DOPO_MIN;
+  });
   const [salaId, setSalaId] = useState(sale[0]?.id);
   const [daAprire, setDaAprire] = useState<Tavolo | null>(null);
   const [coperti, setCoperti] = useState(2);
@@ -47,7 +63,7 @@ export function Sala() {
 
   const info = (t: Tavolo): { stato: Stato; comanda?: Comanda; minuti?: number; totale?: number } => {
     const c = aperte.find((x) => x.tavoloId === t.id);
-    if (!c) return { stato: 'libero' };
+    if (!c) return { stato: prenotazioneDel(t) ? 'prenotato' : 'libero' };
     const righe = db.righe(c.id);
     const minuti = Math.max(0, Math.floor((ora.getTime() - new Date(c.apertaAt).getTime()) / 60000));
     const inRitardo = righe.some((r) => r.stato === 'inviata' && r.inviataAt && ora.getTime() - new Date(r.inviataAt).getTime() > RITARDO_MIN * 60000);
@@ -59,7 +75,7 @@ export function Sala() {
   const colonne = Math.max(5, ...visibili.map((t) => t.x + t.larghezza));
   const righeGriglia = Math.max(3, ...visibili.map((t) => t.y + t.altezza));
   const unita = Math.max(64, Math.min(140, Math.floor(w / colonne)));
-  const conteggi = (['libero', 'occupato', 'conto', 'ritardo'] as Stato[]).map((s) => [s, visibili.filter((t) => info(t).stato === s).length] as const);
+  const conteggi = (['libero', 'prenotato', 'occupato', 'conto', 'ritardo'] as Stato[]).map((s) => [s, visibili.filter((t) => info(t).stato === s).length] as const);
   const copertiInSala = aperte.reduce((s, c) => s + c.coperti, 0);
   const inSala = aperte
     .map((c) => ({ c, t: tavoli.find((x) => x.id === c.tavoloId) }))
@@ -69,14 +85,30 @@ export function Sala() {
 
   const tocca = (t: Tavolo) => {
     const i = info(t);
-    if (i.comanda) nav(`/comanda/${i.comanda.id}`);
-    else { setCoperti(Math.min(t.posti, 2)); setDaAprire(t); }
+    if (i.comanda) return nav(`/comanda/${i.comanda.id}`);
+    const p = aspettaTavolo ?? prenotazioneDel(t);
+    setAspettaTavolo(null);
+    setPren(p?.id ?? '');
+    setCoperti(p ? p.coperti : Math.min(t.posti, 2));
+    setDaAprire(t);
+  };
+
+  /** Dall'elenco: se ha il tavolo ed è libero si apre quello, altrimenti si sceglie il tavolo in sala. */
+  const accogli = (p: Prenotazione) => {
+    setListaAperta(false);
+    const t = tavoli.find((x) => x.id === p.tavoloId);
+    if (t && !aperte.some((c) => c.tavoloId === t.id)) {
+      if (t.salaId !== salaId) setSalaId(t.salaId);
+      setPren(p.id); setCoperti(p.coperti); setDaAprire(t);
+    } else {
+      setAspettaTavolo(p); setVista('sala');
+    }
   };
 
   const apri = () => {
     if (!daAprire || !operatore) return;
     void esegui(async () => {
-      const c = await db.apriTavolo(daAprire.id, coperti, operatore);
+      const c = await db.apriTavolo(daAprire.id, coperti, operatore, pren || undefined);
       setDaAprire(null);
       nav(`/comanda/${c.id}`);
     });
@@ -104,12 +136,22 @@ export function Sala() {
               </span>
             ))}
             <span className="flex-1" />
+            <button type="button" onClick={() => setListaAperta(true)} className="premibile flex h-9 items-center gap-2 rounded-md border border-border px-3 text-text lg:hidden">
+              <CalendarCheck size={18} weight="bold" aria-hidden="true" />Prenotazioni {daSedere.length}
+            </button>
             <Link to="/cucina" className="premibile flex h-9 items-center gap-2 rounded-md border border-border px-3 text-text">{Icona.cucina}Monitor cucina</Link>
             {puoGestire(operatore?.ruolo) && (
               <Link to="/gestione" className="premibile flex h-9 items-center gap-2 rounded-md border border-border px-3 text-text"><GearSix size={18} weight="bold" aria-hidden="true" />Gestione</Link>
             )}
           </div>
 
+          {aspettaTavolo && (
+            <div role="status" className="mx-4 mb-2 flex items-center gap-3 rounded-md bg-tavolo-prenotato px-4 py-2.5 font-semibold text-on-tavolo">
+              <CalendarCheck size={20} weight="bold" aria-hidden="true" />
+              <span className="flex-1">Tocca un tavolo libero per {aspettaTavolo.nome} ({aspettaTavolo.coperti})</span>
+              <button type="button" onClick={() => setAspettaTavolo(null)} className="premibile h-9 rounded-md px-3 underline-offset-2 hover:underline">Annulla</button>
+            </div>
+          )}
           <div ref={pianta} className="relative flex-1 overflow-auto px-4 pb-4">
             {visibili.length === 0 ? (
               <p className="py-16 text-center text-base text-text-muted">Questa sala non ha ancora tavoli. Si disegna dalle impostazioni.</p>
@@ -119,8 +161,10 @@ export function Sala() {
                   const i = info(t);
                   const tondo = t.forma === 'tondo' || t.forma === 'sgabello';
                   const piccolo = unita < 96;
+                  const pt = i.stato === 'prenotato' ? prenotazioneDel(t) : undefined;
                   const etichetta = i.stato === 'libero'
                     ? `Tavolo ${t.numero}, libero, ${t.posti} posti`
+                    : pt ? `Tavolo ${t.numero}, prenotato alle ${ora2(pt.inizio)} per ${pt.nome}, ${pt.coperti} persone`
                     : `Tavolo ${t.numero}, ${NOME_STATO[i.stato].toLowerCase()}, ${i.comanda!.coperti} coperti, ${i.minuti} minuti, ${euro(i.totale!)}`;
                   return (
                     <button key={t.id} type="button" onClick={() => tocca(t)} aria-label={etichetta}
@@ -129,6 +173,11 @@ export function Sala() {
                       <b className={`${piccolo ? 'text-lg' : 'text-[26px]'} font-bold leading-none tracking-tight`}>{t.numero}</b>
                       {i.stato === 'libero' ? (
                         !piccolo && <span className="text-xs font-medium text-text-muted">{t.posti} posti</span>
+                      ) : pt ? (
+                        <>
+                          <span className="flex items-center gap-1 text-xs font-bold"><CalendarCheck size={13} weight="bold" aria-hidden />{ora2(pt.inizio)}</span>
+                          {!piccolo && <span className="max-w-full truncate px-1.5 text-xs font-semibold">{pt.nome} · {pt.coperti}</span>}
+                        </>
                       ) : (
                         <>
                           <span className="flex items-center gap-1 text-xs font-semibold">
@@ -147,14 +196,19 @@ export function Sala() {
         </main>
 
         <aside aria-label="In sala adesso" className="hidden w-[320px] flex-none flex-col border-l border-border bg-surface lg:flex">
-          <div className="flex items-baseline justify-between px-5 pb-3 pt-5">
-            <h2 className="text-base font-bold">In sala adesso</h2>
-            <span className="text-sm font-semibold text-text-muted">{copertiInSala} coperti</span>
+          <div role="tablist" aria-label="Colonna" className="mx-4 mt-4 flex gap-1 rounded-md bg-bg p-1">
+            {([['sala', `In sala · ${copertiInSala}`], ['prenotazioni', `Prenotazioni · ${daSedere.length}`]] as const).map(([v, t]) => (
+              <button key={v} type="button" role="tab" aria-selected={vista === v} onClick={() => setVista(v)}
+                className={`premibile h-10 flex-1 rounded-md text-sm font-semibold ${vista === v ? 'bg-surface-2 text-text shadow-card' : 'text-text-muted'}`}>{t}</button>
+            ))}
           </div>
-          {inSala.length === 0 ? (
+          {vista === 'prenotazioni' ? (
+            <ListaPrenotazioni prenotazioni={prenotazioni} tavoli={tavoli} ora={ora} onAccogli={accogli}
+              onNonArrivati={(p) => chiedi(`${p.nome} (${p.coperti}) non si è presentato? Su Table Flow risulterà "no show".`, () => void esegui(() => db.segnaNonPresentato(p.id), 'Segnato come non presentato'), 'Non si è presentato')} />
+          ) : inSala.length === 0 ? (
             <p className="px-5 py-6 text-base text-text-muted">Nessun tavolo aperto. Tocca un tavolo libero per iniziare.</p>
           ) : (
-            <ul className="flex-1 overflow-y-auto px-3 pb-4">
+            <ul className="mt-2 flex-1 overflow-y-auto px-3 pb-4">
               {inSala.map(({ c, t, i }) => (
                 <li key={c.id}>
                   <button type="button" onClick={() => nav(`/comanda/${c.id}`)}
@@ -174,6 +228,34 @@ export function Sala() {
       </div>
 
       <Foglio aperto={!!daAprire} onChiudi={() => setDaAprire(null)} titolo={`Apri il tavolo ${daAprire?.numero ?? ''}`}>
+        {(() => {
+          const scelte = daSedere.filter((p) => p.id === pren || !p.tavoloId || p.tavoloId === daAprire?.id || !tavoli.some((t) => t.id === p.tavoloId));
+          const p = prenotazioni.find((x) => x.id === pren);
+          if (!scelte.length && !p) return null;
+          return (
+            <div className="mb-5">
+              <label htmlFor="apri-pren" className="mb-1.5 block text-sm font-semibold text-text-muted">Prenotazione</label>
+              <select id="apri-pren" value={pren} onChange={(e) => { setPren(e.target.value); const x = prenotazioni.find((y) => y.id === e.target.value); if (x) setCoperti(x.coperti); }}
+                className="h-touch w-full rounded-md border border-border-input bg-bg px-3 text-base text-text outline-none focus:border-focus">
+                <option value="">Nessuna (cliente senza prenotazione)</option>
+                {scelte.map((x) => <option key={x.id} value={x.id}>{ora2(x.inizio)} · {x.nome} · {x.coperti} pers.</option>)}
+              </select>
+              {p && (
+                <div className="mt-3 rounded-md bg-bg p-3 text-sm">
+                  <p className="font-semibold text-text">{p.nome}{p.telefono ? ` · ${p.telefono}` : ''}</p>
+                  {p.note && <p className="mt-1 text-text-muted">{p.note}</p>}
+                  {p.tag.length > 0 && <p className="mt-1 text-text-muted">{p.tag.join(' · ')}</p>}
+                  {p.allergeni.length > 0 && (
+                    <p className="mt-2 flex flex-wrap gap-1.5">
+                      {p.allergeni.map((a) => <span key={a} className="rounded-pill bg-allergene px-2.5 py-0.5 text-xs font-bold text-on-allergene">{ALLERGENI_ETICHETTA[a]}</span>)}
+                      <span className="text-xs text-text-muted">vanno sulla comanda</span>
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
         <p className="mb-4 text-sm font-semibold text-text-muted">Coperti</p>
         <div className="mb-4 flex items-center justify-center gap-6">
           <button type="button" aria-label="Meno coperti" onClick={() => setCoperti((c) => Math.max(1, c - 1))} className="premibile h-16 w-16 rounded-md bg-surface-2 text-2xl font-semibold">−</button>
@@ -186,8 +268,60 @@ export function Sala() {
               className={`premibile h-11 min-w-11 rounded-pill px-3 text-base font-semibold ${coperti === n ? 'bg-accent text-on-accent' : 'border border-border bg-bg'}`}>{n}</button>
           ))}
         </div>
-        <Pulsante variante="primario" taglia="xl" className="w-full" caricamento={inCorso} onClick={apri}>Apri e prendi la comanda</Pulsante>
+        <Pulsante variante="primario" taglia="xl" className="w-full" caricamento={inCorso} onClick={apri}>
+          {pren ? `Apri per ${prenotazioni.find((x) => x.id === pren)?.nome ?? ''}` : 'Apri e prendi la comanda'}
+        </Pulsante>
       </Foglio>
+
+      <Foglio aperto={listaAperta} onChiudi={() => setListaAperta(false)} titolo="Prenotazioni di oggi">
+        <ListaPrenotazioni prenotazioni={prenotazioni} tavoli={tavoli} ora={ora} onAccogli={accogli}
+          onNonArrivati={(p) => chiedi(`${p.nome} (${p.coperti}) non si è presentato? Su Table Flow risulterà "no show".`, () => void esegui(() => db.segnaNonPresentato(p.id), 'Segnato come non presentato'), 'Non si è presentato')} />
+      </Foglio>
+      {conferma}
     </div>
+  );
+}
+
+/** Prenotazioni della serata: da far sedere in alto, poi quelle già passate. */
+function ListaPrenotazioni({ prenotazioni, tavoli, ora, onAccogli, onNonArrivati }: {
+  prenotazioni: Prenotazione[]; tavoli: Tavolo[]; ora: Date;
+  onAccogli: (p: Prenotazione) => void; onNonArrivati: (p: Prenotazione) => void;
+}) {
+  const attese = prenotazioni.filter(daAccogliere);
+  const altre = prenotazioni.filter((p) => !daAccogliere(p));
+  const ETICHETTA: Record<string, string> = { arrivata: 'Seduti', terminata: 'Andati via', mancata: 'Non presentati' };
+  if (!prenotazioni.length) return <p className="px-5 py-6 text-base text-text-muted">Nessuna prenotazione per oggi. Arrivano da sole da Table Flow.</p>;
+  return (
+    <ul className="flex-1 overflow-y-auto px-3 pb-4 pt-2">
+      {attese.map((p) => {
+        const ritardo = Math.floor((ora.getTime() - new Date(p.inizio).getTime()) / 60000);
+        const tav = tavoli.find((t) => t.id === p.tavoloId)?.numero ?? (p.tavoliExt.length ? p.tavoliExt.join('+') : null);
+        return (
+          <li key={p.id} className="flex items-center gap-2">
+            <button type="button" onClick={() => onAccogli(p)} className="premibile flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-2.5 text-left hover:bg-surface-2">
+              <span className="w-12 flex-none text-[15px] font-bold tabular-nums">{new Date(p.inizio).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-[15px] font-semibold">{p.nome} · {p.coperti}{p.allergeni.length ? ' ·' : ''}{p.allergeni.length > 0 && <span className="ml-1 text-allergene">allergie</span>}</span>
+                <span className={`truncate text-sm ${ritardo > 15 ? 'font-semibold text-warning' : 'text-text-muted'}`}>
+                  {tav ? `Tavolo ${tav}` : 'Tavolo da scegliere'}{p.stato === 'richiesta' ? ' · da confermare' : ''}{ritardo > 15 ? ` · in ritardo ${ritardo}′` : ''}
+                </span>
+              </span>
+            </button>
+            {ritardo > 15 && (
+              <button type="button" onClick={() => onNonArrivati(p)} aria-label={`${p.nome} non si è presentato`}
+                className="premibile h-10 flex-none rounded-md px-2.5 text-xs font-semibold text-text-muted hover:bg-surface-2">No show</button>
+            )}
+          </li>
+        );
+      })}
+      {altre.length > 0 && <li className="px-2 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-text-muted">Già gestite</li>}
+      {altre.map((p) => (
+        <li key={p.id} className="flex items-center gap-3 px-2 py-2 text-text-muted">
+          <span className="w-12 flex-none text-sm tabular-nums">{new Date(p.inizio).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
+          <span className="flex-1 truncate text-sm">{p.nome} · {p.coperti}</span>
+          <span className="text-xs font-semibold">{ETICHETTA[p.stato] ?? p.stato}</span>
+        </li>
+      ))}
+    </ul>
   );
 }

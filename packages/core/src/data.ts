@@ -3,7 +3,7 @@
 //  - SupabaseDataLayer (nell'app): database vero, con cache locale aggiornata in tempo reale.
 // Le letture sono immediate (dalla cache); le scritture sono asincrone.
 
-import type { Allergene, Comanda, Documento, PrintJob, RigaComanda, RigaVariante } from './types';
+import type { Allergene, Comanda, Documento, Prenotazione, PrintJob, RigaComanda, RigaVariante } from './types';
 import type { Setup } from './seed';
 import { ErroreDominio, preparaIncasso, preparaInvio, preparaPreconto, preparaStorno, type Incasso } from './operazioni';
 import { calcolaConto } from './conto';
@@ -31,7 +31,12 @@ export interface DataLayer {
   righeDaPreparare(centroId: string): { comanda: Comanda; righe: RigaComanda[] }[];
 
   login(pin: string): Promise<Operatore | null>;
-  apriTavolo(tavoloId: string, coperti: number, operatore: Operatore): Promise<Comanda>;
+  apriTavolo(tavoloId: string, coperti: number, operatore: Operatore, prenotazioneId?: string): Promise<Comanda>;
+  /** Prenotazioni della giornata di servizio (da Table Flow). */
+  prenotazioni(): Prenotazione[];
+  segnaNonPresentato(prenotazioneId: string): Promise<void>;
+  /** Legge subito le prenotazioni nuove da Table Flow (dove c'è il collegamento). */
+  sincronizzaPrenotazioni?(): Promise<{ importate: number; inviate: number; errori: string[] }>;
   aggiungiRiga(comandaId: string, r: NuovaRiga): Promise<RigaComanda>;
   togliRiga(rigaId: string): Promise<void>;
   impostaAllergeni(comandaId: string, a: { allergene: Allergene; posto?: number }[]): Promise<void>;
@@ -56,6 +61,7 @@ export class FakeDataLayer implements DataLayer {
   private _righe = new Map<string, RigaComanda>();
   private _documenti = new Map<string, Documento>();
   private _lavori = new Map<string, PrintJob>();
+  private _prenotazioni = new Map<string, Prenotazione>();
   private chiavi = new Map<string, unknown>();
   private listeners = new Set<() => void>();
   private numero = 0;
@@ -95,14 +101,26 @@ export class FakeDataLayer implements DataLayer {
     return o ? { id: o.id, nome: o.nome, ruolo: o.ruolo } : null;
   }
 
-  async apriTavolo(tavoloId: string, coperti: number, operatore: Operatore): Promise<Comanda> {
+  async apriTavolo(tavoloId: string, coperti: number, operatore: Operatore, prenotazioneId?: string): Promise<Comanda> {
     if (this.comandaDelTavolo(tavoloId)) throw new ErroreDominio('Il tavolo è già aperto');
     if (!this.s.tavoli.some((t) => t.id === tavoloId)) throw new ErroreDominio('Tavolo inesistente');
+    const p = prenotazioneId ? this._prenotazioni.get(prenotazioneId) : undefined;
     const c: Comanda = {
       id: uid(), numero: ++this.numero, tavoloId, coperti, operatore: operatore.nome, stato: 'aperta',
-      apertaAt: this.now().toISOString(), allergeniTavolo: [], version: 1,
+      apertaAt: this.now().toISOString(), allergeniTavolo: (p?.allergeni ?? []).map((allergene) => ({ allergene })), version: 1,
+      prenotazioneId: p?.id,
     };
+    if (p) this._prenotazioni.set(p.id, { ...p, stato: 'arrivata', tavoloId });
     this._comande.set(c.id, c); this.emit(); return c;
+  }
+
+  prenotazioni() { return [...this._prenotazioni.values()].sort((a, b) => a.inizio.localeCompare(b.inizio)); }
+  /** Demo e test: prenotazioni come se fossero arrivate da Table Flow. */
+  impostaPrenotazioni(p: Prenotazione[]) { this._prenotazioni = new Map(p.map((x) => [x.id, x])); this.emit(); }
+  async segnaNonPresentato(id: string) {
+    const p = this._prenotazioni.get(id);
+    if (!p) throw new ErroreDominio('Prenotazione inesistente');
+    this._prenotazioni.set(id, { ...p, stato: 'mancata' }); this.emit();
   }
 
   private comandaAperta(id: string) {
@@ -225,7 +243,11 @@ export class FakeDataLayer implements DataLayer {
     const pagato = emessi.reduce((s, d) => s + d.totaleCents + d.scontoCents, 0);
     const quoteTotali = emessi.find((d) => d.quota)?.quota?.di;
     const tutteLeQuote = quoteTotali !== undefined && emessi.filter((d) => d.quota).length >= quoteTotali;
-    if (pagato >= conto.totaleCents || tutteLeQuote) { c.stato = 'chiusa'; c.chiusaAt = this.now().toISOString(); }
+    if (pagato >= conto.totaleCents || tutteLeQuote) {
+      c.stato = 'chiusa'; c.chiusaAt = this.now().toISOString();
+      const p = c.prenotazioneId ? this._prenotazioni.get(c.prenotazioneId) : undefined;
+      if (p) this._prenotazioni.set(p.id, { ...p, stato: 'terminata' });
+    }
   }
 }
 

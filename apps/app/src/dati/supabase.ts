@@ -5,7 +5,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
   ErroreDominio, nuovaRiga, preparaIncasso, preparaInvio, preparaPreconto, preparaStorno,
   type Allergene, type Comanda, type DataLayer, type Documento, type EsitoLavoro, type Incasso, type NuovaRiga,
-  type Operatore, type PrintJob, type RigaComanda, type Setup, setupDaTabelle,
+  type Operatore, type PrintJob, type RigaComanda, type Setup, setupDaTabelle, type Prenotazione,
 } from '@gr/core';
 
 const URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -43,6 +43,7 @@ export class SupabaseDataLayer implements DataLayer {
   private _righe: RigaComanda[] = [];
   private _documenti: Documento[] = [];
   private _lavori: PrintJob[] = [];
+  private _prenotazioni: Prenotazione[] = [];
   private listeners = new Set<() => void>();
   private ricarica?: ReturnType<typeof setTimeout>;
 
@@ -94,6 +95,7 @@ export class SupabaseDataLayer implements DataLayer {
     this._comande = (comande ?? []).map((c): Comanda => ({
       id: c.id, numero: c.numero, tavoloId: c.tavolo_id, coperti: c.coperti, operatore: this.nomeOperatore(c.operatore_id),
       stato: c.stato, apertaAt: c.aperta_at, chiusaAt: c.chiusa_at ?? undefined, allergeniTavolo: c.allergeni_tavolo ?? [], version: c.version,
+      prenotazioneId: c.prenotazione_id ?? undefined,
     }));
     this._righe = ((righe.data ?? []) as Riga[]).map((r): RigaComanda => ({
       id: r.id, comandaId: r.comanda_id, articoloId: r.articolo_id, descrizione: r.descrizione, quantita: Number(r.quantita),
@@ -111,6 +113,16 @@ export class SupabaseDataLayer implements DataLayer {
       idempotencyKey: d.idempotency_key, createdAt: d.created_at,
     }));
     this._lavori = ((lavori.data ?? []) as Riga[]).map(this.mappaLavoro);
+    // Prenotazioni della serata: da 8 ore fa a 18 ore avanti (copre pranzo, cena e il dopo mezzanotte).
+    const { data: pren } = await this.sb.from('prenotazioni').select('*')
+      .gte('inizio_at', new Date(Date.now() - 8 * 3600_000).toISOString())
+      .lt('inizio_at', new Date(Date.now() + 18 * 3600_000).toISOString())
+      .neq('stato', 'cancellata').order('inizio_at');
+    this._prenotazioni = ((pren ?? []) as Riga[]).map((p): Prenotazione => ({
+      id: p.id, nome: p.nome_ospite, telefono: p.telefono ?? undefined, coperti: p.coperti, inizio: p.inizio_at, fine: p.fine_at,
+      stato: p.stato, fonte: p.fonte, note: p.note ?? undefined, allergeni: p.allergeni ?? [], tag: p.tag ?? [],
+      tavoloId: p.tavolo_id, tavoliExt: p.tavoli_ext ?? [],
+    }));
     this.emit();
   }
 
@@ -123,7 +135,7 @@ export class SupabaseDataLayer implements DataLayer {
   private ascolta() {
     const filtro = `locale_id=eq.${this.localeId}`;
     const canale = this.sb.channel(`servizio-${this.localeId}`);
-    for (const t of ['comande', 'righe_comanda', 'documenti', 'print_jobs']) {
+    for (const t of ['comande', 'righe_comanda', 'documenti', 'print_jobs', 'prenotazioni']) {
       canale.on('postgres_changes', { event: '*', schema: 'public', table: t, filter: filtro }, () => this.programmaRicarica());
     }
     // Listino, sale e stampanti cambiati dalla Gestione (anche da un altro dispositivo).
@@ -181,8 +193,22 @@ export class SupabaseDataLayer implements DataLayer {
     return (data as Operatore[])[0] ?? null;
   }
 
-  async apriTavolo(tavoloId: string, coperti: number, operatore: Operatore) {
-    const { data, error } = await this.sb.rpc('apri_tavolo', { p_tavolo: tavoloId, p_coperti: coperti, p_operatore: operatore.id });
+  prenotazioni() { return this._prenotazioni; }
+
+  async segnaNonPresentato(id: string) {
+    const { error } = await this.sb.from('prenotazioni').update({ stato: 'mancata', updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) errore(error);
+    await this.caricaServizio();
+  }
+
+  async sincronizzaPrenotazioni() {
+    const { data, error } = await this.sb.functions.invoke('prenotazioni', { body: {} });
+    if (error && !data) throw new ErroreDominio(`Collegamento con Table Flow: ${error.message}`);
+    return data as { importate: number; inviate: number; errori: string[] };
+  }
+
+  async apriTavolo(tavoloId: string, coperti: number, operatore: Operatore, prenotazioneId?: string) {
+    const { data, error } = await this.sb.rpc('apri_tavolo', { p_tavolo: tavoloId, p_coperti: coperti, p_operatore: operatore.id, p_prenotazione: prenotazioneId ?? null });
     if (error) errore(error);
     await this.caricaServizio();
     return this.comanda((data as Riga).id)!;

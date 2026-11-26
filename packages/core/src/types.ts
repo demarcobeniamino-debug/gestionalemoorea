@@ -62,6 +62,8 @@ export interface Comanda {
   operatore: string; stato: StatoComanda; apertaAt: string; chiusaAt?: string;
   allergeniTavolo: { allergene: Allergene; posto?: number }[];
   version: number;
+  /** Prenotazione di Table Flow da cui è stato aperto il tavolo. */
+  prenotazioneId?: string;
 }
 
 export type StatoRiga =
@@ -110,3 +112,20 @@ export interface PrintJob {
   ticket?: import('./ticket').Ticket; xml?: string; errore?: string; tentativi: number;
   createdAt: string;
 }
+
+// ---------------------------------------------------------------------------
+// Prenotazioni (arrivano da Moorea Table Flow)
+export type StatoPrenotazione = 'richiesta' | 'confermata' | 'arrivata' | 'mancata' | 'cancellata' | 'terminata';
+
+export interface Prenotazione {
+  id: string; nome: string; telefono?: string; coperti: number;
+  inizio: string; fine: string; stato: StatoPrenotazione; fonte: string;
+  note?: string; allergeni: Allergene[]; tag: string[];
+  /** Tavolo della cassa collegato (stesso numero di Table Flow), se c'è. */
+  tavoloId: string | null;
+  /** Codici dei tavoli su Table Flow, anche più tavoli uniti (es. ["10","11"]). */
+  tavoliExt: string[];
+}
+
+/** Prenotazione ancora da far sedere? */
+export const daAccogliere = (p: Prenotazione) => p.stato === 'confermata' || p.stato === 'richiesta';

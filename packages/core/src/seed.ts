@@ -109,3 +109,17 @@ export function seedMoorea(): Setup {
     ],
   };
 }
+
+/** Prenotazioni di esempio per la demo, come se arrivassero da Table Flow (orari relativi ad adesso). */
+export function prenotazioniDemo(ora = new Date()): import('./types').Prenotazione[] {
+  const tra = (min: number) => new Date(ora.getTime() + min * 60000).toISOString();
+  const p = (id: string, nome: string, coperti: number, min: number, tavoloId: string | null, tavoliExt: string[], extra: Partial<import('./types').Prenotazione> = {}) => ({
+    id, nome, coperti, inizio: tra(min), fine: tra(min + 105), stato: 'confermata' as const, fonte: 'web', allergeni: [], tag: [], tavoloId, tavoliExt, ...extra,
+  });
+  return [
+    p('pr-esposito', 'Esposito', 6, -20, 't12', ['12'], { fonte: 'thefork', telefono: '333 111 2222' }),
+    p('pr-rossi', 'Rossi', 4, 30, 't5', ['5'], { allergeni: ['glutine'], tag: ['celiaco', 'compleanno'], note: 'Torta portata da loro' }),
+    p('pr-bianchi', 'Bianchi', 2, 75, null, [], { fonte: 'telefono', stato: 'richiesta' }),
+    p('pr-gruppo', 'Gruppo Amalfi', 12, 120, 't10', ['10'], { note: 'Menu gruppo 25 €', tag: ['vip'] }),
+  ];
+}
