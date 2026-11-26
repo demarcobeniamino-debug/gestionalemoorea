@@ -1,0 +1,2654 @@
+{
+ "fonte": "https://mooreafoodclub.it/menu",
+ "coperto": 200,
+ "categorie": [
+  {
+   "chiave": "Antipasti",
+   "nome": "Antipasti",
+   "colore": "#f4a261",
+   "reparto": "cucina",
+   "uscita": 1,
+   "ordine": 1
+  },
+  {
+   "chiave": "Pasta",
+   "nome": "Pasta",
+   "colore": "#f2f4f7",
+   "reparto": "cucina",
+   "uscita": 2,
+   "ordine": 2
+  },
+  {
+   "chiave": "Secondi",
+   "nome": "Secondi",
+   "colore": "#e76f51",
+   "reparto": "cucina",
+   "uscita": 3,
+   "ordine": 3
+  },
+  {
+   "chiave": "Contorni",
+   "nome": "Contorni",
+   "colore": "#8fd694",
+   "reparto": "cucina",
+   "uscita": 3,
+   "ordine": 4
+  },
+  {
+   "chiave": "Dolci",
+   "nome": "Dolci",
+   "colore": "#c9a7eb",
+   "reparto": "cucina",
+   "uscita": 9,
+   "ordine": 5
+  },
+  {
+   "chiave": "Cocktail",
+   "nome": "Cocktail",
+   "colore": "#7cc8ff",
+   "reparto": "bar",
+   "uscita": 0,
+   "ordine": 6
+  },
+  {
+   "chiave": "Mocktail",
+   "nome": "Analcolici",
+   "colore": "#a3e4d7",
+   "reparto": "bar",
+   "uscita": 0,
+   "ordine": 7
+  },
+  {
+   "chiave": "Distillati",
+   "nome": "Distillati",
+   "colore": "#e9c46a",
+   "reparto": "bar",
+   "uscita": 0,
+   "ordine": 8
+  },
+  {
+   "chiave": "Bevande",
+   "nome": "Acqua e bibite",
+   "colore": "#a3acba",
+   "reparto": "bar",
+   "uscita": 0,
+   "ordine": 9
+  },
+  {
+   "chiave": "Caffetteria",
+   "nome": "Caffè e tisane",
+   "colore": "#d9b38c",
+   "reparto": "bar",
+   "uscita": 9,
+   "ordine": 10
+  },
+  {
+   "chiave": "Vini al calice",
+   "nome": "Calici e amari",
+   "colore": "#d4a5a5",
+   "reparto": "bar",
+   "uscita": 0,
+   "ordine": 11
+  },
+  {
+   "chiave": "Birre",
+   "nome": "Birre",
+   "colore": "#ffd166",
+   "reparto": "bar",
+   "uscita": 0,
+   "ordine": 12
+  },
+  {
+   "chiave": "Bollicine",
+   "nome": "Bollicine",
+   "colore": "#fff1b8",
+   "reparto": "bar",
+   "uscita": 0,
+   "ordine": 13
+  },
+  {
+   "chiave": "Bianchi",
+   "nome": "Vini bianchi",
+   "colore": "#f0e6a8",
+   "reparto": "bar",
+   "uscita": 0,
+   "ordine": 14
+  },
+  {
+   "chiave": "Rosati",
+   "nome": "Vini rosati",
+   "colore": "#ffb3c7",
+   "reparto": "bar",
+   "uscita": 0,
+   "ordine": 15
+  },
+  {
+   "chiave": "Rossi",
+   "nome": "Vini rossi",
+   "colore": "#c97b84",
+   "reparto": "bar",
+   "uscita": 0,
+   "ordine": 16
+  },
+  {
+   "chiave": "Grandi formati",
+   "nome": "Grandi formati",
+   "colore": "#b58ac9",
+   "reparto": "bar",
+   "uscita": 0,
+   "ordine": 17
+  }
+ ],
+ "articoli": [
+  {
+   "categoria": "Antipasti",
+   "nome": "Cozze Indiavolate",
+   "descrizione": "Cozze, pomodorini, aglio, peperoncino, prezzemolo",
+   "prezzo": 1400,
+   "allergeni": [
+    "molluschi"
+   ],
+   "etichette": [],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Antipasti",
+   "nome": "Polpo Scottato",
+   "descrizione": "Polpo, crema di zucca, burrata, peperone crusco",
+   "prezzo": 2000,
+   "allergeni": [
+    "molluschi",
+    "latte"
+   ],
+   "etichette": [
+    "Top"
+   ],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Antipasti",
+   "nome": "Tartare di Tonno e Avocado",
+   "descrizione": "Tonno fresco, avocado, lime. La versione senza glutine è servita senza avocado.",
+   "prezzo": 1800,
+   "allergeni": [
+    "pesce"
+   ],
+   "etichette": [
+    "Top",
+    "GF"
+   ],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Antipasti",
+   "nome": "Totani e Patate",
+   "descrizione": "Totani, patate, aglio, prezzemolo",
+   "prezzo": 1600,
+   "allergeni": [
+    "molluschi"
+   ],
+   "etichette": [],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Antipasti",
+   "nome": "Fresella con Pomodorini, Burrata e Alici",
+   "descrizione": "Fresella, pomodorini, burrata, alici del Cantabrico, basilico, olio EVO",
+   "prezzo": 1400,
+   "allergeni": [
+    "glutine",
+    "latte",
+    "pesce"
+   ],
+   "etichette": [],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Antipasti",
+   "nome": "Polpette al Sugo",
+   "descrizione": "Polpette di maiale al sugo di pomodoro e basilico",
+   "prezzo": 1500,
+   "allergeni": [
+    "glutine",
+    "uova",
+    "latte"
+   ],
+   "etichette": [],
+   "abbattuto": true
+  },
+  {
+   "categoria": "Pasta",
+   "nome": "Zuppa di Zucca",
+   "descrizione": "Zuppa di zucca, crumble di olive nere, crostini di pane",
+   "prezzo": 1600,
+   "allergeni": [
+    "glutine"
+   ],
+   "etichette": [],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Pasta",
+   "nome": "Gnocchi alla Genovese",
+   "descrizione": "Gnocchi, ragù di manzo e cipolle (genovese napoletana) · senza glutine anche al pomodoro. Gnocchi artigianali del Pastificio di Minori.",
+   "prezzo": 2000,
+   "allergeni": [
+    "glutine",
+    "sedano"
+   ],
+   "etichette": [
+    "Top",
+    "GF"
+   ],
+   "abbattuto": true
+  },
+  {
+   "categoria": "Pasta",
+   "nome": "Fusilli con Salsiccia e Porcini",
+   "descrizione": "Fusilli, salsiccia, porcini, pomodorini, scaglie di grana",
+   "prezzo": 2000,
+   "allergeni": [
+    "glutine",
+    "latte"
+   ],
+   "etichette": [],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Pasta",
+   "nome": "Ravioli allo Scarpariello",
+   "descrizione": "Ravioli, pomodoro, parmigiano, basilico, burrata",
+   "prezzo": 2000,
+   "allergeni": [
+    "glutine",
+    "uova",
+    "latte"
+   ],
+   "etichette": [
+    "V"
+   ],
+   "abbattuto": true
+  },
+  {
+   "categoria": "Pasta",
+   "nome": "Scialatielli alla Siciliana",
+   "descrizione": "Scialatielli, pomodori, melanzane, mozzarella",
+   "prezzo": 2000,
+   "allergeni": [
+    "glutine",
+    "uova",
+    "latte"
+   ],
+   "etichette": [
+    "V"
+   ],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Pasta",
+   "nome": "Lasagna",
+   "descrizione": "Sfoglia all'uovo, ragù di manzo, mozzarella, besciamella, parmigiano",
+   "prezzo": 1500,
+   "allergeni": [
+    "glutine",
+    "uova",
+    "latte",
+    "sedano"
+   ],
+   "etichette": [
+    "GF"
+   ],
+   "abbattuto": true
+  },
+  {
+   "categoria": "Pasta",
+   "nome": "Pasta, Patate e Cozze",
+   "descrizione": "Pasta mista con patate e cozze, secondo la tradizione napoletana",
+   "prezzo": 1800,
+   "allergeni": [
+    "glutine",
+    "sedano",
+    "molluschi"
+   ],
+   "etichette": [],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Secondi",
+   "nome": "Entrecôte alla Griglia",
+   "descrizione": "Entrecôte di manzo alla griglia, sale, rosmarino",
+   "prezzo": 2200,
+   "allergeni": [],
+   "etichette": [
+    "GF"
+   ],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Secondi",
+   "nome": "Cotoletta alla Milanese \"Orecchio di Elefante\"",
+   "descrizione": "Cotoletta di maiale impanata, burro chiarificato",
+   "prezzo": 2500,
+   "allergeni": [
+    "glutine",
+    "uova",
+    "latte"
+   ],
+   "etichette": [
+    "Top"
+   ],
+   "abbattuto": true
+  },
+  {
+   "categoria": "Secondi",
+   "nome": "Filetto di Manzo al Pepe Verde e Rosa",
+   "descrizione": "Filetto di manzo, pepe verde e rosa, patate al forno · Cottura media",
+   "prezzo": 3000,
+   "allergeni": [],
+   "etichette": [],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Secondi",
+   "nome": "Frittura del Golfo con Mayo alle Alici",
+   "descrizione": "Gamberi, calamari e alici fritti, maionese alle alici",
+   "prezzo": 2400,
+   "allergeni": [
+    "glutine",
+    "crostacei",
+    "uova",
+    "pesce",
+    "molluschi"
+   ],
+   "etichette": [
+    "Top"
+   ],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Secondi",
+   "nome": "Filetto di Pesce con Patate al Forno",
+   "descrizione": "Filetto di pesce bianco, patate al forno",
+   "prezzo": 2000,
+   "allergeni": [
+    "pesce"
+   ],
+   "etichette": [],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Secondi",
+   "nome": "Costine di Agnello alla Griglia",
+   "descrizione": "Costine di agnello, rosmarino, aglio, olio EVO",
+   "prezzo": 2500,
+   "allergeni": [],
+   "etichette": [],
+   "abbattuto": true
+  },
+  {
+   "categoria": "Contorni",
+   "nome": "Pomodori all'Insalata",
+   "descrizione": "Pomodori, olio EVO, origano, sale",
+   "prezzo": 500,
+   "allergeni": [],
+   "etichette": [
+    "VG"
+   ],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Contorni",
+   "nome": "Insalata Mista",
+   "descrizione": "",
+   "prezzo": 500,
+   "allergeni": [],
+   "etichette": [
+    "VG"
+   ],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Contorni",
+   "nome": "Patate al Forno",
+   "descrizione": "Patate, rosmarino, olio EVO",
+   "prezzo": 600,
+   "allergeni": [],
+   "etichette": [
+    "VG"
+   ],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Contorni",
+   "nome": "Patate Fritte con Buccia",
+   "descrizione": "Patate fritte con la buccia, sale",
+   "prezzo": 600,
+   "allergeni": [],
+   "etichette": [
+    "VG"
+   ],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Contorni",
+   "nome": "Verdure Stagionali",
+   "descrizione": "Verdure di stagione saltate in padella",
+   "prezzo": 700,
+   "allergeni": [],
+   "etichette": [
+    "VG"
+   ],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Contorni",
+   "nome": "Verdure Grigliate",
+   "descrizione": "Zucchine, melanzane e peperoni grigliati",
+   "prezzo": 700,
+   "allergeni": [],
+   "etichette": [
+    "VG"
+   ],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Dolci",
+   "nome": "Tiramisù",
+   "descrizione": "Mascarpone, savoiardi, caffè, cacao",
+   "prezzo": 800,
+   "allergeni": [
+    "glutine",
+    "uova",
+    "latte"
+   ],
+   "etichette": [
+    "Top",
+    "V"
+   ],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Dolci",
+   "nome": "Tortino dal Cuore Caldo",
+   "descrizione": "Cioccolato fondente, cuore morbido, zucchero a velo · con gelato +2€",
+   "prezzo": 800,
+   "allergeni": [
+    "glutine",
+    "uova",
+    "latte",
+    "frutta_a_guscio"
+   ],
+   "etichette": [
+    "V"
+   ],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Dolci",
+   "nome": "Profiteroles",
+   "descrizione": "Bignè, panna, cioccolato fondente caldo",
+   "prezzo": 800,
+   "allergeni": [
+    "glutine",
+    "uova",
+    "latte"
+   ],
+   "etichette": [
+    "V"
+   ],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Dolci",
+   "nome": "Delizia al Limone",
+   "descrizione": "Pan di spagna, crema al limone di Amalfi. Della Pasticceria Sal de Riso. Anche senza glutine e senza lattosio (+2€).",
+   "prezzo": 800,
+   "allergeni": [
+    "glutine",
+    "uova",
+    "latte"
+   ],
+   "etichette": [
+    "Top",
+    "V",
+    "GF"
+   ],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Dolci",
+   "nome": "Gelato Italiano",
+   "descrizione": "Crema, limone, pistacchio e cioccolato · aggiunta a scelta (+1€): caffè, cioccolato caldo, amarene Fabbri, caramello",
+   "prezzo": 600,
+   "allergeni": [
+    "latte",
+    "frutta_a_guscio"
+   ],
+   "etichette": [
+    "V"
+   ],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Dolci",
+   "nome": "Dolce del Giorno",
+   "descrizione": "Chiedi al personale qual è il dolce del giorno",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": [],
+   "abbattuto": false
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Green Summer",
+   "descrizione": "Gin al basilico, sciroppo di prosecco, basilico fresco, Tassoni Cedrata",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Negroni Bianco",
+   "descrizione": "Biancosarti, Bulldog Gin, Vermouth Cinzano Bottega Bianco, limone",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Moorea Punch",
+   "descrizione": "Rum bianco, ananas, lime, sciroppo di zucchero, soda",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Fico Tonic",
+   "descrizione": "Gin, tonica alle foglie di fico Three Cents, succo di limone fresco, bitter",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Moorea Lemon",
+   "descrizione": "Vodka, limoncello, succo di limone fresco, soda, foam al bianco d'uovo, bitter alla vaniglia",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": [
+    "Top"
+   ]
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Espresso Martini Brûlée",
+   "descrizione": "Vodka, liquore al caffè, espresso, vaniglia, albume pastorizzato, crosta di zucchero caramellato. Il nostro Espresso Martini, con una sottile crosta brûlée da rompere al primo sorso.",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": [
+    "New Entry"
+   ]
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Negroni",
+   "descrizione": "Campari, gin, vermouth rosso",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Negroni Sbagliato",
+   "descrizione": "Campari, vermouth rosso, prosecco",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Americano",
+   "descrizione": "Campari, vermouth rosso, soda",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Aperol Spritz",
+   "descrizione": "Aperol, prosecco, soda",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Campari Spritz",
+   "descrizione": "Campari, prosecco, soda",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Gin Tonic",
+   "descrizione": "Gin, acqua tonica, limone",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Vodka Lemon",
+   "descrizione": "Vodka, lemon soda, limone",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Moscow Mule",
+   "descrizione": "Vodka, ginger beer, lime",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Paloma",
+   "descrizione": "Tequila, pompelmo, lime",
+   "prezzo": 1000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Old Fashioned",
+   "descrizione": "Bourbon, zucchero, bitter",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Lemon Spritz",
+   "descrizione": "Limoncello, prosecco, soda",
+   "prezzo": 1000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Margarita",
+   "descrizione": "Tequila, triple sec, lime",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Spicy Margarita",
+   "descrizione": "Tequila, lime, triple sec, peperoncino, Ancho Reyes Verde",
+   "prezzo": 1000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Daiquiri",
+   "descrizione": "Rum bianco, lime, zucchero",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Cocktail",
+   "nome": "Espresso Martini",
+   "descrizione": "Vodka, liquore al caffè, caffè espresso",
+   "prezzo": 1000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Mocktail",
+   "nome": "Aperol Spritz 0.0",
+   "descrizione": "Giffard Aperol, Prosecco 0.0, tonica",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Mocktail",
+   "nome": "Campari Spritz 0.0",
+   "descrizione": "Giffard Campari, Prosecco 0.0, tonica",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Mocktail",
+   "nome": "Gin Tonic 0.0",
+   "descrizione": "Tanqueray 0, tonica",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Mocktail",
+   "nome": "Lucano Soda",
+   "descrizione": "Amaro Lucano Zero, Three Cents Figleaf",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Mocktail",
+   "nome": "Virgin Colada",
+   "descrizione": "Ananas, cocco",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Mocktail",
+   "nome": "Virgin Mojito",
+   "descrizione": "Lime, menta, ginger ale, zucchero",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Mocktail",
+   "nome": "Giffardale",
+   "descrizione": "Giffard, ginger ale, limone",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Mocktail",
+   "nome": "Sunny Days",
+   "descrizione": "Amaro Lucano Zero, Coca Cola, lime",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Mocktail",
+   "nome": "Negroni Zero",
+   "descrizione": "Gin Tanqueray 0, Martini Vibrante, Giffard Campari",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Bulldog",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Amalfi Lemon Gin",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Amalfi Pink Grapefruit Gin",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Bulldog Bond Black",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Dolce Vita",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Elephant Gin",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Hendrick's",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Monkey 47",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "The Botanist",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Ondina",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Papa Salt",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Professore Crocodile",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1400,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Professore Monsieur",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Professore À La Madame",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1600,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Roku",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Tanqueray Ten",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1100,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Tanqueray 0%",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 900,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Landy Dream Navy Strength",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Landy Dream London Dry",
+   "gruppo": "Gin",
+   "descrizione": "Gin",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Johnnie Walker Red",
+   "gruppo": "Whiskey & Bourbon",
+   "descrizione": "Whiskey & Bourbon",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Glen Grant 10Y",
+   "gruppo": "Whiskey & Bourbon",
+   "descrizione": "Whiskey & Bourbon",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Wild Turkey 101",
+   "gruppo": "Whiskey & Bourbon",
+   "descrizione": "Whiskey & Bourbon",
+   "prezzo": 900,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Wild Turkey Rye",
+   "gruppo": "Whiskey & Bourbon",
+   "descrizione": "Whiskey & Bourbon",
+   "prezzo": 1100,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Wild Turkey Rare Breed",
+   "gruppo": "Whiskey & Bourbon",
+   "descrizione": "Whiskey & Bourbon",
+   "prezzo": 1800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Wild Turkey American Honey",
+   "gruppo": "Whiskey & Bourbon",
+   "descrizione": "Whiskey & Bourbon",
+   "prezzo": 1000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Lagavulin 16Y",
+   "gruppo": "Whiskey & Bourbon",
+   "descrizione": "Whiskey & Bourbon",
+   "prezzo": 2000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Bulleit Bourbon",
+   "gruppo": "Whiskey & Bourbon",
+   "descrizione": "Whiskey & Bourbon",
+   "prezzo": 900,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Bulleit Rye",
+   "gruppo": "Whiskey & Bourbon",
+   "descrizione": "Whiskey & Bourbon",
+   "prezzo": 1000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Beluga",
+   "gruppo": "Vodka",
+   "descrizione": "Vodka",
+   "prezzo": 1600,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Belvedere",
+   "gruppo": "Vodka",
+   "descrizione": "Vodka",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Grey Goose",
+   "gruppo": "Vodka",
+   "descrizione": "Vodka",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Laguna Nord",
+   "gruppo": "Vodka",
+   "descrizione": "Vodka",
+   "prezzo": 900,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Cîroc",
+   "gruppo": "Vodka",
+   "descrizione": "Vodka",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Tito's",
+   "gruppo": "Vodka",
+   "descrizione": "Vodka",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Ketel One",
+   "gruppo": "Vodka",
+   "descrizione": "Vodka",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Eiko Japanese Vodka",
+   "gruppo": "Vodka",
+   "descrizione": "Vodka",
+   "prezzo": 1000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Espolòn Blanco",
+   "gruppo": "Tequila & Mezcal",
+   "descrizione": "Tequila & Mezcal",
+   "prezzo": 700,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Espolòn Reposado",
+   "gruppo": "Tequila & Mezcal",
+   "descrizione": "Tequila & Mezcal",
+   "prezzo": 900,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Espolòn Añejo",
+   "gruppo": "Tequila & Mezcal",
+   "descrizione": "Tequila & Mezcal",
+   "prezzo": 800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Espolòn Cristalino",
+   "gruppo": "Tequila & Mezcal",
+   "descrizione": "Tequila & Mezcal",
+   "prezzo": 1100,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Mezcal Montelobos",
+   "gruppo": "Tequila & Mezcal",
+   "descrizione": "Tequila & Mezcal",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Mezcal Del Maguey Vida",
+   "gruppo": "Tequila & Mezcal",
+   "descrizione": "Tequila & Mezcal",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Perro de San Juan Mezcal Artesanal",
+   "gruppo": "Tequila & Mezcal",
+   "descrizione": "Tequila & Mezcal",
+   "prezzo": 2200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Mezcal Casamigos Joven",
+   "gruppo": "Tequila & Mezcal",
+   "descrizione": "Tequila & Mezcal",
+   "prezzo": 1800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Casamigos Blanco",
+   "gruppo": "Tequila & Mezcal",
+   "descrizione": "Tequila & Mezcal",
+   "prezzo": 1500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Casamigos Reposado",
+   "gruppo": "Tequila & Mezcal",
+   "descrizione": "Tequila & Mezcal",
+   "prezzo": 1600,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Tequila 1800 Cristalino",
+   "gruppo": "Tequila & Mezcal",
+   "descrizione": "Tequila & Mezcal",
+   "prezzo": 1400,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Tequila 1800 Añejo",
+   "gruppo": "Tequila & Mezcal",
+   "descrizione": "Tequila & Mezcal",
+   "prezzo": 1000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Tequila 1800 Reposado",
+   "gruppo": "Tequila & Mezcal",
+   "descrizione": "Tequila & Mezcal",
+   "prezzo": 900,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Tequila 1800 Silver",
+   "gruppo": "Tequila & Mezcal",
+   "descrizione": "Tequila & Mezcal",
+   "prezzo": 900,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Clase Azul Reposado 3cl",
+   "gruppo": "Tequila & Mezcal",
+   "descrizione": "Tequila & Mezcal",
+   "prezzo": 2800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Clase Azul Reposado 6cl",
+   "gruppo": "Tequila & Mezcal",
+   "descrizione": "Tequila & Mezcal",
+   "prezzo": 5000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Mount Gay XO",
+   "gruppo": "Rum",
+   "descrizione": "Rum",
+   "prezzo": 1300,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Appleton Estate 8Y",
+   "gruppo": "Rum",
+   "descrizione": "Rum",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Diplomatico Riserva",
+   "gruppo": "Rum",
+   "descrizione": "Rum",
+   "prezzo": 1400,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Don Papa",
+   "gruppo": "Rum",
+   "descrizione": "Rum",
+   "prezzo": 1400,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Havana 7",
+   "gruppo": "Rum",
+   "descrizione": "Rum",
+   "prezzo": 900,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Zacapa 23",
+   "gruppo": "Rum",
+   "descrizione": "Rum",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Captain Morgan",
+   "gruppo": "Rum",
+   "descrizione": "Rum",
+   "prezzo": 1000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Kraken Black Spiced Rum",
+   "gruppo": "Rum",
+   "descrizione": "Rum",
+   "prezzo": 1000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Distillati",
+   "nome": "Courvoisier VS",
+   "gruppo": "Cognac",
+   "descrizione": "Cognac",
+   "prezzo": 1200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "Naturale Electa",
+   "gruppo": "Acqua",
+   "descrizione": "Acqua",
+   "prezzo": 300,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "San Pellegrino",
+   "gruppo": "Acqua",
+   "descrizione": "Acqua",
+   "prezzo": 300,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "Acqua Panna",
+   "gruppo": "Acqua",
+   "descrizione": "Acqua",
+   "prezzo": 350,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "Coca Cola",
+   "gruppo": "Soft Drink",
+   "descrizione": "Soft Drink",
+   "prezzo": 350,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "Coca Cola Zero",
+   "gruppo": "Soft Drink",
+   "descrizione": "Soft Drink",
+   "prezzo": 350,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "Sprite",
+   "gruppo": "Soft Drink",
+   "descrizione": "Soft Drink",
+   "prezzo": 350,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "Seven Up",
+   "gruppo": "Soft Drink",
+   "descrizione": "Soft Drink",
+   "prezzo": 350,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "Fanta",
+   "gruppo": "Soft Drink",
+   "descrizione": "Soft Drink",
+   "prezzo": 350,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "Schweppes Lemon",
+   "gruppo": "Soft Drink",
+   "descrizione": "Soft Drink",
+   "prezzo": 350,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "Acqua Tonica",
+   "gruppo": "Soft Drink",
+   "descrizione": "Soft Drink",
+   "prezzo": 350,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "Red Bull",
+   "gruppo": "Soft Drink",
+   "descrizione": "Soft Drink",
+   "prezzo": 350,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "Tassoni",
+   "gruppo": "Soft Drink",
+   "descrizione": "Soft Drink",
+   "prezzo": 350,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "Lemon Soda",
+   "gruppo": "Soft Drink",
+   "descrizione": "Soft Drink",
+   "prezzo": 350,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "Sanbittèr Bianco",
+   "gruppo": "Soft Drink",
+   "descrizione": "Soft Drink",
+   "prezzo": 350,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "Sanbittèr Rosso",
+   "gruppo": "Soft Drink",
+   "descrizione": "Soft Drink",
+   "prezzo": 350,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "Crodino",
+   "gruppo": "Soft Drink",
+   "descrizione": "Soft Drink",
+   "prezzo": 350,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bevande",
+   "nome": "Campari Soda",
+   "gruppo": "Soft Drink",
+   "descrizione": "Soft Drink",
+   "prezzo": 500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Caffetteria",
+   "nome": "Caffè Espresso",
+   "gruppo": "Caffetteria",
+   "descrizione": "Caffetteria",
+   "prezzo": 200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Caffetteria",
+   "nome": "Caffè Macchiato",
+   "gruppo": "Caffetteria",
+   "descrizione": "Caffetteria",
+   "prezzo": 200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Caffetteria",
+   "nome": "Decaffeinato Espresso",
+   "gruppo": "Caffetteria",
+   "descrizione": "Caffetteria",
+   "prezzo": 200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Caffetteria",
+   "nome": "Cappuccino",
+   "gruppo": "Caffetteria",
+   "descrizione": "Caffetteria",
+   "prezzo": 400,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Caffetteria",
+   "nome": "Caffè Americano",
+   "gruppo": "Caffetteria",
+   "descrizione": "Caffetteria",
+   "prezzo": 400,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Caffetteria",
+   "nome": "Moka 2 Tazze",
+   "gruppo": "Caffetteria",
+   "descrizione": "Caffetteria",
+   "prezzo": 400,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Caffetteria",
+   "nome": "Moka 3 Tazze",
+   "gruppo": "Caffetteria",
+   "descrizione": "Caffetteria",
+   "prezzo": 500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Caffetteria",
+   "nome": "Moka 6 Tazze",
+   "gruppo": "Caffetteria",
+   "descrizione": "Caffetteria",
+   "prezzo": 700,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Caffetteria",
+   "nome": "Camomilla in Fiori",
+   "gruppo": "Tisane & Tè",
+   "descrizione": "Tisane & Tè",
+   "prezzo": 600,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Caffetteria",
+   "nome": "Ciliegie e Cacao",
+   "gruppo": "Tisane & Tè",
+   "descrizione": "Tisane & Tè",
+   "prezzo": 600,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Caffetteria",
+   "nome": "The English Breakfast",
+   "gruppo": "Tisane & Tè",
+   "descrizione": "Tisane & Tè",
+   "prezzo": 600,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Caffetteria",
+   "nome": "Zenzero e Limone",
+   "gruppo": "Tisane & Tè",
+   "descrizione": "Tisane & Tè",
+   "prezzo": 600,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Caffetteria",
+   "nome": "Detox",
+   "gruppo": "Tisane & Tè",
+   "descrizione": "Tisane & Tè",
+   "prezzo": 600,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Caffetteria",
+   "nome": "Aloe Vera e Mirtilli",
+   "gruppo": "Tisane & Tè",
+   "descrizione": "Tisane & Tè",
+   "prezzo": 600,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Vini al calice",
+   "nome": "Vino al Calice",
+   "gruppo": "Vino al Calice",
+   "descrizione": "Vino al Calice",
+   "prezzo": 700,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Birre",
+   "nome": "Nastro Azzurro 300ml",
+   "gruppo": "Birra alla Spina",
+   "descrizione": "Birra alla Spina",
+   "prezzo": 400,
+   "allergeni": [
+    "glutine"
+   ],
+   "etichette": []
+  },
+  {
+   "categoria": "Birre",
+   "nome": "Nastro Azzurro 500ml",
+   "gruppo": "Birra alla Spina",
+   "descrizione": "Birra alla Spina",
+   "prezzo": 600,
+   "allergeni": [
+    "glutine"
+   ],
+   "etichette": []
+  },
+  {
+   "categoria": "Birre",
+   "nome": "Corona Extra 33cl",
+   "gruppo": "Birra in Bottiglia",
+   "descrizione": "Birra in Bottiglia",
+   "prezzo": 550,
+   "allergeni": [
+    "glutine"
+   ],
+   "etichette": []
+  },
+  {
+   "categoria": "Birre",
+   "nome": "N'Artigiana Oro",
+   "gruppo": "Birra N'Artigiana",
+   "descrizione": "Birra N'Artigiana",
+   "prezzo": 500,
+   "allergeni": [
+    "glutine"
+   ],
+   "etichette": []
+  },
+  {
+   "categoria": "Birre",
+   "nome": "N'Artigiana Bianca",
+   "gruppo": "Birra N'Artigiana",
+   "descrizione": "Birra N'Artigiana",
+   "prezzo": 550,
+   "allergeni": [
+    "glutine"
+   ],
+   "etichette": []
+  },
+  {
+   "categoria": "Birre",
+   "nome": "N'Artigiana Rossa",
+   "gruppo": "Birra N'Artigiana",
+   "descrizione": "Birra N'Artigiana",
+   "prezzo": 550,
+   "allergeni": [
+    "glutine"
+   ],
+   "etichette": []
+  },
+  {
+   "categoria": "Birre",
+   "nome": "N'Artigiana Ambrata",
+   "gruppo": "Birra N'Artigiana",
+   "descrizione": "Birra N'Artigiana",
+   "prezzo": 550,
+   "allergeni": [
+    "glutine"
+   ],
+   "etichette": []
+  },
+  {
+   "categoria": "Birre",
+   "nome": "N'Artigiana Doppio Malto",
+   "gruppo": "Birra N'Artigiana",
+   "descrizione": "Birra N'Artigiana",
+   "prezzo": 700,
+   "allergeni": [
+    "glutine"
+   ],
+   "etichette": []
+  },
+  {
+   "categoria": "Birre",
+   "nome": "N'Artigiana Gluten Free",
+   "gruppo": "Birra N'Artigiana",
+   "descrizione": "Birra N'Artigiana",
+   "prezzo": 650,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Birre",
+   "nome": "N'Artigiana Analcolica 0%",
+   "gruppo": "Birra N'Artigiana",
+   "descrizione": "Birra N'Artigiana",
+   "prezzo": 650,
+   "allergeni": [
+    "glutine"
+   ],
+   "etichette": []
+  },
+  {
+   "categoria": "Vini al calice",
+   "nome": "Amari Locali",
+   "gruppo": "Amari",
+   "descrizione": "Amari",
+   "prezzo": 400,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Vini al calice",
+   "nome": "Amari Nazionali",
+   "gruppo": "Amari",
+   "descrizione": "Amari",
+   "prezzo": 400,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bollicine",
+   "nome": "Ca' del Bosco – Cuvée Prestige",
+   "gruppo": "Italia",
+   "descrizione": "Chardonnay, Pinot Bianco, Pinot Nero · 12,5% · secco, fresco, cremoso, agrumato",
+   "prezzo": 6500,
+   "allergeni": [],
+   "etichette": [
+    "Top"
+   ]
+  },
+  {
+   "categoria": "Bollicine",
+   "nome": "Bellavista – Alma Assemblage 2 Brut",
+   "gruppo": "Italia",
+   "descrizione": "Chardonnay, Pinot Nero, Pinot Bianco · 12,5% · secco, fresco, fruttato, floreale",
+   "prezzo": 6500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bollicine",
+   "nome": "Bellavista – Alma Assemblage 2 Rosé",
+   "gruppo": "Italia",
+   "descrizione": "Pinot Nero, Chardonnay · 12,5% · secco, fruttato, fresco, elegante",
+   "prezzo": 11500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bollicine",
+   "nome": "Marchesi Antinori – Cuvée Royale",
+   "gruppo": "Italia",
+   "descrizione": "Chardonnay, Pinot Nero, Pinot Bianco · 12,5% · secco, fresco, cremoso, fruttato",
+   "prezzo": 6500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bollicine",
+   "nome": "Ferrari Maximum – Demi Sec",
+   "gruppo": "Italia",
+   "descrizione": "Chardonnay · 12,5% · dolce / demi-sec, morbido, fruttato, cremoso",
+   "prezzo": 6500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bollicine",
+   "nome": "Castello di Meleto – Colto alle Bolle Rosé",
+   "gruppo": "Italia",
+   "descrizione": "Sangiovese, Pinot Nero · 12,5% · fresco, fruttato, leggero, floreale",
+   "prezzo": 5800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bollicine",
+   "nome": "Krug – Grande Cuvée",
+   "gruppo": "Francia",
+   "descrizione": "Pinot Noir, Chardonnay, Meunier · 12% · corposo, cremoso, tostato, fruttato maturo",
+   "prezzo": 47500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bollicine",
+   "nome": "Moët & Chandon – Réserve Impérial",
+   "gruppo": "Francia",
+   "descrizione": "Pinot Noir, Pinot Meunier, Chardonnay · 12% · secco, fruttato, fresco, cremoso",
+   "prezzo": 9000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bollicine",
+   "nome": "Bollinger – Special Cuvée",
+   "gruppo": "Francia",
+   "descrizione": "Pinot Noir, Chardonnay, Meunier · 12% · secco, corposo, tostato, speziato",
+   "prezzo": 13500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bollicine",
+   "nome": "Moët & Chandon – Dom Pérignon 2015",
+   "gruppo": "Francia",
+   "descrizione": "Chardonnay, Pinot Nero · 12,5% · secco, minerale, tostato, elegante",
+   "prezzo": 42500,
+   "allergeni": [],
+   "etichette": [
+    "Top"
+   ]
+  },
+  {
+   "categoria": "Bollicine",
+   "nome": "Jean Valentin – Champagne 1er Cru Tradition",
+   "gruppo": "Francia",
+   "descrizione": "Pinot Meunier, Pinot Nero, Chardonnay · 12% · fruttato, fresco, cremoso, morbido",
+   "prezzo": 8000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Marisa Cuomo – Fiorduva",
+   "gruppo": "Costa d'Amalfi",
+   "descrizione": "Fenile, Ginestra, Ripoli · 13,5% · corposo, fruttato maturo, morbido, sapido",
+   "prezzo": 9000,
+   "allergeni": [],
+   "etichette": [
+    "Top"
+   ]
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Marisa Cuomo – Furore",
+   "gruppo": "Costa d'Amalfi",
+   "descrizione": "Falanghina, Biancolella · 13,5% · fresco, fruttato, agrumato, sapido",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Az. Agricola Reale – Aliseo",
+   "gruppo": "Costa d'Amalfi",
+   "descrizione": "Biancazita, Biancolella, Pepella · 13% · fresco, minerale, floreale, sapido",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Ida Giordano – Il Colle",
+   "gruppo": "Costa d'Amalfi",
+   "descrizione": "Falanghina, Biancazita, Fiano · 13% · fresco, fruttato, floreale, minerale",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Tenuta San Francesco – Tramonti Bianco",
+   "gruppo": "Costa d'Amalfi",
+   "descrizione": "Falanghina, Biancolella, Pepella · 13% · fresco, minerale, sapido, agrumato",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Tenuta San Francesco – Per Eva",
+   "gruppo": "Costa d'Amalfi",
+   "descrizione": "Falanghina, Ginestra, Pepella · 13,5% · minerale, sapido, fresco, strutturato",
+   "prezzo": 5000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Benito Ferrara – Vigna Cicogna",
+   "gruppo": "Campania",
+   "descrizione": "Greco · 13,5% · minerale, sapido, secco, strutturato",
+   "prezzo": 4500,
+   "allergeni": [],
+   "etichette": [
+    "Top"
+   ]
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Benito Ferrara – Fiano Sequenzha",
+   "gruppo": "Campania",
+   "descrizione": "Fiano · 13,5% · floreale, fruttato, fresco, minerale",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Luigi Maffini – Pietraincatenata",
+   "gruppo": "Campania",
+   "descrizione": "Fiano · 13,5% · corposo, barricato, cremoso, minerale",
+   "prezzo": 6000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Mastroberardino – Fiano di Avellino DOCG 2024",
+   "gruppo": "Campania",
+   "descrizione": "Fiano · 12,5% · fresco, floreale, fruttato, secco",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Mastroberardino – Greco di Tufo DOCG 2024",
+   "gruppo": "Campania",
+   "descrizione": "Greco · 12,5% · minerale, fresco, sapido, secco",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Mastroberardino – Radici Fiano 2024",
+   "gruppo": "Campania",
+   "descrizione": "Fiano · 13% · fruttato, agrumato, fresco, elegante",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Mastroberardino – Falanghina del Sannio DOC",
+   "gruppo": "Campania",
+   "descrizione": "Falanghina · 12,5% · fresco, fruttato, floreale, minerale",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Colli di Castelfranci – Greco di Tufo Grotte DOCG",
+   "gruppo": "Campania",
+   "descrizione": "Greco · 13% · minerale, sapido, fresco, strutturato",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Cenatiempo – Biancolella DOC 2022",
+   "gruppo": "Campania",
+   "descrizione": "Biancolella · 12,5% · minerale, sapido, fresco, agrumato",
+   "prezzo": 6000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Kratos Cilento Fiano DOP – Luigi Maffini",
+   "gruppo": "Campania",
+   "descrizione": "Fiano 100% · 13,5% Vol. · fresco, minerale, fruttato, elegante",
+   "prezzo": 4500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "St. Michael-Eppan – Pinot Grigio DOC",
+   "gruppo": "Trentino-Alto Adige",
+   "descrizione": "Pinot Grigio · 13,5% · secco, fresco, fruttato, minerale",
+   "prezzo": 3000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "St. Michael-Eppan – S. Valentin Gewürztraminer",
+   "gruppo": "Trentino-Alto Adige",
+   "descrizione": "Gewürztraminer · 14,5% · aromatico, corposo, fruttato, speziato",
+   "prezzo": 6000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "St. Michael-Eppan – S. Valentin Chardonnay DOC",
+   "gruppo": "Trentino-Alto Adige",
+   "descrizione": "Chardonnay · 14% · corposo, cremoso, fruttato, barricato",
+   "prezzo": 6000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Livio Felluga – Pinot Grigio",
+   "gruppo": "Friuli Venezia Giulia",
+   "descrizione": "Pinot Grigio · 13,5% · fruttato, sapido, agrumato, strutturato",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Livio Felluga – Chardonnay",
+   "gruppo": "Friuli Venezia Giulia",
+   "descrizione": "Chardonnay · 13,5% · morbido, fruttato, floreale, minerale",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Livio Felluga – Sauvignon",
+   "gruppo": "Friuli Venezia Giulia",
+   "descrizione": "Sauvignon · 13% · aromatico, fresco, agrumato, minerale",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Livio Felluga – Illivio Bianco",
+   "gruppo": "Friuli Venezia Giulia",
+   "descrizione": "Pinot Bianco, Chardonnay, Picolit · 13,5% · corposo, cremoso, tostato, minerale",
+   "prezzo": 6500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "La Scolca – Gavi de Gavi",
+   "gruppo": "Piemonte",
+   "descrizione": "Cortese · 12,5% · secco, fresco, minerale, agrumato",
+   "prezzo": 6500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Inama – Vulcaia Fumé",
+   "gruppo": "Veneto",
+   "descrizione": "Sauvignon · 14,5% · barricato, corposo, aromatico, tostato",
+   "prezzo": 8000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "La Salute – Pinot Grigio DOC delle Venezie",
+   "gruppo": "Veneto",
+   "descrizione": "Pinot Grigio · 12% · secco, fresco, leggero, fruttato",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Agricola Lanciani – Versante Sud Marche IGT Bio 2024",
+   "gruppo": "Marche",
+   "descrizione": "Pecorino · 13% · fresco, minerale, sapido, agrumato",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Famiglia Cotarella – Verdeluce IGP",
+   "gruppo": "Umbria",
+   "descrizione": "Grechetto, Pinot Bianco, Semillon · 12,7% · fresco, floreale, fruttato, morbido",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Famiglia Cotarella – Tellus Chardonnay 2025",
+   "gruppo": "Lazio",
+   "descrizione": "Chardonnay · 13% · fresco, fruttato, floreale, minerale",
+   "prezzo": 3300,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Capichera – Lintori Vermentino DOC",
+   "gruppo": "Sardegna",
+   "descrizione": "Vermentino · 14% · fresco, sapido, agrumato, floreale",
+   "prezzo": 3000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Capichera – Capichera DOCG Superiore 2024",
+   "gruppo": "Sardegna",
+   "descrizione": "Vermentino · 14,5% · corposo, minerale, sapido, elegante",
+   "prezzo": 7000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Tenute Orestiadi – Pinot Grigio IGP",
+   "gruppo": "Sicilia",
+   "descrizione": "Pinot Grigio · 12,5% · secco, fresco, leggero, fruttato",
+   "prezzo": 3000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Tenute Orestiadi – Etna Bianco DOC",
+   "gruppo": "Sicilia",
+   "descrizione": "Carricante, Catarratto · 12,5% · minerale, sapido, fresco, agrumato",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Tenute Orestiadi – Il Bianco di Ludovico Ris",
+   "gruppo": "Sicilia",
+   "descrizione": "Catarratto, Chardonnay · 13% · corposo, fruttato, morbido, strutturato",
+   "prezzo": 5000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Hauner – Salina Bianco Isole Eolie IGP",
+   "gruppo": "Sicilia",
+   "descrizione": "Inzolia, Catarratto · 12,5% · sapido, fresco, fruttato, mediterraneo",
+   "prezzo": 3000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Tenuta Abraxas – Pantelleria DOC",
+   "gruppo": "Sicilia",
+   "descrizione": "Zibibbo, Viognier · 12,5% · aromatico, floreale, fruttato, morbido",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Louis Latour – Ardèche Chardonnay",
+   "gruppo": "Francia & Estero",
+   "descrizione": "Chardonnay · 13% · secco, fruttato, fresco, morbido",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Domaine Michaut – Chablis AOC",
+   "gruppo": "Francia & Estero",
+   "descrizione": "Chardonnay · 12,5% · minerale, secco, fresco, agrumato",
+   "prezzo": 4500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "La Forchetterie – Chardonnay Vin de Loire",
+   "gruppo": "Francia & Estero",
+   "descrizione": "Chardonnay · 12,5% · secco, fruttato, fresco, floreale",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Régnard – \"Retour des Flandres\" Blanc",
+   "gruppo": "Francia & Estero",
+   "descrizione": "Chardonnay · 12,5% · minerale, secco, fresco, elegante",
+   "prezzo": 6000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Albert Pic & Fils – Chablis \"Saint Pierre\"",
+   "gruppo": "Francia & Estero",
+   "descrizione": "Chardonnay · 12,5% · minerale, secco, fresco, elegante",
+   "prezzo": 7000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Delas Frères – Côtes-du-Rhône Blanc AOC",
+   "gruppo": "Francia & Estero",
+   "descrizione": "Viognier, Marsanne, Roussanne · 13% · aromatico, floreale, morbido, corposo",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "David Moret – Meursault \"Les Narvaux\" 2022",
+   "gruppo": "Francia & Estero",
+   "descrizione": "Chardonnay · 13% · corposo, minerale, cremoso, barricato",
+   "prezzo": 19000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Domaine de Tholomies – La Chapelle Pays d'Oc Chardonnay 2023",
+   "gruppo": "Francia & Estero",
+   "descrizione": "Chardonnay · 13% · fruttato, morbido, floreale, secco",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Bianchi",
+   "nome": "Ferrand – Chardonnay 2022",
+   "gruppo": "Francia & Estero",
+   "descrizione": "Chardonnay · 13% · fruttato, morbido, strutturato, secco",
+   "prezzo": 4500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rosati",
+   "nome": "Marisa Cuomo – Furore Rosato",
+   "gruppo": "Costa d'Amalfi / Campania",
+   "descrizione": "Aglianico, Piedirosso · 13% · fresco, fruttato, sapido, minerale",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": [
+    "Top"
+   ]
+  },
+  {
+   "categoria": "Rosati",
+   "nome": "San Salvatore – Vetere",
+   "gruppo": "Costa d'Amalfi / Campania",
+   "descrizione": "Aglianico · 12,5% · fresco, fruttato, agrumato, morbido",
+   "prezzo": 4500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rosati",
+   "nome": "Tenuta San Francesco – Èd Rosato",
+   "gruppo": "Costa d'Amalfi / Campania",
+   "descrizione": "Tintore · 13% · minerale, fruttato, fresco, strutturato",
+   "prezzo": 5000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rosati",
+   "nome": "Tenuta San Francesco – Rosato Costa d'Amalfi",
+   "gruppo": "Costa d'Amalfi / Campania",
+   "descrizione": "Piedirosso, Aglianico · 13% · fresco, minerale, fruttato, sapido",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rosati",
+   "nome": "Reale – Getis",
+   "gruppo": "Costa d'Amalfi / Campania",
+   "descrizione": "Piedirosso · 13% · fruttato, fresco, minerale, floreale",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rosati",
+   "nome": "Adele Musella – Ma Crè Rosato IGP",
+   "gruppo": "Costa d'Amalfi / Campania",
+   "descrizione": "Piedirosso · 13% · fresco, fruttato, minerale, floreale",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rosati",
+   "nome": "Frescobaldi – Alìe Rosé IGT",
+   "gruppo": "Toscana",
+   "descrizione": "Syrah, Vermentino · 12% · fruttato, floreale, fresco, morbido",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Marisa Cuomo – Furore Rosso",
+   "gruppo": "Costa d'Amalfi",
+   "descrizione": "Piedirosso, Aglianico · 13,5% · fruttato, fresco, speziato, elegante",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Tenuta San Francesco – Rosso Costa d'Amalfi",
+   "gruppo": "Costa d'Amalfi",
+   "descrizione": "Tintore, Piedirosso, Aglianico · 13% · fruttato, fresco, speziato, minerale",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Tenuta San Francesco – 4 Spine",
+   "gruppo": "Costa d'Amalfi",
+   "descrizione": "Aglianico, Tintore, Piedirosso · 13,5% · corposo, speziato, fruttato, tannico",
+   "prezzo": 5000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Reale – Cardamone",
+   "gruppo": "Costa d'Amalfi",
+   "descrizione": "Tintore · 14% · fruttato, speziato, fresco, strutturato",
+   "prezzo": 4500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Tenuta San Francesco – È Iss",
+   "gruppo": "Costa d'Amalfi",
+   "descrizione": "Tintore di Tramonti pre-fillossera · 13,5% · strutturato, sapido, corposo, complesso",
+   "prezzo": 6000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Mastroberardino – Radici Taurasi DOCG",
+   "gruppo": "Campania",
+   "descrizione": "Aglianico · 13,5% · corposo, tannico, speziato, complesso",
+   "prezzo": 5000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Adele Musella – Piedirosso Campi Flegrei DOP",
+   "gruppo": "Campania",
+   "descrizione": "Piedirosso · 12,5% · fruttato, fresco, leggero, speziato",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "San Salvatore – Jungano Paestum Aglianico IGP 2021",
+   "gruppo": "Campania",
+   "descrizione": "Aglianico · 14% · corposo, tannico, fruttato, speziato",
+   "prezzo": 6000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "San Leonardo – Terre di San Leonardo",
+   "gruppo": "Trentino-Alto Adige",
+   "descrizione": "Cabernet Sauvignon, Merlot, Carmenère · 13% · elegante, strutturato, fruttato, speziato",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Allegrini – Amarone della Valpolicella Cl. 2021",
+   "gruppo": "Veneto",
+   "descrizione": "Corvina, Rondinella, Oseleta · 15,5% · corposo, fruttato maturo, speziato, morbido",
+   "prezzo": 12000,
+   "allergeni": [],
+   "etichette": [
+    "Top"
+   ]
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Cecilia Beretta – Valpolicella Ripasso Superiore DOC 2022",
+   "gruppo": "Veneto",
+   "descrizione": "Corvina, Rondinella, Corvinone, Negrara · 13,5% · strutturato, morbido, fruttato maturo, speziato",
+   "prezzo": 3700,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Teo Costa – Vitidautunno Pieve del Cauro Piemonte DOC Albarossa",
+   "gruppo": "Piemonte",
+   "descrizione": "Albarossa · 13,5% · strutturato, morbido, fruttato, elegante",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Bricco Ciarla – Treviglie 2023",
+   "gruppo": "Piemonte",
+   "descrizione": "Langhe Nebbiolo DOC · Nebbiolo 100% · 14,5% · elegante, fresco, fruttato, speziato",
+   "prezzo": 3800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Frescobaldi – Pomino Pinot Nero",
+   "gruppo": "Toscana",
+   "descrizione": "Pinot Nero 95%, Sangiovese 5% · 13% · elegante, fresco, fruttato, morbido",
+   "prezzo": 4200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Frescobaldi – Nipozzano Chianti Ris.",
+   "gruppo": "Toscana",
+   "descrizione": "Sangiovese, Malvasia Nera, Colorino · 13,5% · strutturato, tannico, fruttato, speziato",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Frescobaldi – Tenuta Perano Chianti Classico",
+   "gruppo": "Toscana",
+   "descrizione": "Sangiovese · 13,5% · fresco, tannico, fruttato, speziato",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Frescobaldi – Lucente",
+   "gruppo": "Toscana",
+   "descrizione": "Merlot, Sangiovese · 14% · morbido, fruttato, corposo, speziato",
+   "prezzo": 6000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Frescobaldi – Luce",
+   "gruppo": "Toscana",
+   "descrizione": "Merlot, Sangiovese · 14,5% · corposo, morbido, strutturato, speziato",
+   "prezzo": 21000,
+   "allergeni": [],
+   "etichette": [
+    "Top"
+   ]
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Ornellaia – Le Volte dell'Ornellaia",
+   "gruppo": "Toscana",
+   "descrizione": "Merlot, Sangiovese, Cabernet Sauvignon · 13,5% · fruttato, morbido, strutturato, speziato",
+   "prezzo": 5000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Castello di Meleto – Chianti Classico DOCG BIO",
+   "gruppo": "Toscana",
+   "descrizione": "Sangiovese, Merlot · 13,5% · fresco, fruttato, tannico, speziato",
+   "prezzo": 3800,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Famiglia Cotarella – Sodale 2023",
+   "gruppo": "Lazio",
+   "descrizione": "Merlot · 14% · morbido, fruttato, corposo, speziato",
+   "prezzo": 5000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Famiglia Cotarella – Montiano 2021",
+   "gruppo": "Lazio",
+   "descrizione": "Merlot · 14,5% · corposo, morbido, barricato, strutturato",
+   "prezzo": 15000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Pasqua – Desire Lush & Zin Primitivo Puglia IGT 2022",
+   "gruppo": "Puglia",
+   "descrizione": "Primitivo · 13,5% · fruttato maturo, morbido, corposo, speziato",
+   "prezzo": 3200,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Tenute Orestiadi – Nero d'Avola DOC",
+   "gruppo": "Sicilia",
+   "descrizione": "Nero d'Avola · 13,5% · fruttato, morbido, speziato, strutturato",
+   "prezzo": 3500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Tasca d'Almerita – Regaleali Nero d'Avola 2022",
+   "gruppo": "Sicilia",
+   "descrizione": "Nero d'Avola · 13% · fruttato, fresco, speziato, morbido",
+   "prezzo": 4000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Tenute Orestiadi – Etna Rosso 2021",
+   "gruppo": "Sicilia",
+   "descrizione": "Nerello Mascalese, Nerello Cappuccio · 13,5% · minerale, fresco, fruttato, speziato",
+   "prezzo": 5000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Pietra Dolce – Etna Rosso",
+   "gruppo": "Sicilia",
+   "descrizione": "Nerello Mascalese · 13,5% · minerale, fresco, elegante, fruttato",
+   "prezzo": 4500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Louis Latour – Pinot Noir",
+   "gruppo": "Francia",
+   "descrizione": "Pinot Noir · 13% · fruttato, fresco, elegante, leggero",
+   "prezzo": 6000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Régnard – Pinot Noir \"Retour des Flandres\"",
+   "gruppo": "Francia",
+   "descrizione": "Pinot Noir · 13% · fruttato, fresco, elegante, speziato",
+   "prezzo": 5500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Barons de Rothschild – Les Légendes Bordeaux",
+   "gruppo": "Francia",
+   "descrizione": "Merlot, Cabernet Sauvignon · 13% · strutturato, tannico, fruttato, speziato",
+   "prezzo": 4500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "David Moret – Pinot Noir Vin de France 2023",
+   "gruppo": "Francia",
+   "descrizione": "Pinot Noir · 13% · fruttato, fresco, elegante, leggero",
+   "prezzo": 4500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Rossi",
+   "nome": "Reine Pédauque – Bourgogne AOC Pinot Noir 2023",
+   "gruppo": "Francia",
+   "descrizione": "Pinot Noir · 13% · fruttato, fresco, elegante, speziato",
+   "prezzo": 6000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Grandi formati",
+   "nome": "Tenuta San Francesco – Per Èva 2024",
+   "gruppo": null,
+   "descrizione": "Costa d'Amalfi DOC Bianco · Falanghina, Ginestra, Pepella · 13,5% · Magnum 1,5 L · strutturato, sapido, minerale, floreale",
+   "prezzo": 13500,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Grandi formati",
+   "nome": "Tenuta San Francesco – Altacosta",
+   "gruppo": null,
+   "descrizione": "Spumante di Qualità – Brut Metodo Classico · Biancolella 50%, Falanghina 50% · 12% · Magnum 1,5 L · fresco, elegante, minerale, fruttato",
+   "prezzo": 11000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Grandi formati",
+   "nome": "Brut d'Argent – Pinot Noir Brut Rosé",
+   "gruppo": null,
+   "descrizione": "Méthode Traditionnelle · Pinot Noir · 11% · Magnum 1,5 L · fresco, elegante, fruttato, leggero",
+   "prezzo": 8000,
+   "allergeni": [],
+   "etichette": []
+  },
+  {
+   "categoria": "Grandi formati",
+   "nome": "San Salvatore 1988 – Vetere 2025 Limited Edition",
+   "gruppo": null,
+   "descrizione": "Paestum IGP Rosato · Aglianico · 11% · Jeroboam 3 L · fresco, fruttato, sapido, morbido",
+   "prezzo": 21000,
+   "allergeni": [],
+   "etichette": []
+  }
+ ]
+}

@@ -5,7 +5,8 @@
 
 import type { Allergene, Comanda, Documento, Prenotazione, PrintJob, RigaComanda, RigaVariante } from './types';
 import type { Setup } from './seed';
-import { ErroreDominio, preparaIncasso, preparaInvio, preparaPreconto, preparaStorno, type Incasso } from './operazioni';
+import { ErroreDominio, preparaAnnullo, preparaChiusura, preparaIncasso, preparaInvio, preparaPreconto, preparaStorno, type Incasso } from './operazioni';
+import type { DatiPeriodo } from './report';
 import { calcolaConto } from './conto';
 
 export { ErroreDominio, type Incasso };
@@ -45,6 +46,20 @@ export interface DataLayer {
   segnaPronte(rigaIds: string[]): Promise<void>;
   preconto(comandaId: string, idempotencyKey: string, persone?: number): Promise<void>;
   incassa(comandaId: string, incasso: Incasso, idempotencyKey: string, operatore?: Operatore): Promise<Documento>;
+
+  /** Piatto finito ("86"): sparisce dalla scelta su tutti i dispositivi finché non torna disponibile. */
+  impostaEsaurito(articoloId: string, esaurito: boolean): Promise<void>;
+  /** Sposta il conto su un tavolo libero. */
+  spostaComanda(comandaId: string, tavoloId: string): Promise<void>;
+  /** Unisce il conto di un altro tavolo a questo (righe e coperti). */
+  unisciComande(destinazioneId: string, origineId: string): Promise<void>;
+  /** Sposta alcune righe su un altro conto aperto. */
+  spostaRighe(rigaIds: string[], destinazioneId: string): Promise<void>;
+  annullaDocumento(documentoId: string, idempotencyKey: string, operatore?: Operatore): Promise<void>;
+  /** Chiusura fiscale (Z) con i totali della giornata. */
+  chiusuraFiscale(totali: object, idempotencyKey: string, operatore?: Operatore): Promise<void>;
+  /** Conti, righe e scontrini degli ultimi n giorni di servizio (1 = oggi). */
+  datiPeriodo(giorni: number): Promise<DatiPeriodo>;
 
   /** Solo l'app di cassa: prende i lavori da stampare (nessun altro dispositivo li riceve). */
   prendiLavori(max?: number): Promise<PrintJob[]>;
@@ -210,7 +225,7 @@ export class FakeDataLayer implements DataLayer {
 
   async prendiLavori(max = 10) {
     const presi = this.lavori()
-      .filter((x) => x.stato === 'in_coda' || (x.stato === 'errore' && x.tipo !== 'documento_commerciale' && x.tentativi < 3))
+      .filter((x) => x.stato === 'in_coda' || (x.stato === 'errore' && (x.tipo === 'comanda' || x.tipo === 'preconto') && x.tentativi < 3))
       .slice(0, max);
     for (const j of presi) j.stato = 'preso';
     return presi;
@@ -228,12 +243,81 @@ export class FakeDataLayer implements DataLayer {
       d.errore = e.errore;
       if (e.ok) {
         d.rtZNumero = e.zNumero; d.rtDocNumero = e.docNumero; d.rtData = e.data;
-        this.chiudiSePagata(d.comandaId);
+        if (d.tipo === 'annullo') { const o = d.origineId ? this._documenti.get(d.origineId) : undefined; if (o) o.stato = 'annullato'; }
+        else this.chiudiSePagata(d.comandaId);
       } else if (!e.incerto) {
         this.chiavi.delete(d.idempotencyKey);
       }
     }
     this.emit();
+  }
+
+  async impostaEsaurito(articoloId: string, esaurito: boolean) {
+    this.s = { ...this.s, articoli: this.s.articoli.map((a) => (a.id === articoloId ? { ...a, esaurito } : a)) };
+    this.emit();
+  }
+
+  async spostaComanda(comandaId: string, tavoloId: string) {
+    const c = this.comandaAperta(comandaId);
+    if (!this.s.tavoli.some((t) => t.id === tavoloId)) throw new ErroreDominio('Tavolo inesistente');
+    if (this.comandaDelTavolo(tavoloId)) throw new ErroreDominio('Il tavolo è già aperto');
+    c.tavoloId = tavoloId; c.version++; this.emit();
+  }
+
+  private senzaPagamenti(...ids: string[]) {
+    if (ids.some((id) => this.documenti(id).some((d) => ['emesso', 'in_emissione', 'da_verificare'].includes(d.stato))))
+      throw new ErroreDominio('Uno dei due conti è già stato pagato in parte');
+  }
+
+  async unisciComande(destinazioneId: string, origineId: string) {
+    if (destinazioneId === origineId) throw new ErroreDominio('È lo stesso tavolo');
+    const d = this.comandaAperta(destinazioneId), o = this.comandaAperta(origineId);
+    this.senzaPagamenti(destinazioneId, origineId);
+    for (const r of this.righe(origineId)) r.comandaId = destinazioneId;
+    d.coperti += o.coperti; d.allergeniTavolo = [...d.allergeniTavolo, ...o.allergeniTavolo]; d.stato = 'aperta'; d.version++;
+    d.prenotazioneId ??= o.prenotazioneId;
+    o.stato = 'annullata'; o.coperti = 0; o.chiusaAt = this.now().toISOString();
+    this.emit();
+  }
+
+  async spostaRighe(rigaIds: string[], destinazioneId: string) {
+    const d = this.comandaAperta(destinazioneId);
+    const righe = rigaIds.map((id) => this._righe.get(id)).filter((r): r is RigaComanda => !!r && r.stato !== 'stornata');
+    this.senzaPagamenti(...new Set(righe.map((r) => r.comandaId)));
+    for (const r of righe) { const o = this._comande.get(r.comandaId); if (o) o.version++; r.comandaId = destinazioneId; }
+    d.version++; this.emit();
+  }
+
+  async annullaDocumento(documentoId: string, key: string) {
+    this.idem(key, () => {
+      const o = this._documenti.get(documentoId);
+      if (!o) throw new ErroreDominio('Scontrino inesistente');
+      if ([...this._documenti.values()].some((x) => x.origineId === documentoId && x.stato !== 'errore')) throw new ErroreDominio('Annullo già richiesto');
+      const prep = preparaAnnullo(this.s, o);
+      const doc: Documento = { ...o, id: uid(), tipo: 'annullo', origineId: o.id, comandaId: '', stato: 'in_emissione', idempotencyKey: key, createdAt: this.now().toISOString(), rtZNumero: undefined, rtDocNumero: undefined };
+      this._documenti.set(doc.id, doc);
+      return this.nuovoLavoro({ tipo: 'annullo', stampanteId: prep.stampanteId, idempotencyKey: key, documentoId: doc.id, xml: prep.xml });
+    });
+  }
+
+  chiusure: { totali: object; quando: string }[] = [];
+  async chiusuraFiscale(totali: object, key: string) {
+    this.idem(key, () => {
+      const prep = preparaChiusura(this.s);
+      this.chiusure.push({ totali, quando: this.now().toISOString() });
+      return this.nuovoLavoro({ tipo: 'chiusura_fiscale', stampanteId: prep.stampanteId, idempotencyKey: key, xml: prep.xml });
+    });
+  }
+
+  async datiPeriodo(giorni: number): Promise<DatiPeriodo> {
+    const da = this.now().getTime() - giorni * 24 * 3600_000;
+    const comande = [...this._comande.values()].filter((c) => new Date(c.apertaAt).getTime() >= da);
+    const ids = new Set(comande.map((c) => c.id));
+    return {
+      comande,
+      righe: [...this._righe.values()].filter((r) => ids.has(r.comandaId)),
+      documenti: [...this._documenti.values()].filter((d) => new Date(d.createdAt).getTime() >= da),
+    };
   }
 
   private chiudiSePagata(comandaId: string) {

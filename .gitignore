@@ -5,3 +5,4 @@ target
 *.log
 apps/app/src-tauri/gen
 android
+screens/

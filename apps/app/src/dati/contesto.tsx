@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  CodaStampa, FakeDataLayer, MemoriaArchivio, magazzinoDemo, prenotazioniDemo, seedMoorea, setupDaTabelle, tabelleDaSetup,
+  CodaStampa, FakeDataLayer, MemoriaArchivio, magazzinoDemo, prenotazioniDemo, seedDemo, setupDaTabelle, tabelleDaSetup,
   type Archivio, type DataLayer, type Operatore, type TrasportoSimulato,
 } from '@gr/core';
 import { creaTrasporto, inTauri } from './trasporto';
@@ -54,10 +54,12 @@ export function DatiProvider({ children, schermataCollega }: { children: ReactNo
 
   const avviaDemo = useCallback(() => {
     localStorage.setItem(CHIAVE_MODALITA, 'demo');
-    const seed = seedMoorea();
+    const seed = seedDemo();
     const db = new FakeDataLayer(seed);
     db.impostaPrenotazioni(prenotazioniDemo());
-    const archivio = new MemoriaArchivio(magazzinoDemo(tabelleDaSetup(seed)), (t) => db.impostaSetup(setupDaTabelle(t, seed.operatori)));
+    const operatoriDemo = (t: { operatori: { id: string; nome: string; ruolo: string; attivo: boolean; pin?: string }[] }) =>
+      t.operatori.filter((o) => o.attivo).map((o) => ({ id: o.id, nome: o.nome, ruolo: o.ruolo, pin: o.pin }));
+    const archivio = new MemoriaArchivio(magazzinoDemo(tabelleDaSetup(seed)), (t) => db.impostaSetup(setupDaTabelle(t, operatoriDemo(t))));
     pronto(db, archivio, 'demo');
   }, [pronto]);
 

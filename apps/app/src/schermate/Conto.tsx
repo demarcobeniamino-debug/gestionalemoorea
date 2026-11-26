@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Bank, CheckCircle, CreditCard, Money, Ticket, Warning } from '@phosphor-icons/react';
+import { Bank, CheckCircle, CreditCard, Money, Percent, Ticket, Warning } from '@phosphor-icons/react';
 import { calcolaConto, dividiAllaRomana, euro, importoRiga, type Documento, type TipoPagamento } from '@gr/core';
 import { nuovaChiave, useApp, useAzione, useDati } from '../dati/contesto';
 import { Testata } from '../ui/Testata';
-import { Icona, Pulsante, Spinner } from '../ui/primitivi';
+import { Foglio, Icona, Pulsante, Spinner } from '../ui/primitivi';
+import { CampoEuro } from '../ui/campi';
 
 const METODI: { tipo: TipoPagamento; nome: string; icona: ReactElement }[] = [
   { tipo: 'contanti', nome: 'Contanti', icona: <Money size={22} weight="bold" aria-hidden /> },
@@ -24,6 +25,8 @@ export function Conto() {
   const [persone, setPersone] = useState(Math.max(2, comanda?.coperti || 2));
   const [metodo, setMetodo] = useState<TipoPagamento>('contanti');
   const [digitato, setDigitato] = useState('');
+  const [sconto, setSconto] = useState<{ cents: number; etichetta: string; da: string } | null>(null);
+  const [scontoAperto, setScontoAperto] = useState(false);
 
   const conto = useMemo(() => calcolaConto(righe, comanda?.coperti ?? 0, setup.locale.copertoCents), [righe, comanda, setup]);
   const emessi = documenti.filter((d) => d.stato === 'emesso');
@@ -35,7 +38,9 @@ export function Conto() {
   const romanaBloccata = quoteEmesse.length > 0;
   const nQuote = romanaBloccata ? quoteEmesse[0].quota!.di : persone;
   const modoEff = romanaBloccata ? 'romana' : modo;
-  const quote = modoEff === 'romana' ? dividiAllaRomana(conto.totaleCents, nQuote) : [conto.totaleCents];
+  // Lo sconto vale solo sul conto unico (alla romana si dividerebbe in modo diverso a ogni quota).
+  const scontoCents = modoEff === 'unico' && sconto ? Math.min(sconto.cents, conto.totaleCents) : 0;
+  const quote = modoEff === 'romana' ? dividiAllaRomana(conto.totaleCents, nQuote) : [conto.totaleCents - scontoCents];
   const prossima = modoEff === 'romana' ? (Array.from({ length: nQuote }, (_, i) => i + 1).find((i) => !quoteEmesse.some((d) => d.quota!.indice === i)) ?? null) : 1;
   const daIncassare = prossima ? quote[prossima - 1] : 0;
   const ricevuto = metodo === 'contanti' && digitato ? Math.round(parseFloat(digitato.replace(',', '.')) * 100) : daIncassare;
@@ -70,6 +75,7 @@ export function Conto() {
       await db.incassa(comanda.id, {
         pagamenti: [{ tipo: metodo, importoCents: metodo === 'contanti' ? ricevuto : daIncassare }],
         quota: modoEff === 'romana' ? { indice: prossima, di: nQuote } : undefined,
+        scontoCents: scontoCents || undefined,
       }, nuovaChiave(), operatore ?? undefined);
       setDigitato('');
     });
@@ -134,9 +140,20 @@ export function Conto() {
               {conto.copertoCents > 0 && <div className="flex justify-between text-[15px] tabular-nums text-text-muted"><span>{comanda.coperti} × Coperto</span><span>{euro(conto.copertoCents, false)}</span></div>}
             </div>
             <div className="flex-1" />
+            {scontoCents > 0 && (
+              <div className="mt-3 flex justify-between text-[15px] font-semibold text-success tabular-nums">
+                <span>Sconto {sconto!.etichetta} <span className="font-normal text-text-muted">· {sconto!.da}</span></span><span>−{euro(scontoCents, false)}</span>
+              </div>
+            )}
             <div className="mt-4 flex items-baseline justify-between border-t border-border pt-3 tabular-nums">
-              <span className="font-semibold">Totale</span><span className="text-xl font-bold">{euro(conto.totaleCents)}</span>
+              <span className="font-semibold">Totale</span><span className="text-xl font-bold">{euro(conto.totaleCents - scontoCents)}</span>
             </div>
+            {modoEff === 'unico' && !emessi.length && (
+              <button type="button" onClick={() => (sconto ? setSconto(null) : setScontoAperto(true))}
+                className="premibile mt-3 flex h-touch items-center justify-center gap-2 rounded-md border border-border text-sm font-semibold">
+                <Percent size={18} weight="bold" aria-hidden />{sconto ? 'Togli lo sconto' : 'Sconto'}
+              </button>
+            )}
           </div>
         </section>
 
@@ -194,6 +211,66 @@ export function Conto() {
           </Pulsante>
         </aside>
       </div>
+      <FoglioSconto aperto={scontoAperto} totaleCents={conto.totaleCents} onChiudi={() => setScontoAperto(false)}
+        onApplica={(sc) => { setSconto(sc); setScontoAperto(false); setDigitato(''); }} />
     </div>
+  );
+}
+
+const puoScontare = (ruolo?: string) => ruolo === 'responsabile' || ruolo === 'admin';
+
+/** Sconto in percentuale o in euro. Se chi è collegato non è responsabile, serve il PIN di un responsabile. */
+function FoglioSconto({ aperto, totaleCents, onChiudi, onApplica }: {
+  aperto: boolean; totaleCents: number; onChiudi: () => void;
+  onApplica: (s: { cents: number; etichetta: string; da: string }) => void;
+}) {
+  const { db, operatore } = useApp();
+  const [pct, setPct] = useState<number | null>(10);
+  const [cents, setCents] = useState<number | null>(null);
+  const [pin, setPin] = useState('');
+  const [errore, setErrore] = useState<string | null>(null);
+  const serveAutorizzazione = !puoScontare(operatore?.ruolo);
+  const valore = cents ?? (pct ? Math.round((totaleCents * pct) / 100) : 0);
+  const etichetta = cents != null ? euro(cents) : `${pct}%`;
+
+  const conferma = async () => {
+    if (!valore || valore <= 0) return setErrore('Scegli lo sconto.');
+    if (valore >= totaleCents) return setErrore('Lo sconto non può azzerare il conto.');
+    let da = operatore?.nome ?? '';
+    if (serveAutorizzazione) {
+      const r = await db.login(pin);
+      if (!r || !puoScontare(r.ruolo)) { setPin(''); return setErrore('Serve il PIN di un responsabile.'); }
+      da = r.nome;
+    }
+    setErrore(null); setPin('');
+    onApplica({ cents: valore, etichetta, da: `autorizzato da ${da}` });
+  };
+
+  return (
+    <Foglio aperto={aperto} onChiudi={() => { setErrore(null); setPin(''); onChiudi(); }} titolo="Sconto sul conto">
+      <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Percentuale">
+        {[5, 10, 15, 20, 50].map((p) => (
+          <button key={p} type="button" aria-pressed={pct === p && cents == null} onClick={() => { setPct(p); setCents(null); }}
+            className={`premibile h-touch min-w-16 rounded-pill px-4 text-base font-bold ${pct === p && cents == null ? 'bg-accent text-on-accent' : 'border border-border bg-bg'}`}>{p}%</button>
+        ))}
+      </div>
+      <CampoEuro etichetta="Oppure un importo" valore={cents} onCambia={setCents} className="mb-4" />
+      <p className="mb-4 text-base">Sconto <strong className="tabular-nums">{euro(valore)}</strong> · si paga <strong className="tabular-nums">{euro(Math.max(0, totaleCents - valore))}</strong></p>
+      {serveAutorizzazione && (
+        <div className="mb-4">
+          <p className="mb-2 text-sm font-semibold text-text-muted">PIN del responsabile</p>
+          <output className="mb-2 block h-10 rounded-md bg-bg px-3 text-2xl tracking-[0.5em]" aria-label="PIN inserito">{'•'.repeat(pin.length)}</output>
+          <div className="grid grid-cols-3 gap-2">
+            {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'].map((t, i) => t === '' ? <span key={i} /> : (
+              <button key={t} type="button" aria-label={t === 'del' ? 'Cancella' : t}
+                onClick={() => setPin((p) => (t === 'del' ? p.slice(0, -1) : (p + t).slice(0, 6)))}
+                className="premibile grid h-12 place-items-center rounded-md bg-surface-2 text-xl font-semibold tabular-nums">{t === 'del' ? Icona.cancella : t}</button>
+            ))}
+          </div>
+        </div>
+      )}
+      {errore && <p role="alert" className="mb-3 text-sm font-semibold text-danger">{errore}</p>}
+      <Pulsante variante="primario" taglia="lg" className="w-full" onClick={() => void conferma()}>Applica sconto</Pulsante>
+    </Foglio>
   );
 }

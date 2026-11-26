@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CalendarCheck, Clock, GearSix, Receipt, Warning } from '@phosphor-icons/react';
+import { CalendarCheck, Clock, ChartBar, GearSix, Receipt, Warning } from '@phosphor-icons/react';
 import { ALLERGENI_ETICHETTA, calcolaConto, daAccogliere, euro, type Comanda, type Prenotazione, type Tavolo } from '@gr/core';
 import { useApp, useAzione, useDati, useOra } from '../dati/contesto';
 import { Testata } from '../ui/Testata';
@@ -140,6 +140,9 @@ export function Sala() {
               <CalendarCheck size={18} weight="bold" aria-hidden="true" />Prenotazioni {daSedere.length}
             </button>
             <Link to="/cucina" className="premibile flex h-9 items-center gap-2 rounded-md border border-border px-3 text-text">{Icona.cucina}Monitor cucina</Link>
+            {puoGestire(operatore?.ruolo) && (
+              <Link to="/cassa" className="premibile flex h-9 items-center gap-2 rounded-md border border-border px-3 text-text"><ChartBar size={18} weight="bold" aria-hidden="true" />Cassa</Link>
+            )}
             {puoGestire(operatore?.ruolo) && (
               <Link to="/gestione" className="premibile flex h-9 items-center gap-2 rounded-md border border-border px-3 text-text"><GearSix size={18} weight="bold" aria-hidden="true" />Gestione</Link>
             )}

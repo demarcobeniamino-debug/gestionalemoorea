@@ -22,6 +22,7 @@ export interface ArticoloRiga {
   id: string; locale_id: string; categoria_id: string; nome: string; nome_breve: string | null;
   aliquota_iva_id: string; centro_produzione_id: string | null; allergeni: Allergene[];
   esaurito: boolean; ordine: number; attivo: boolean;
+  descrizione?: { it?: string } | null;
 }
 export interface PrezzoRiga { listino_id: string; articolo_id: string; prezzo_cents: number }
 export interface VarianteRiga { id: string; locale_id: string; gruppo: string | null; nome: string; delta_cents: number }
@@ -45,8 +46,18 @@ export interface MovimentoRiga {
   righe: { mag_articolo_id: string; quantita: number; costo_unitario_cents: number | null }[];
 }
 
+export type RuoloOperatore = 'cameriere' | 'cassiere' | 'cucina' | 'bar' | 'responsabile' | 'admin';
+export interface OperatoreRiga {
+  id: string; locale_id: string; nome: string; ruolo: RuoloOperatore; attivo: boolean;
+  permessi: { sconto_max_pct?: number; storno?: boolean };
+  /** Solo nella demo: in produzione il PIN è salvato cifrato e non si legge mai. */
+  pin?: string;
+}
+export interface NuovoOperatore { id?: string; nome: string; ruolo: RuoloOperatore; pin?: string; attivo: boolean; permessi?: OperatoreRiga['permessi'] }
+
 export interface Tabelle {
   locale: LocaleRiga;
+  operatori: OperatoreRiga[];
   gruppoId: string;
   listini: ListinoRiga[];
   aliquote_iva: AliquotaRiga[];
@@ -96,6 +107,8 @@ export interface Archivio {
   salva<T extends NomeTabella>(tabella: T, riga: Partial<RigaDi<T>>): Promise<RigaDi<T>>;
   elimina<T extends NomeTabella>(tabella: T, chiave: Partial<RigaDi<T>>): Promise<void>;
   registraMovimento(m: NuovoMovimento): Promise<void>;
+  /** Crea o modifica un operatore; il PIN (4-6 cifre) si passa solo se va cambiato. */
+  salvaOperatore(o: NuovoOperatore): Promise<void>;
 }
 
 export class ErroreGestione extends Error {}
@@ -145,7 +158,7 @@ export function prezzoDi(articoloId: string, t: Pick<Tabelle, 'listini' | 'prezz
 }
 
 /** Dalle tabelle alla configurazione che usano sala, comanda e cassa. */
-export function setupDaTabelle(t: Omit<Tabelle, 'fornitori' | 'mag_articoli' | 'scorte' | 'distinte' | 'movimenti' | 'gruppoId'>, operatori: Setup['operatori']): Setup {
+export function setupDaTabelle(t: Omit<Tabelle, 'fornitori' | 'mag_articoli' | 'scorte' | 'distinte' | 'movimenti' | 'gruppoId' | 'operatori'>, operatori: Setup['operatori']): Setup {
   const iva10 = t.aliquote_iva.find((a) => Number(a.percentuale) === 10) ?? t.aliquote_iva[0];
   return {
     locale: { id: t.locale.id, nome: t.locale.nome, citta: t.locale.indirizzo.split(',').pop()!.trim(), copertoCents: t.locale.coperto_cents, aliquotaCopertoId: iva10?.id },
@@ -154,10 +167,11 @@ export function setupDaTabelle(t: Omit<Tabelle, 'fornitori' | 'mag_articoli' | '
     aliquote: t.aliquote_iva.map((a) => ({ id: a.id, descrizione: a.descrizione, percentuale: Number(a.percentuale), repartoRt: a.reparto_rt })),
     sale: [...t.sale].sort((a, b) => a.ordine - b.ordine).map((s) => ({ id: s.id, nome: s.nome, ordine: s.ordine })),
     tavoli: t.tavoli.filter((x) => x.attivo).map((x) => ({ id: x.id, salaId: x.sala_id, numero: x.numero, forma: x.forma, x: Number(x.x), y: Number(x.y), larghezza: Number(x.larghezza), altezza: Number(x.altezza), posti: x.posti })),
-    categorie: [...t.categorie].sort((a, b) => a.ordine - b.ordine).map((c) => ({ id: c.id, nome: c.nome, colore: c.colore ?? '#a3acba', testoColore: testoSu(c.colore ?? '#a3acba'), ordine: c.ordine, centroProduzioneId: c.centro_produzione_id, portataPredefinita: c.portata_predefinita })),
+    // In cassa solo le categorie con almeno un articolo nel menu.
+    categorie: [...t.categorie].filter((c) => t.articoli.some((a) => a.attivo && a.categoria_id === c.id)).sort((a, b) => a.ordine - b.ordine).map((c) => ({ id: c.id, nome: c.nome, colore: c.colore ?? '#a3acba', testoColore: testoSu(c.colore ?? '#a3acba'), ordine: c.ordine, centroProduzioneId: c.centro_produzione_id, portataPredefinita: c.portata_predefinita })),
     articoli: t.articoli.filter((a) => a.attivo).sort((a, b) => a.ordine - b.ordine || a.nome.localeCompare(b.nome)).map((a) => ({
       id: a.id, categoriaId: a.categoria_id, nome: a.nome, nomeBreve: a.nome_breve ?? undefined, prezzoCents: prezzoDi(a.id, t), aliquotaIvaId: a.aliquota_iva_id,
-      centroProduzioneId: a.centro_produzione_id, allergeni: a.allergeni, esaurito: a.esaurito,
+      centroProduzioneId: a.centro_produzione_id, allergeni: a.allergeni, esaurito: a.esaurito, descrizione: a.descrizione?.it || undefined,
       variantiIds: t.articolo_varianti.filter((x) => x.articolo_id === a.id).map((x) => x.variante_id),
     })),
     varianti: t.varianti.map((v) => ({ id: v.id, gruppo: v.gruppo ?? '', nome: v.nome, deltaCents: v.delta_cents })),
@@ -172,6 +186,7 @@ export function tabelleDaSetup(s: Setup): Tabelle {
   const t: Tabelle = {
     locale: { id: L, nome: s.locale.nome, indirizzo: `Lungomare, ${s.locale.citta}`, coperto_cents: s.locale.copertoCents },
     gruppoId: G,
+    operatori: s.operatori.map((o) => ({ id: o.id, locale_id: L, nome: o.nome, ruolo: o.ruolo as RuoloOperatore, attivo: true, permessi: {}, pin: o.pin })),
     listini: [{ id: LIST, locale_id: L, nome: 'Sala', predefinito: true }],
     aliquote_iva: s.aliquote.map((a) => ({ id: a.id, locale_id: L, descrizione: a.descrizione, percentuale: a.percentuale, reparto_rt: a.repartoRt })),
     stampanti: s.stampanti.map((x) => ({ id: x.id, locale_id: L, nome: x.nome, tipo: x.tipo, host: x.host, porta: x.porta, colonne: x.colonne, per_preconto: !!x.perPreconto, matricola_rt: x.tipo === 'comande_escpos' ? null : x.matricolaRt ?? '', attiva: true, codepage: x.codePage ?? 19, modello: x.modello ?? null })),
@@ -180,7 +195,7 @@ export function tabelleDaSetup(s: Setup): Tabelle {
     articoli: s.articoli.map((a, i) => ({
       id: a.id, locale_id: L, categoria_id: a.categoriaId, nome: a.nome, nome_breve: a.nomeBreve ?? null, aliquota_iva_id: a.aliquotaIvaId,
       centro_produzione_id: a.centroProduzioneId && a.centroProduzioneId !== centroCategoria(a.categoriaId) ? a.centroProduzioneId : null,
-      allergeni: a.allergeni, esaurito: a.esaurito, ordine: i, attivo: true,
+      allergeni: a.allergeni, esaurito: a.esaurito, ordine: i, attivo: true, descrizione: a.descrizione ? { it: a.descrizione } : null,
     })),
     prezzi_listino: s.articoli.map((a) => ({ listino_id: LIST, articolo_id: a.id, prezzo_cents: a.prezzoCents })),
     varianti: s.varianti.map((v) => ({ id: v.id, locale_id: L, gruppo: v.gruppo || null, nome: v.nome, delta_cents: v.deltaCents })),
@@ -210,8 +225,8 @@ export function magazzinoDemo(t: Tabelle): Tabelle {
   ];
   const sc = (id: string, g: number, min: number): ScortaRiga => ({ locale_id: L, mag_articolo_id: id, giacenza: g, scorta_min: min, scorta_max: null });
   const scorte = [sc('m-spaghettone', 7.5, 3), sc('m-pecorino', 1.2, 2), sc('m-pepe', 0.4, 0.2), sc('m-provola', 2, 1), sc('m-acqua-nat', 40, 24)];
-  const cacio = t.articoli.find((a) => /cacio e pepe/i.test(a.nome))?.id;
-  const acqua = t.articoli.find((a) => /acqua naturale/i.test(a.nome))?.id;
+  const cacio = t.articoli.find((a) => /cacio e pepe|scialatielli/i.test(a.nome))?.id;
+  const acqua = t.articoli.find((a) => /acqua naturale|naturale electa/i.test(a.nome))?.id;
   const distinte: DistintaRiga[] = [
     ...(cacio ? [
       { articolo_id: cacio, mag_articolo_id: 'm-spaghettone', quantita: 0.12, resa_pct: 100 },
@@ -276,6 +291,20 @@ export class MemoriaArchivio implements Archivio {
     if (tabella === 'fornitori') this.t.mag_articoli = this.t.mag_articoli.map((m) => (m.fornitore_id === id ? { ...m, fornitore_id: null } : m));
     if (tabella === 'stampanti') this.t.centri_produzione = this.t.centri_produzione.map((c) => (c.stampante_id === id ? { ...c, stampante_id: null } : c));
     if (tabella === 'categorie') this.t.articoli = this.t.articoli.filter((a) => a.categoria_id !== id);
+    this.cambiato();
+  }
+
+  async salvaOperatore(o: NuovoOperatore) {
+    if (!o.nome.trim()) throw new ErroreGestione('Manca il nome.');
+    if (o.pin != null) {
+      if (!/^\d{4,6}$/.test(o.pin)) throw new ErroreGestione('Il PIN deve avere da 4 a 6 cifre.');
+      if (this.t.operatori.some((x) => x.attivo && x.id !== o.id && x.pin === o.pin)) throw new ErroreGestione('Questo PIN è già usato da un altro operatore.');
+    } else if (!o.id) throw new ErroreGestione('Il PIN deve avere da 4 a 6 cifre.');
+    const riga: OperatoreRiga = {
+      ...(this.t.operatori.find((x) => x.id === o.id) ?? { id: nuovoId(), locale_id: this.t.locale.id, permessi: {} }),
+      nome: o.nome.trim(), ruolo: o.ruolo, attivo: o.attivo, ...(o.permessi ? { permessi: o.permessi } : {}), ...(o.pin ? { pin: o.pin } : {}),
+    } as OperatoreRiga;
+    this.t.operatori = o.id ? this.t.operatori.map((x) => (x.id === o.id ? riga : x)) : [...this.t.operatori, riga];
     this.cambiato();
   }
 

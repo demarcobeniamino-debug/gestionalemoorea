@@ -2,7 +2,7 @@
 // Solo per i responsabili: i camerieri vedono un messaggio e tornano in sala.
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
-import { Armchair, Basket, ClockCounterClockwise, ForkKnife, ListPlus, Printer, Swatches, Truck } from '@phosphor-icons/react';
+import { Armchair, Basket, ClockCounterClockwise, ForkKnife, ListPlus, Printer, Swatches, Truck, Users } from '@phosphor-icons/react';
 import type { Tabelle } from '@gr/core';
 import { useApp, useAzione } from '../../dati/contesto';
 import { Testata } from '../../ui/Testata';
@@ -19,6 +19,7 @@ const VOCI: { a: string; testo: string; icona: ReactNode; gruppo: string }[] = [
   { a: 'magazzino', testo: 'Scorte', icona: <Basket {...I} />, gruppo: 'Magazzino' },
   { a: 'movimenti', testo: 'Movimenti', icona: <ClockCounterClockwise {...I} />, gruppo: 'Magazzino' },
   { a: 'fornitori', testo: 'Fornitori', icona: <Truck {...I} />, gruppo: 'Magazzino' },
+  { a: 'personale', testo: 'Personale', icona: <Users {...I} />, gruppo: 'Impostazioni' },
   { a: 'stampanti', testo: 'Stampanti', icona: <Printer {...I} />, gruppo: 'Impostazioni' },
 ];
 
@@ -63,7 +64,7 @@ export function GestioneLayout() {
   const gruppi = [...new Set(VOCI.map((v) => v.gruppo))];
   return (
     <div className="flex h-full flex-col bg-bg text-text">
-      <Testata titolo="Gestione" sotto="Menu, sale, magazzino e stampanti" indietro="/sala" />
+      <Testata titolo="Gestione" sotto="Menu, sale, magazzino, personale e stampanti" indietro="/sala" />
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <nav aria-label="Sezioni della Gestione"
           className="flex flex-none gap-1 overflow-x-auto border-b border-border bg-surface px-2 py-2 md:w-56 md:flex-col md:overflow-visible md:border-b-0 md:border-r md:px-3 md:py-4">

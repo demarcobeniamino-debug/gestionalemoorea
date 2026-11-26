@@ -20,6 +20,8 @@ import { Categorie, Varianti } from './schermate/gestione/Menu';
 import { SaleTavoli } from './schermate/gestione/SaleTavoli';
 import { Fornitori, Movimenti, Scorte } from './schermate/gestione/Magazzino';
 import { Stampanti } from './schermate/gestione/Stampanti';
+import { Personale } from './schermate/gestione/Personale';
+import { Cassa } from './schermate/Cassa';
 import { tieniAcceso } from './dati/piattaforma';
 
 void tieniAcceso();
@@ -39,6 +41,7 @@ function App() {
         <Route path="/comanda/:id" element={<Protetta><ComandaSchermata /></Protetta>} />
         <Route path="/conto/:id" element={<Protetta><Conto /></Protetta>} />
         <Route path="/cucina" element={<Cucina />} />
+        <Route path="/cassa" element={<Protetta><Cassa /></Protetta>} />
         <Route path="/design" element={<Design />} />
         <Route path="/gestione" element={<Protetta><GestioneLayout /></Protetta>}>
           <Route index element={<Navigate to="articoli" replace />} />
@@ -50,6 +53,7 @@ function App() {
           <Route path="movimenti" element={<Movimenti />} />
           <Route path="fornitori" element={<Fornitori />} />
           <Route path="stampanti" element={<Stampanti />} />
+          <Route path="personale" element={<Personale />} />
         </Route>
         {/* Schermate delle fasi successive (recon S17-S53): segnaposto con il loro scopo. */}
         <Route path="/da-fare/:id" element={<DaFare />} />

@@ -3,7 +3,7 @@
 // Scritture: funzioni del server (RPC) o tabelle protette da RLS; poi la cache si ricarica.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
-  ErroreDominio, nuovaRiga, preparaIncasso, preparaInvio, preparaPreconto, preparaStorno,
+  ErroreDominio, nuovaRiga, preparaAnnullo, preparaChiusura, preparaIncasso, preparaInvio, preparaPreconto, preparaStorno,
   type Allergene, type Comanda, type DataLayer, type Documento, type EsitoLavoro, type Incasso, type NuovaRiga,
   type Operatore, type PrintJob, type RigaComanda, type Setup, setupDaTabelle, type Prenotazione,
 } from '@gr/core';
@@ -28,6 +28,13 @@ const MESSAGGI: Record<string, string> = {
   RIGHE_NON_INVIATE: 'Ci sono righe non ancora inviate in cucina.',
   MOTIVO_MANCANTE: 'Serve il motivo dello storno.',
   NON_AUTORIZZATO: 'Questo dispositivo non è autorizzato per il locale.',
+  CONTO_GIA_PAGATO_IN_PARTE: 'Il conto è già stato pagato in parte: non si può unire o spostare.',
+  STESSO_TAVOLO: 'È lo stesso tavolo.',
+  DOCUMENTO_NON_ANNULLABILE: 'Questo scontrino non si può annullare.',
+  ANNULLO_GIA_RICHIESTO: 'L’annullo di questo scontrino è già stato richiesto.',
+  PIN_GIA_USATO: 'Questo PIN è già usato da un altro operatore.',
+  PIN_NON_VALIDO: 'Il PIN deve avere da 4 a 6 cifre.',
+  NOME_MANCANTE: 'Manca il nome.',
 };
 function errore(e: { message?: string } | null): never {
   const codice = Object.keys(MESSAGGI).find((k) => e?.message?.includes(k));
@@ -77,6 +84,42 @@ export class SupabaseDataLayer implements DataLayer {
   /** La Gestione ha salvato: rilegge listino, sale e stampanti senza aspettare il tempo reale. */
   async ricaricaSetup() { await this.caricaSetup(); this.emit(); }
 
+  private mappaComanda = (c: Riga): Comanda => ({
+    id: c.id, numero: c.numero, tavoloId: c.tavolo_id, coperti: c.coperti, operatore: this.nomeOperatore(c.operatore_id),
+    stato: c.stato, apertaAt: c.aperta_at, chiusaAt: c.chiusa_at ?? undefined, allergeniTavolo: c.allergeni_tavolo ?? [], version: c.version,
+    prenotazioneId: c.prenotazione_id ?? undefined,
+  });
+
+  private mappaRiga = (r: Riga): RigaComanda => ({
+    id: r.id, comandaId: r.comanda_id, articoloId: r.articolo_id, descrizione: r.descrizione, quantita: Number(r.quantita),
+    prezzoUnitarioCents: r.prezzo_unitario_cents, varianti: r.varianti ?? [], note: r.note ?? undefined, portata: r.portata,
+    centroProduzioneId: r.centro_produzione_id, aliquotaIvaId: r.aliquota_iva_id, allergeni: r.allergeni ?? [], posto: r.posto ?? undefined,
+    omaggio: r.omaggio, stato: r.stato, motivoStorno: r.motivo_storno ?? undefined, inviataAt: r.inviata_at ?? undefined, createdAt: r.created_at,
+  });
+
+  private mappaDocumento = (d: Riga): Documento => ({
+    id: d.id, comandaId: d.comanda_id ?? '', tipo: d.tipo === 'annullo' ? 'annullo' : 'documento_commerciale', stato: d.stato,
+    origineId: d.documento_origine_id ?? undefined,
+    righe: (d.righe_documento ?? []).map((x: Riga) => ({ descrizione: x.descrizione, quantita: Number(x.quantita), prezzoUnitarioCents: x.prezzo_unitario_cents, repartoRt: x.reparto_rt })),
+    scontoCents: d.sconto_cents, totaleCents: d.totale_cents,
+    pagamenti: (d.pagamenti ?? []).map((p: Riga) => ({ tipo: p.tipo, importoCents: p.importo_cents })),
+    quota: d.quota_di ? { indice: d.quota_indice, di: d.quota_di } : undefined,
+    rtZNumero: d.rt_z_numero ?? undefined, rtDocNumero: d.rt_doc_numero ?? undefined, errore: d.errore ?? undefined,
+    rtData: d.rt_emesso_at ? new Date(d.rt_emesso_at).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : undefined,
+    idempotencyKey: d.idempotency_key, createdAt: d.created_at,
+  });
+
+  /** Legge tutte le righe di una query a blocchi (il server ne dà al massimo 1000 per volta). */
+  private async tutte(q: () => any): Promise<Riga[]> {
+    const out: Riga[] = [];
+    for (let da = 0; ; da += 1000) {
+      const { data, error } = await q().range(da, da + 999);
+      if (error) errore(error);
+      out.push(...((data ?? []) as Riga[]));
+      if (!data || data.length < 1000) return out;
+    }
+  }
+
   private nomeOperatore = (id?: string | null) => this._setup.operatori.find((o) => o.id === id)?.nome ?? '';
 
   /** Stato del servizio: comande aperte (+ chiuse da poco), righe, scontrini e lavori di stampa recenti. */
@@ -92,26 +135,9 @@ export class SupabaseDataLayer implements DataLayer {
           this.sb.from('print_jobs').select('*').gte('created_at', da).order('created_at'),
         ])
       : [{ data: [] }, { data: [] }, await this.sb.from('print_jobs').select('*').gte('created_at', da).order('created_at')];
-    this._comande = (comande ?? []).map((c): Comanda => ({
-      id: c.id, numero: c.numero, tavoloId: c.tavolo_id, coperti: c.coperti, operatore: this.nomeOperatore(c.operatore_id),
-      stato: c.stato, apertaAt: c.aperta_at, chiusaAt: c.chiusa_at ?? undefined, allergeniTavolo: c.allergeni_tavolo ?? [], version: c.version,
-      prenotazioneId: c.prenotazione_id ?? undefined,
-    }));
-    this._righe = ((righe.data ?? []) as Riga[]).map((r): RigaComanda => ({
-      id: r.id, comandaId: r.comanda_id, articoloId: r.articolo_id, descrizione: r.descrizione, quantita: Number(r.quantita),
-      prezzoUnitarioCents: r.prezzo_unitario_cents, varianti: r.varianti ?? [], note: r.note ?? undefined, portata: r.portata,
-      centroProduzioneId: r.centro_produzione_id, aliquotaIvaId: r.aliquota_iva_id, allergeni: r.allergeni ?? [], posto: r.posto ?? undefined,
-      omaggio: r.omaggio, stato: r.stato, motivoStorno: r.motivo_storno ?? undefined, inviataAt: r.inviata_at ?? undefined, createdAt: r.created_at,
-    })).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    this._documenti = ((documenti.data ?? []) as Riga[]).map((d): Documento => ({
-      id: d.id, comandaId: d.comanda_id, tipo: 'documento_commerciale', stato: d.stato,
-      righe: (d.righe_documento ?? []).map((x: Riga) => ({ descrizione: x.descrizione, quantita: Number(x.quantita), prezzoUnitarioCents: x.prezzo_unitario_cents, repartoRt: x.reparto_rt })),
-      scontoCents: d.sconto_cents, totaleCents: d.totale_cents,
-      pagamenti: (d.pagamenti ?? []).map((p: Riga) => ({ tipo: p.tipo, importoCents: p.importo_cents })),
-      quota: d.quota_di ? { indice: d.quota_indice, di: d.quota_di } : undefined,
-      rtZNumero: d.rt_z_numero ?? undefined, rtDocNumero: d.rt_doc_numero ?? undefined, errore: d.errore ?? undefined,
-      idempotencyKey: d.idempotency_key, createdAt: d.created_at,
-    }));
+    this._comande = (comande ?? []).map(this.mappaComanda);
+    this._righe = ((righe.data ?? []) as Riga[]).map(this.mappaRiga).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    this._documenti = ((documenti.data ?? []) as Riga[]).map(this.mappaDocumento);
     this._lavori = ((lavori.data ?? []) as Riga[]).map(this.mappaLavoro);
     // Prenotazioni della serata: da 8 ore fa a 18 ore avanti (copre pranzo, cena e il dopo mezzanotte).
     const { data: pren } = await this.sb.from('prenotazioni').select('*')
@@ -194,6 +220,62 @@ export class SupabaseDataLayer implements DataLayer {
   }
 
   prenotazioni() { return this._prenotazioni; }
+
+  async impostaEsaurito(articoloId: string, esaurito: boolean) {
+    const { error } = await this.sb.from('articoli').update({ esaurito, updated_at: new Date().toISOString() }).eq('id', articoloId);
+    if (error) errore(error);
+    await this.ricaricaSetup();
+  }
+
+  async spostaComanda(comandaId: string, tavoloId: string) {
+    const { error } = await this.sb.rpc('sposta_comanda', { p_comanda: comandaId, p_tavolo: tavoloId });
+    if (error) errore(error);
+    await this.caricaServizio();
+  }
+
+  async unisciComande(destinazioneId: string, origineId: string) {
+    const { error } = await this.sb.rpc('unisci_comande', { p_destinazione: destinazioneId, p_origine: origineId });
+    if (error) errore(error);
+    await this.caricaServizio();
+  }
+
+  async spostaRighe(rigaIds: string[], destinazioneId: string) {
+    const { error } = await this.sb.rpc('sposta_righe', { p_righe: rigaIds, p_destinazione: destinazioneId });
+    if (error) errore(error);
+    await this.caricaServizio();
+  }
+
+  async annullaDocumento(documentoId: string, key: string, operatore?: Operatore) {
+    const { data, error } = await this.sb.from('documenti').select('*, righe_documento(*), pagamenti(*)').eq('id', documentoId).single();
+    if (error) errore(error);
+    const prep = preparaAnnullo(this._setup, this.mappaDocumento(data as Riga));
+    const r = await this.sb.rpc('annulla_documento', { p_documento: documentoId, p_stampante: prep.stampanteId, p_key: key, p_operatore: operatore?.id ?? null, p_xml: prep.xml });
+    if (r.error) errore(r.error);
+    await this.caricaServizio();
+  }
+
+  async chiusuraFiscale(totali: object, key: string, operatore?: Operatore) {
+    const prep = preparaChiusura(this._setup);
+    const { error } = await this.sb.rpc('chiusura_giornaliera', { p_locale: this.localeId, p_stampante: prep.stampanteId, p_key: key, p_operatore: operatore?.id ?? null, p_xml: prep.xml, p_totali: totali });
+    if (error) errore(error);
+    await this.caricaServizio();
+  }
+
+  async datiPeriodo(giorni: number) {
+    const { data: oggi, error } = await this.sb.rpc('giorno_servizio', { p_locale: this.localeId });
+    if (error) errore(error);
+    const d = new Date(`${oggi}T12:00:00`); d.setDate(d.getDate() - (giorni - 1));
+    const dal = d.toISOString().slice(0, 10);
+    const comande = await this.tutte(() => this.sb.from('comande').select('*').gte('giorno_servizio', dal).order('aperta_at'));
+    const ids = comande.map((c) => c.id);
+    const righe: Riga[] = [];
+    for (let i = 0; i < ids.length; i += 150) {
+      righe.push(...await this.tutte(() => this.sb.from('righe_comanda').select('*').in('comanda_id', ids.slice(i, i + 150)).order('created_at')));
+    }
+    const inizio = new Date(`${dal}T05:00:00`).toISOString();
+    const documenti = await this.tutte(() => this.sb.from('documenti').select('*, righe_documento(*), pagamenti(*)').gte('created_at', inizio).order('created_at'));
+    return { comande: comande.map(this.mappaComanda), righe: righe.map(this.mappaRiga), documenti: documenti.map(this.mappaDocumento) };
+  }
 
   async segnaNonPresentato(id: string) {
     const { error } = await this.sb.from('prenotazioni').update({ stato: 'mancata', updated_at: new Date().toISOString() }).eq('id', id);

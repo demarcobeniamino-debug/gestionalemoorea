@@ -53,6 +53,8 @@ export interface Articolo {
   id: string; categoriaId: string; nome: string; nomeBreve?: string; prezzoCents: Cents;
   aliquotaIvaId: string; centroProduzioneId?: string | null; allergeni: Allergene[];
   esaurito: boolean; variantiIds: string[];
+  /** Ingredienti o uvaggio, per rispondere al cliente. */
+  descrizione?: string;
 }
 
 export type StatoComanda = 'aperta' | 'preconto' | 'chiusa' | 'annullata';
@@ -96,14 +98,16 @@ export interface RigaDocumento {
 }
 
 export interface Documento {
-  id: string; comandaId: string; tipo: 'documento_commerciale';
+  id: string; comandaId: string; tipo: 'documento_commerciale' | 'annullo';
+  /** Per un annullo: lo scontrino annullato. */
+  origineId?: string;
   stato: StatoDocumento; righe: RigaDocumento[]; scontoCents: Cents; totaleCents: Cents;
   pagamenti: Pagamento[]; quota?: { indice: number; di: number };
   rtZNumero?: number; rtDocNumero?: number; rtData?: string; errore?: string;
   idempotencyKey: string; createdAt: string;
 }
 
-export type TipoLavoro = 'comanda' | 'preconto' | 'documento_commerciale' | 'chiusura_fiscale';
+export type TipoLavoro = 'comanda' | 'preconto' | 'documento_commerciale' | 'annullo' | 'chiusura_fiscale';
 export type StatoLavoro = 'in_coda' | 'preso' | 'stampato' | 'errore' | 'da_verificare';
 
 export interface PrintJob {

@@ -1,14 +1,14 @@
 // Preparazione delle operazioni di servizio: funzioni pure, usate sia dai dati in memoria (demo)
 // sia dal database (Supabase). Così il ticket e lo scontrino sono identici in entrambi i casi.
 
-import type { Comanda, Pagamento, RigaComanda, RigaDocumento } from './types';
+import type { Comanda, Documento, Pagamento, RigaComanda, RigaDocumento } from './types';
 import { PAGAMENTO_RT } from './types';
 import type { Setup } from './seed';
 import type { Ticket } from './ticket';
 import { calcolaConto, righeDocumento, totaleRighe } from './conto';
 import { ticketComanda, ticketPreconto } from './comande';
 import { dividiAllaRomana } from './money';
-import { xmlDocumentoCommerciale } from './epson';
+import { xmlAnnulloReso, xmlChiusuraGiornaliera, xmlDocumentoCommerciale } from './epson';
 
 export class ErroreDominio extends Error {}
 
@@ -113,4 +113,27 @@ export function preparaIncasso(s: Setup, c: Comanda, righe: RigaComanda[], inc: 
     stampanteId: rt.id, righe: righeDoc, scontoCents: sconto, totaleCents: totale, xml,
     pagamenti: inc.pagamenti.map((p) => ({ ...p, tipoRt: PAGAMENTO_RT[p.tipo] })),
   };
+}
+
+const rtDi = (s: Setup) => {
+  const rt = s.stampanti.find((x) => x.tipo === 'rt_epson_xml');
+  if (!rt) throw new ErroreDominio('Nessun registratore telematico configurato');
+  return rt;
+};
+
+/** Annullo di uno scontrino emesso: stesso contenuto, con il riferimento (Z, numero, data, matricola) dell'originale. */
+export function preparaAnnullo(s: Setup, d: Documento) {
+  if (d.tipo !== 'documento_commerciale' || d.stato !== 'emesso') throw new ErroreDominio('Si possono annullare solo scontrini emessi');
+  if (d.rtZNumero == null || d.rtDocNumero == null) throw new ErroreDominio('Mancano i dati del registratore (Z e numero) per annullare questo scontrino');
+  const rt = rtDi(s);
+  const quando = d.rtData ? new Date(d.rtData.split('/').reverse().join('-')) : new Date(d.createdAt);
+  const xml = xmlAnnulloReso('VOID', { zNumero: d.rtZNumero, docNumero: d.rtDocNumero, data: quando, matricola: rt.matricolaRt ?? '' },
+    { righe: d.righe, scontoCents: d.scontoCents, pagamenti: d.pagamenti }, { host: rt.host });
+  return { stampanteId: rt.id, xml };
+}
+
+/** Chiusura fiscale giornaliera (Z) sull'RT. */
+export function preparaChiusura(s: Setup) {
+  const rt = rtDi(s);
+  return { stampanteId: rt.id, xml: xmlChiusuraGiornaliera({ host: rt.host }) };
 }

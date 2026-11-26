@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ReactElement } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { Check, Pause, Prohibit, Warning } from '@phosphor-icons/react';
+import { ArrowsLeftRight, Check, Pause, Prohibit, Warning } from '@phosphor-icons/react';
 import {
   ALLERGENI_ETICHETTA, calcolaConto, euro, importoRiga, nomePortata,
   type Allergene, type Articolo, type RigaComanda, type RigaVariante,
@@ -9,6 +9,7 @@ import { nuovaChiave, useApp, useAzione, useDati } from '../dati/contesto';
 import { Testata } from '../ui/Testata';
 import { Foglio, Icona, Pulsante, useConferma } from '../ui/primitivi';
 import { vibra } from '../dati/piattaforma';
+import { AzioniTavolo } from './AzioniTavolo';
 
 const PORTATE = [0, 1, 2, 3, 9];
 const STATO_RIGA: Partial<Record<RigaComanda['stato'], { testo: string; icona: ReactElement }>> = {
@@ -32,6 +33,7 @@ export function ComandaSchermata() {
   const [varianti, setVarianti] = useState<Articolo | null>(null);
   const [storno, setStorno] = useState<RigaComanda | null>(null);
   const [allergeniAperto, setAllergeniAperto] = useState(false);
+  const [azioniAperte, setAzioniAperte] = useState(false);
   const [riepilogoMobile, setRiepilogoMobile] = useState(false);
   const [ultima, setUltima] = useState<string | null>(null);
   const conferma = useConferma();
@@ -42,7 +44,7 @@ export function ComandaSchermata() {
   const conto = useMemo(() => calcolaConto(righe, comanda?.coperti ?? 0, setup.locale.copertoCents), [righe, comanda, setup]);
 
   if (!comanda) return <main className="p-8 text-text"><p className="mb-4 text-base">Questa comanda non esiste più.</p><Link className="underline" to="/sala">Torna alla sala</Link></main>;
-  if (comanda.stato === 'chiusa') { nav('/sala', { replace: true }); return null; }
+  if (comanda.stato === 'chiusa' || comanda.stato === 'annullata') { nav('/sala', { replace: true }); return null; }
 
   const q = cerca.trim().toLowerCase();
   const articoli = setup.articoli.filter((a) => (q ? a.nome.toLowerCase().includes(q) : a.categoriaId === categoriaId));
@@ -140,6 +142,10 @@ export function ComandaSchermata() {
   return (
     <div className="flex h-full flex-col bg-bg text-text">
       <Testata indietro="/sala" titolo={`Tavolo ${tavolo?.numero ?? ''}`} sotto={`${comanda.coperti} coperti · ${comanda.operatore || operatore?.nome || ''}`}>
+        <button type="button" onClick={() => setAzioniAperte(true)} aria-label="Sposta, unisci o dividi il tavolo"
+          className="premibile flex h-10 flex-none items-center gap-1.5 rounded-md border border-border bg-surface-2 px-3 text-sm font-bold">
+          <ArrowsLeftRight size={16} weight="bold" aria-hidden /><span className="hidden sm:inline">Tavolo</span>
+        </button>
         <button type="button" onClick={() => setAllergeniAperto(true)}
           className={`premibile flex h-10 flex-none items-center gap-1.5 rounded-md px-3 text-sm font-bold ${comanda.allergeniTavolo.length ? 'bg-allergene text-on-allergene' : 'border border-border bg-surface-2'}`}>
           {comanda.allergeniTavolo.length > 0 && <Warning size={16} weight="fill" aria-hidden />}
@@ -249,6 +255,7 @@ export function ComandaSchermata() {
         </div>
       </Foglio>
 
+      <AzioniTavolo comanda={comanda} aperto={azioniAperte} onChiudi={() => setAzioniAperte(false)} />
       <FoglioAllergeni aperto={allergeniAperto} valore={comanda.allergeniTavolo} onChiudi={() => setAllergeniAperto(false)}
         onSalva={(v) => void esegui(() => db.impostaAllergeni(comanda.id, v))} />
       {conferma.ui}
@@ -261,6 +268,8 @@ function FoglioVarianti({ articolo, onChiudi, onConferma }: {
   onConferma: (a: Articolo, extra: { varianti: RigaVariante[]; note?: string; posto?: number }) => void;
 }) {
   const { setup } = useDati((d) => ({ setup: d.setup() }));
+  const { db } = useApp();
+  const { esegui } = useAzione();
   const [scelte, setScelte] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const [posto, setPosto] = useState<number | undefined>();
@@ -269,6 +278,16 @@ function FoglioVarianti({ articolo, onChiudi, onConferma }: {
   const extra = varianti.filter((v) => scelte.includes(v.id)).reduce((s, v) => s + v.deltaCents, 0);
   return (
     <Foglio aperto={!!articolo} onChiudi={() => { reset(); onChiudi(); }} titolo={articolo?.nome ?? ''}>
+      {articolo && (articolo.descrizione || articolo.allergeni.length > 0) && (
+        <div className="mb-5 rounded-md bg-bg p-3">
+          {articolo.descrizione && <p className="text-[15px] text-text">{articolo.descrizione}</p>}
+          {articolo.allergeni.length > 0 && (
+            <p className="mt-2 flex flex-wrap gap-1.5">
+              {articolo.allergeni.map((a) => <span key={a} className="rounded-pill bg-allergene px-2.5 py-0.5 text-xs font-bold text-on-allergene">{ALLERGENI_ETICHETTA[a]}</span>)}
+            </p>
+          )}
+        </div>
+      )}
       {varianti.length > 0 && (
         <fieldset className="mb-5">
           <legend className="mb-2 text-sm font-semibold text-text-muted">Varianti</legend>
@@ -302,7 +321,14 @@ function FoglioVarianti({ articolo, onChiudi, onConferma }: {
         if (!articolo) return;
         onConferma(articolo, { varianti: varianti.filter((v) => scelte.includes(v.id)).map((v) => ({ nome: v.nome, deltaCents: v.deltaCents })), note: note.trim() || undefined, posto });
         reset();
-      }}>Aggiungi{articolo ? ` · ${euro(articolo.prezzoCents + extra)}` : ''}</Pulsante>
+      }} disabled={articolo?.esaurito}>Aggiungi{articolo ? ` · ${euro(articolo.prezzoCents + extra)}` : ''}</Pulsante>
+      {articolo && (
+        <button type="button" onClick={() => void esegui(async () => { await db.impostaEsaurito(articolo.id, !articolo.esaurito); reset(); onChiudi(); },
+          articolo.esaurito ? `${articolo.nome} di nuovo disponibile` : `${articolo.nome} segnato come finito su tutti i dispositivi`)}
+          className="premibile mt-3 h-touch w-full rounded-md text-sm font-semibold text-text-muted hover:bg-surface-2">
+          {articolo.esaurito ? 'È tornato disponibile' : 'Segna come finito (esaurito)'}
+        </button>
+      )}
     </Foglio>
   );
 }

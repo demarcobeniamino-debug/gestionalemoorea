@@ -36,17 +36,17 @@ await p.getByRole('button', { name: 'Aggiungi allergie' }).click();
 
 // antipasti, primi con variante, vino
 await p.getByRole('button', { name: 'Antipasti', exact: true }).first().click();
-await p.getByRole('button', { name: /^Vitello tonnato/ }).click();
-await p.getByRole('button', { name: 'Primi', exact: true }).first().click();
-await p.getByRole('button', { name: /^Paccheri alla genovese/ }).click({ button: 'right' });
-await p.getByRole('button', { name: '- pecorino' }).click();
+await p.getByRole('button', { name: /^Polpo Scottato/ }).click();
+await p.getByRole('button', { name: 'Pasta', exact: true }).first().click();
+await p.getByRole('button', { name: /^Gnocchi alla Genovese/ }).click({ button: 'right' });
+await p.getByRole('button', { name: 'gnocchi al pomodoro' }).click();
 await p.locator('dialog[open]').getByRole('button', { name: '2', exact: true }).click();
 await p.getByPlaceholder('es. niente noci, poco sale').fill('niente noci');
 await p.locator('dialog[open]').getByRole('button', { name: /^Aggiungi/ }).click();
-await p.getByRole('button', { name: /^Spaghettone cacio e pepe/ }).click();
-await p.getByRole('button', { name: 'Vini', exact: true }).first().click();
-await p.getByRole('button', { name: /^Primitivo Desire/ }).click();
-await p.getByRole('button', { name: 'Primi', exact: true }).first().click();
+await p.getByRole('button', { name: /^Lasagna/ }).click();
+await p.getByRole('button', { name: 'Vini rossi', exact: true }).first().click();
+await p.getByRole('button', { name: /^Pasqua – Desire/ }).click();
+await p.getByRole('button', { name: 'Pasta', exact: true }).first().click();
 await p.screenshot({ path: `${OUT}/S06-comanda-prima-invio.png` });
 
 await p.getByRole('button', { name: /^Invia \(4\)/ }).click();
@@ -75,8 +75,7 @@ await p.waitForURL(/#\/comanda\//);
 // conto
 await p.getByRole('button', { name: 'Conto', exact: true }).click();
 await p.waitForURL(/#\/conto\//);
-await p.getByRole('button', { name: 'Aggiungi 50 euro' }).click();
-await p.getByRole('button', { name: 'Aggiungi 50 euro' }).click();
+for (let i = 0; i < 3; i++) await p.getByRole('button', { name: 'Aggiungi 50 euro' }).click();
 await p.screenshot({ path: `${OUT}/S15-conto.png` });
 await p.getByRole('button', { name: /Incassa e stampa scontrino/ }).click();
 await p.waitForURL(/#\/sala/, { timeout: 5000 });
@@ -92,8 +91,8 @@ await m.waitForTimeout(300);
 for (const c of '2222') await m.getByRole('button', { name: c, exact: true }).click();
 await m.getByRole('button', { name: /^Tavolo 4, libero/ }).click();
 await m.getByRole('button', { name: 'Apri e prendi la comanda' }).click();
-await m.getByRole('tab', { name: 'Primi' }).click();
-await m.getByRole('button', { name: /^Spaghettone cacio e pepe/ }).click();
+await m.getByRole('tab', { name: 'Pasta' }).click();
+await m.getByRole('button', { name: /^Lasagna/ }).click();
 await m.screenshot({ path: `${OUT}/S06-palmare.png` });
 
 // design

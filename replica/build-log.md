@@ -54,3 +54,13 @@ Screenshot in `replica/clone-screens/`.
 - Table Flow (Lovable, repo `moorea-table-tide`) resta il sistema delle prenotazioni. Aggiunte due rotte protette da `GESTIONALE_SYNC_SECRET`: `GET /api/public/gestionale/prenotazioni?dopo=` e `POST /api/public/gestionale/stato`.
 - Gestionale: edge function `prenotazioni` (lettura a cursore + invio della coda), `importa_prenotazioni`, coda `prenotazioni_uscita` con trigger (tavolo aperto → seduto, primo invio → comanda presa, conto chiuso → completata, no show), `apri_tavolo(..., p_prenotazione)` che porta le allergie in comanda. Provato sul database in transazione annullata.
 - Cassa: tavoli prenotati in sala, elenco prenotazioni (colonna e foglio sul palmare), apertura dalla prenotazione, scelta tavolo per chi non l'ha, no show. Sincronizzazione ogni minuto. Test 34 unitari, e2e `prova-prenotazioni.mjs` verde.
+
+## 2026-11-27 — Pronto per il servizio (v0.6.0)
+- Menu vero importato da mooreafoodclub.it/menu (`scripts/importa-menu.py` → `importa_menu()`): 265 articoli attivi, 17 categorie, varianti (cotture, senza glutine…), allergeni, coperto 2 €. Somma prezzi verificata col sito. Articoli tolti dal sito archiviati, non cancellati.
+- Sale allineate a Table Flow: Matinee 1–12, Giardini 14–23, Mare 24–31 (24 e 31 da 4 posti).
+- Servizio: sposta tavolo, unisci tavoli, sposta piatti su un altro conto; scheda del piatto con descrizione e allergeni; piatto finito ("86") su tutti i dispositivi.
+- Conto: sconto in % o in euro; se non è un responsabile serve il PIN del responsabile, che resta scritto sul conto.
+- Cassa e statistiche (`/cassa`, solo responsabili): incasso, coperti, conto medio, a coperto, tavoli aperti, pagamenti, per sala, per cameriere, piatti più venduti, categorie, incasso per ora/giorno (oggi, 7, 30 giorni); elenco scontrini con annullo (documento di annullo RT collegato); chiusura fiscale Z con totali salvati.
+- Gestione → Personale: persone, ruoli, PIN (4–6 cifre, mai uguali), disattivazione.
+- DB (0008, 0009): `importa_menu`, `sposta_comanda`, `unisci_comande`, `sposta_righe`, `operatore_salva`, `annulla_documento`, `chiusura_giornaliera`; `esito_lavoro` segna l'originale annullato e salva lo Z. Annullo e chiusura provati sul database vero in transazione annullata.
+- Test: 38 unitari; e2e verdi `prova-flusso`, `prova-gestione`, `prova-prenotazioni` e nuovo `prova-servizio` (sposta → sconto con PIN → incasso 34,20 € → cassa → annullo → Z → personale).

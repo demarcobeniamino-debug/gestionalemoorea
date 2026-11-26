@@ -1,7 +1,7 @@
 // Archivio della Gestione sul database vero: legge tutte le tabelle del locale,
 // scrive con le regole di accesso (RLS) e registra i movimenti con la funzione del server.
 import {
-  CHIAVI, ErroreGestione, type Archivio, type MovimentoRiga, type NomeTabella, type NuovoMovimento, type RigaDi, type Tabelle,
+  CHIAVI, ErroreGestione, type Archivio, type MovimentoRiga, type NomeTabella, type NuovoMovimento, type NuovoOperatore, type RigaDi, type Tabelle,
 } from '@gr/core';
 import { supabase } from './supabase';
 
@@ -47,6 +47,7 @@ export class SupabaseArchivio implements Archivio {
       return ((data ?? []) as Riga[]).map(numeri);
     };
     const [locale] = await q('locali', 'id,nome,indirizzo,coperto_cents,gruppo_id');
+    const operatori = await q('operatori', 'id,locale_id,nome,ruolo,attivo,permessi', (x) => x.order('nome'));
     if (!locale) throw new ErroreGestione('Nessun locale collegato a questo account.');
     const [listini, aliquote_iva, stampanti, centri_produzione, categorie, articoli, prezzi_listino, varianti, articolo_varianti,
       sale, tavoli, fornitori, mag_articoli, scorte, distinte, movimenti] = await Promise.all([
@@ -57,6 +58,7 @@ export class SupabaseArchivio implements Archivio {
     this.t = {
       locale: { id: locale.id, nome: locale.nome, indirizzo: locale.indirizzo, coperto_cents: locale.coperto_cents },
       gruppoId: locale.gruppo_id,
+      operatori,
       listini, aliquote_iva, stampanti, centri_produzione, categorie, articoli, prezzi_listino, varianti, articolo_varianti,
       sale, tavoli, fornitori, mag_articoli, scorte, distinte,
       movimenti: movimenti.map(({ righe_movimento, ...m }) => ({ ...m, righe: (righe_movimento ?? []).map(numeri) }) as MovimentoRiga),
@@ -96,6 +98,20 @@ export class SupabaseArchivio implements Archivio {
     for (const k of CHIAVI[tabella]) q = q.eq(k, (chiave as Riga)[k]);
     const { error } = await q;
     if (error) errore(error);
+    await this.ricarica();
+    this.onCambio?.();
+  }
+
+  async salvaOperatore(o: NuovoOperatore) {
+    const { error } = await this.sb.rpc('operatore_salva', {
+      p_locale: this.t.locale.id, p_id: o.id ?? null, p_nome: o.nome, p_ruolo: o.ruolo, p_pin: o.pin ?? null, p_attivo: o.attivo, p_permessi: o.permessi ?? null,
+    });
+    if (error) {
+      const m = error.message ?? '';
+      if (/PIN_GIA_USATO/.test(m)) throw new ErroreGestione('Questo PIN è già usato da un altro operatore.');
+      if (/PIN_NON_VALIDO/.test(m)) throw new ErroreGestione('Il PIN deve avere da 4 a 6 cifre.');
+      errore(error);
+    }
     await this.ricarica();
     this.onCambio?.();
   }

@@ -1,4 +1,6 @@
 // Dati di esempio per sviluppo e demo. Prezzi e piatti sono indicativi: si sostituiscono dal back office.
+import menuMoorea from './menu-moorea.json';
+import { testoSu } from './gestione';
 import type { AliquotaIva, Articolo, Categoria, CentroProduzione, Sala, Stampante, Tavolo, Variante } from './types';
 
 export interface Setup {
@@ -122,4 +124,40 @@ export function prenotazioniDemo(ora = new Date()): import('./types').Prenotazio
     p('pr-bianchi', 'Bianchi', 2, 75, null, [], { fonte: 'telefono', stato: 'richiesta' }),
     p('pr-gruppo', 'Gruppo Amalfi', 12, 120, 't10', ['10'], { note: 'Menu gruppo 25 €', tag: ['vip'] }),
   ];
+}
+
+// ---------------------------------------------------------------------------
+// Demo con il menu vero del Moorea (mooreafoodclub.it/menu, vedi scripts/importa-menu.py)
+// e la sala di Table Flow: Sala Matine 1–12, Sala Giardini 14–23, Sala Mare 24–31.
+
+export type MenuCompatto = {
+  coperto: number | null;
+  categorie: [string, string, string, number][];
+  articoli: [number, string, number, string[], string | null][];
+  varianti: [string, string, number, string[]][];
+};
+
+export function seedDemo(menu: MenuCompatto = menuMoorea as unknown as MenuCompatto): Setup {
+  const base = seedMoorea();
+  const articoli: Articolo[] = menu.articoli.map(([cat, nome, prezzo, allergeni, descrizione], i) => ({
+    id: `a${i}`, categoriaId: `c${cat}`, nome, prezzoCents: prezzo, aliquotaIvaId: 'iva10',
+    allergeni: allergeni as Articolo['allergeni'], esaurito: false, variantiIds: [], descrizione: descrizione ?? undefined,
+  }));
+  const varianti: Variante[] = menu.varianti.map(([gruppo, nome, delta, sui], k) => {
+    for (const a of articoli) if (sui.includes(a.nome)) a.variantiIds.push(`v${k}`);
+    return { id: `v${k}`, gruppo, nome, deltaCents: delta };
+  });
+  const posto = (n: number) => (n <= 12 ? ['sala-matine', (n - 1) % 6, Math.floor((n - 1) / 6)] : n <= 23 ? ['sala-giardini', (n - 14) % 5, Math.floor((n - 14) / 5)] : ['sala-mare', (n - 24) % 4, Math.floor((n - 24) / 4)]) as [string, number, number];
+  const numeri = [...Array.from({ length: 12 }, (_, i) => i + 1), ...Array.from({ length: 18 }, (_, i) => i + 14)];
+  return {
+    ...base,
+    locale: { ...base.locale, copertoCents: menu.coperto ?? 200 },
+    sale: [{ id: 'sala-matine', nome: 'Sala Matine', ordine: 1 }, { id: 'sala-giardini', nome: 'Sala Giardini', ordine: 2 }, { id: 'sala-mare', nome: 'Sala Mare', ordine: 3 }],
+    tavoli: numeri.map((n) => { const [sala, x, y] = posto(n); return t(`t${n}`, sala, String(n), 'quadrato', x, y, 1, 1, n === 24 || n === 31 ? 4 : 2); }),
+    categorie: menu.categorie.map(([nome, colore, reparto, uscita], i) => ({
+      id: `c${i}`, nome, colore, testoColore: testoSu(colore), ordine: i + 1, centroProduzioneId: reparto === 'bar' ? 'cp-bar' : 'cp-cucina', portataPredefinita: uscita,
+    })),
+    articoli,
+    varianti,
+  };
 }
