@@ -19,16 +19,16 @@ await pin('9999');
 await p.waitForURL(/#\/sala/);
 
 // passante al banco: due cozze, incassa con carta
-await p.getByRole('button', { name: /^Banco \/ Asporto/ }).click();
+await (MOBILE ? p.getByRole('navigation', { name: 'Azioni rapide' }).getByRole('button', { name: /Banco/ }) : p.getByRole('button', { name: /^Banco \/ Asporto/ })).click();
 await p.screenshot({ path: `${OUT}/${pre}01-banco.png` });
 await foglio().getByRole('button', { name: 'Banco', exact: true }).click();
 await p.waitForURL(/#\/comanda\//);
 await p.getByRole('heading', { name: 'Banco' }).waitFor();
-await p.getByRole('button', { name: 'Antipasti', exact: true }).first().click();
+await p.getByText('Antipasti', { exact: true }).filter({ visible: true }).first().click();
 await p.getByRole('button', { name: /^Cozze Indiavolate/ }).click();
 await p.getByRole('button', { name: /^Cozze Indiavolate/ }).click();
 await p.screenshot({ path: `${OUT}/${pre}02-banco-comanda.png` });
-await p.getByRole('button', { name: /^Incassa/ }).first().click();
+await p.getByRole('button', { name: /^Incassa/ }).filter({ visible: true }).first().click();
 await p.waitForURL(/#\/conto\//);
 await p.getByRole('heading', { name: /Conto · Banco/ }).waitFor();
 await p.getByRole('radio', { name: /Carta/ }).click();
@@ -37,12 +37,12 @@ await p.waitForURL(/#\/sala/, { timeout: 5000 });
 passo('banco: aperto, 2 cozze, incassato con carta in 4 tocchi');
 
 // asporto con nome: resta in sospeso e si riprende dal chip
-await p.getByRole('button', { name: /^Banco \/ Asporto/ }).click();
+await (MOBILE ? p.getByRole('navigation', { name: 'Azioni rapide' }).getByRole('button', { name: /Banco/ }) : p.getByRole('button', { name: /^Banco \/ Asporto/ })).click();
 await foglio().getByLabel('Nome del cliente').fill('Luca');
 await foglio().getByRole('button', { name: 'Asporto', exact: true }).click();
 await p.waitForURL(/#\/comanda\//);
 await p.getByRole('heading', { name: 'Asporto · Luca' }).waitFor();
-await p.getByRole('button', { name: 'Antipasti', exact: true }).first().click();
+await p.getByText('Antipasti', { exact: true }).filter({ visible: true }).first().click();
 await p.getByRole('button', { name: /^Polpo Scottato/ }).click();
 await p.getByRole('link', { name: 'Indietro' }).click();
 await p.waitForURL(/#\/sala/);
@@ -52,7 +52,7 @@ await p.getByRole('link', { name: 'Indietro' }).click();
 passo('asporto con nome: si riprende dalla sala');
 
 // unisci 2 + 4 dalla sala, prima di aprire
-await p.getByRole('button', { name: 'Unisci tavoli' }).click();
+await (MOBILE ? p.getByRole('navigation', { name: 'Azioni rapide' }).getByRole('button', { name: 'Unisci' }) : p.getByRole('button', { name: 'Unisci tavoli' })).click();
 await p.getByRole('button', { name: /^Tavolo 2, libero/ }).click();
 await p.getByRole('button', { name: /^Tavolo 4, libero/ }).click();
 await p.screenshot({ path: `${OUT}/${pre}03-unisci-sala.png` });

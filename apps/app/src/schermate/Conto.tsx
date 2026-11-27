@@ -76,8 +76,8 @@ export function Conto() {
   return (
     <div className="flex h-full flex-col bg-bg text-text">
       <Testata indietro={`/comanda/${comanda.id}`} titolo={`Conto · ${nomeConto(setup, comanda)}`} sotto={comanda.tavoloId ? `${comanda.coperti} coperti` : undefined} />
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <section aria-label="Dividi il conto" className="flex min-w-0 flex-1 flex-col gap-5 overflow-y-auto p-4 md:p-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
+        <section aria-label="Dividi il conto" className="flex min-w-0 flex-none flex-col gap-5 p-4 md:flex-1 md:overflow-y-auto md:p-6">
           <div role="radiogroup" aria-label="Come si paga" className="flex w-max gap-1 rounded-pill bg-surface p-1">
             {(['unico', 'romana'] as const).map((m) => (
               <button key={m} type="button" role="radio" aria-checked={modoEff === m} disabled={romanaBloccata}

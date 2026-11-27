@@ -176,3 +176,16 @@ export function useConferma() {
 
 export const IconaCentro = ({ nome }: { nome: string }) => (/bar/i.test(nome) ? Icona.bar : Icona.cucina);
 export { Check, CheckCircle, Clock, Warning };
+
+/** Telefono (schermo stretto): layout a una mano, pulsanti in basso. */
+export function useTelefono() {
+  const q = '(max-width: 767px)';
+  const [si, setSi] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches);
+  useEffect(() => {
+    const m = window.matchMedia(q);
+    const f = () => setSi(m.matches);
+    m.addEventListener('change', f);
+    return () => m.removeEventListener('change', f);
+  }, []);
+  return si;
+}

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowsMerge, BeerBottle, CalendarCheck, ChatCircleText, Clock, ChartBar, GearSix, Handbag, Receipt, Warning } from '@phosphor-icons/react';
+import { ArrowsMerge, BeerBottle, DotsThreeOutline, UserSwitch, CalendarCheck, ChatCircleText, Clock, ChartBar, GearSix, Handbag, Receipt, Warning } from '@phosphor-icons/react';
 import { FoglioMessaggio } from './Messaggi';
 import { ALLERGENI_ETICHETTA, calcolaConto, comandaSulTavolo, daAccogliere, euro, nomeConto, numeriTavolo, type Comanda, type Prenotazione, type Tavolo } from '@gr/core';
 import { useApp, useAzione, useDati, useOra } from '../dati/contesto';
 import { Testata } from '../ui/Testata';
 import { puoGestire } from '../dati/ruoli';
-import { Foglio, Icona, Pulsante, useConferma } from '../ui/primitivi';
+import { Foglio, Icona, Pulsante, useConferma, useTelefono } from '../ui/primitivi';
 
 const RITARDO_MIN = 20;
 /** Un tavolo libero risulta prenotato da 3 ore prima a 45 minuti dopo l'orario. */
@@ -67,6 +67,9 @@ export function Sala() {
   const [banco, setBanco] = useState(false);
   const alBanco = aperte.filter((c) => !c.tavoloId);
   const { ref: pianta, w } = useLarghezza<HTMLDivElement>();
+  const telefono = useTelefono();
+  const [altroAperto, setAltroAperto] = useState(false);
+  const { setOperatore } = useApp();
 
   const info = (t: Tavolo): { stato: Stato; comanda?: Comanda; minuti?: number; totale?: number } => {
     const c = comandaSulTavolo(aperte, t.id);
@@ -162,7 +165,14 @@ export function Sala() {
 
       <div className="flex min-h-0 flex-1">
         <main className="flex min-w-0 flex-1 flex-col">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-4 pb-2 pt-4 text-sm font-semibold text-text-muted">
+          {telefono && (
+            <div className="flex gap-4 overflow-x-auto whitespace-nowrap px-3 pb-1 pt-3 text-[13px] font-semibold text-text-muted">
+              {conteggi.filter(([, n]) => n > 0).map(([s, n]) => (
+                <span key={s} className="flex items-center gap-1.5"><i aria-hidden="true" className={`block h-2.5 w-2.5 rounded-sm ${STILE[s]}`} />{NOME_STATO[s]} <span className="text-text">{n}</span></span>
+              ))}
+            </div>
+          )}
+          <div className={`${telefono ? 'hidden' : 'flex'} flex-wrap items-center gap-x-5 gap-y-2 px-4 pb-2 pt-4 text-sm font-semibold text-text-muted`}>
             {conteggi.map(([s, n]) => (
               <span key={s} className="flex items-center gap-2">
                 <i aria-hidden="true" className={`block h-3 w-3 rounded-sm ${STILE[s]}`} />{NOME_STATO[s]} <span className="text-text">{n}</span>
@@ -217,7 +227,33 @@ export function Sala() {
             </div>
           )}
           <div ref={pianta} className="relative flex-1 overflow-auto px-4 pb-4">
-            {visibili.length === 0 ? (
+            {telefono && visibili.length > 0 ? (
+              <div className="grid grid-cols-3 gap-2.5 pt-2">
+                {[...visibili].sort((a, b) => a.numero.localeCompare(b.numero, 'it', { numeric: true })).map((t) => {
+                  const i = info(t);
+                  const pt = i.stato === 'prenotato' ? prenotazioneDel(t) : undefined;
+                  const scelto = unendo?.includes(t.id);
+                  const unitoA = i.comanda && i.comanda.tavoloId !== t.id ? tavoli.find((x) => x.id === i.comanda!.tavoloId)?.numero : undefined;
+                  const etichetta = i.stato === 'libero' ? `Tavolo ${t.numero}, libero, ${t.posti} posti`
+                    : pt ? `Tavolo ${t.numero}, prenotato alle ${ora2(pt.inizio)} per ${pt.nome}, ${pt.coperti} persone`
+                    : unitoA ? `Tavolo ${t.numero}, unito al tavolo ${unitoA}`
+                    : `Tavolo ${t.numero}, ${NOME_STATO[i.stato].toLowerCase()}, ${i.comanda!.coperti} coperti, ${i.minuti} minuti, ${euro(i.totale!)}`;
+                  return (
+                    <button key={t.id} type="button" onClick={() => tocca(t)} aria-label={etichetta} aria-pressed={unendo ? !!scelto : undefined}
+                      className={`premibile flex h-[92px] flex-col justify-between rounded-xl p-2.5 text-left tabular-nums ${scelto ? 'bg-accent text-on-accent ring-4 ring-accent/40' : STILE[i.stato]} ${unendo && i.comanda ? 'opacity-40' : ''}`}>
+                      <span className="flex items-start justify-between">
+                        <b className="text-[28px] font-bold leading-none tracking-tight">{t.numero}</b>
+                        {i.comanda && !unitoA && <span className="text-xs font-bold">{i.comanda.coperti}p</span>}
+                      </span>
+                      <span className="truncate text-xs font-semibold">
+                        {unitoA ? `con ${unitoA}` : i.stato === 'libero' ? <span className={scelto ? '' : 'text-text-muted'}>{t.posti} posti</span>
+                          : pt ? `${ora2(pt.inizio)} ${pt.nome}` : i.stato === 'conto' ? `Conto · ${euro(i.totale!)}` : `${i.minuti}′ · ${euro(i.totale!)}`}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : visibili.length === 0 ? (
               <p className="py-16 text-center text-base text-text-muted">Questa sala non ha ancora tavoli. Si disegna dalle impostazioni.</p>
             ) : (
               <div className="relative" style={{ width: colonne * unita, height: righeGriglia * unita }}>
@@ -296,6 +332,23 @@ export function Sala() {
         </aside>
       </div>
 
+      {telefono && (
+        <nav aria-label="Azioni rapide" className="grid flex-none grid-cols-4 gap-1 border-t border-border bg-surface px-2 pb-2 pt-1.5">
+          <BarraTasto icona={<BeerBottle size={24} weight="bold" aria-hidden />} testo="Banco" badge={alBanco.length} onClick={() => setBanco(true)} accento />
+          <BarraTasto icona={<ArrowsMerge size={24} weight="bold" aria-hidden />} testo={unendo ? 'Annulla' : 'Unisci'} onClick={() => setUnendo(unendo ? null : [])} attivo={!!unendo} />
+          <BarraTasto icona={<CalendarCheck size={24} weight="bold" aria-hidden />} testo="Prenotati" badge={daSedere.length} onClick={() => setListaAperta(true)} />
+          <BarraTasto icona={<DotsThreeOutline size={24} weight="bold" aria-hidden />} testo="Altro" onClick={() => setAltroAperto(true)} />
+        </nav>
+      )}
+      <Foglio aperto={altroAperto} onChiudi={() => setAltroAperto(false)} titolo="Altro">
+        <div className="grid grid-cols-2 gap-2">
+          <VoceAltro icona={<ChatCircleText size={24} weight="bold" aria-hidden />} testo="Messaggio ai reparti" onClick={() => { setAltroAperto(false); setMessaggio(true); }} />
+          <VoceAltro icona={Icona.cucina} testo="Monitor cucina" onClick={() => nav('/cucina')} />
+          {(puoGestire(operatore?.ruolo) || operatore?.ruolo === 'cassiere') && <VoceAltro icona={<ChartBar size={24} weight="bold" aria-hidden />} testo="Cassa" onClick={() => nav('/cassa')} />}
+          {puoGestire(operatore?.ruolo) && <VoceAltro icona={<GearSix size={24} weight="bold" aria-hidden />} testo="Gestione" onClick={() => nav('/gestione')} />}
+          <VoceAltro icona={<UserSwitch size={24} weight="bold" aria-hidden />} testo={`Cambia operatore (${operatore?.nome ?? ''})`} onClick={() => { setOperatore(null); nav('/accesso'); }} />
+        </div>
+      </Foglio>
       <Foglio aperto={!!daAprire} onChiudi={() => { setDaAprire(null); setUniti([]); }} titolo={uniti.length ? `Apri i tavoli ${[daAprire?.numero, ...uniti.map((id) => tavoli.find((t) => t.id === id)?.numero)].join(' + ')}` : `Apri il tavolo ${daAprire?.numero ?? ''}`}>
         {(() => {
           const scelte = daSedere.filter((p) => p.id === pren || !p.tavoloId || p.tavoloId === daAprire?.id || !tavoli.some((t) => t.id === p.tavoloId));
@@ -440,5 +493,23 @@ function FoglioBanco({ aperto, onChiudi, aperti, inCorso, onApri, onRiprendi }: 
         </section>
       )}
     </Foglio>
+  );
+}
+
+function BarraTasto({ icona, testo, onClick, badge, accento, attivo }: { icona: React.ReactNode; testo: string; onClick: () => void; badge?: number; accento?: boolean; attivo?: boolean }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={attivo}
+      className={`premibile relative flex h-14 flex-col items-center justify-center gap-0.5 rounded-lg text-[12px] font-bold ${accento ? 'text-accent' : attivo ? 'bg-text text-bg' : 'text-text'}`}>
+      {icona}{testo}
+      {!!badge && <span className="absolute right-3 top-1 grid h-5 min-w-5 place-items-center rounded-pill bg-accent px-1 text-[11px] text-on-accent">{badge}</span>}
+    </button>
+  );
+}
+
+function VoceAltro({ icona, testo, onClick }: { icona: React.ReactNode; testo: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="premibile flex h-24 flex-col items-center justify-center gap-2 rounded-lg bg-bg px-2 text-center text-sm font-semibold">
+      <span className="text-accent">{icona}</span>{testo}
+    </button>
   );
 }

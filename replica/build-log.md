@@ -100,3 +100,13 @@ Screenshot in `replica/clone-screens/`.
 - Unisci tavoli: dalla sala ("Unisci tavoli", tocchi i liberi, "Apri insieme", coperti = posti totali) o dal tavolo (aggiungi liberi, oppure porta qui un tavolo già aperto, che resta occupato e unito). I tavoli uniti risultano occupati ("con 2"), portano allo stesso conto, ticket e titoli "Tavoli 2+4+8"; si separano uno a uno. DB 0015 `comande.tavoli_uniti`, `unisci_tavoli`, `separa_tavolo`, trigger che impedisce di aprire un tavolo unito.
 - Corretto: "Conti eliminati" non conta più i conti assorbiti da un'unione.
 - Test: 51 unitari; e2e verdi (nuova `prova-banco`); unisci/separa provati sul database in transazione annullata. Versione mobile da rifare (prossimo lavoro).
+
+## 2026-11-27 — Cassa completa, Epson robusto, mobile (v0.8.0)
+- Epson RT: lettura stato (carta, giornale, giornata, Z da fare, invii all'Agenzia in attesa/rifiutati, scadenza certificati, firmware) e orologio ogni 5 minuti dalla cassa; errori FPMate tradotti; FP_NO_ANSWER/LAN_TIME_OUT trattati come "da verificare" (mai ristampa automatica); codice lotteria (printRecLotteryID); Z con timeout lungo; impostazione orologio a giornata chiusa. Collaudo guidato in Gestione → Stampanti (stato, orologio, non fiscale, scontrino 0,10 €, annullo, Z).
+- Cassa spenta: battito della cassa ogni 30 s (DB 0016 `ponti_stampa`, `battito_ponte`); fascia rossa sui palmari se nessuna cassa stampa; lavori fermi da più di 10 minuti diventano "sospesi" e si decide dalla cassa (stampa/scarta; lo scontrino scartato libera il conto). `decidi_lavoro`.
+- Conto: metodi da Gestione (Satispay…), buoni pasto per emittente, sospeso al cliente, addebito in camera, caparra, pagamento in più modi, codice lotteria. Cassa: schede Cassetto (fondo, versamenti, prelievi, conteggio, contante atteso, apri cassetto), Sospesi (incasso successivo), Caparre; fattura riepilogativa su più scontrini.
+- Gestione → Cassa: Pagamenti, Promozioni (happy hour), Menu fissi e abbinamenti. Comanda: scelta del menu fisso, consigli di abbinamento; stornando un menu si stornano i piatti.
+- Menu allineato a Passepartout: 58 articoli aggiunti (amari, grappe, calici, Coravin, tapas, pasta, secondi, cocktail, serate ed eventi), prezzi corretti (San Pellegrino, Elephant, vitello tonnato, carpaccio), 323 attivi.
+- Telefono: sala a griglia grande con barra in basso (Banco, Unisci, Prenotati, Altro), testata senza sbordare, conto scorrevole.
+- Confronto completo con Menu: `replica/gap-passepartout.md`.
+- Test: 58 unitari; e2e verdi (11 prove, nuove `prova-epson`, `prova-cassa`; `prova-banco` anche su telefono).

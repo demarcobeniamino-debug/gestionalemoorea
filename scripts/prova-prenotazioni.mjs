@@ -46,7 +46,8 @@ await m.goto(URL + '/#/accesso');
 await m.getByRole('button', { name: 'Prova la demo, senza account' }).click();
 for (const c of '1111') await m.getByRole('button', { name: c, exact: true }).click();
 await m.waitForURL(/#\/sala/);
-await m.getByRole('button', { name: /Prenotazioni 4/ }).click();
+await m.getByRole('navigation', { name: 'Azioni rapide' }).getByRole('button', { name: /Prenotati/ }).click();
+await m.getByRole('dialog', { name: 'Prenotazioni di oggi' }).or(m.locator('dialog[open]')).first().waitFor();
 await m.waitForTimeout(400);
 await m.screenshot({ path: `${OUT}/P04-palmare-prenotazioni.png` });
 
