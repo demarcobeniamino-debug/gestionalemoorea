@@ -6,6 +6,8 @@
 @tailwind utilities;
 
 html, body, #root { height: 100%; }
+/* iPhone/iPad come app (schermo intero): niente sotto la tacca, la barra in basso o gli angoli. */
+#root { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 body {
   margin: 0;
   overscroll-behavior: none;

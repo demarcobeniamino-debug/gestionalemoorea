@@ -118,12 +118,12 @@ export function Sala() {
 
   return (
     <div className="flex h-full flex-col bg-bg text-text">
-      <Testata titolo={db.setup().locale.nome} sotto={operatore ? operatore.nome : undefined}>
+      <Testata titolo={sale.length > 1 ? <span className="hidden sm:inline">{db.setup().locale.nome}</span> : db.setup().locale.nome} sotto={operatore ? <span className={sale.length > 1 ? 'hidden sm:inline' : ''}>{operatore.nome}</span> : undefined}>
         {sale.length > 1 && (
-          <nav aria-label="Sale" className="flex flex-none gap-1 rounded-pill bg-bg p-1">
+          <nav aria-label="Sale" className="-ml-3 flex min-w-0 gap-1 overflow-x-auto rounded-pill bg-bg p-1 sm:ml-0 sm:flex-none">
             {sale.map((s) => (
               <button key={s.id} type="button" onClick={() => setSalaId(s.id)} aria-pressed={s.id === salaId}
-                className={`premibile h-9 rounded-pill px-4 text-sm font-semibold ${s.id === salaId ? 'bg-accent text-on-accent' : 'text-text-muted'}`}>{s.nome}</button>
+                className={`premibile h-9 flex-none whitespace-nowrap rounded-pill px-3 text-sm font-semibold sm:px-4 ${s.id === salaId ? 'bg-accent text-on-accent' : 'text-text-muted'}`}>{s.nome}</button>
             ))}
           </nav>
         )}

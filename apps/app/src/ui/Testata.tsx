@@ -12,7 +12,7 @@ export function Testata({ titolo, sotto, indietro, children }: { titolo: ReactNo
       {indietro && (
         <Link to={indietro} aria-label="Indietro" className="premibile grid h-10 w-10 flex-none place-items-center rounded-md bg-surface-2">{Icona.indietro}</Link>
       )}
-      <div className="flex min-w-0 flex-col md:flex-row md:items-baseline md:gap-3">
+      <div className="flex min-w-0 flex-none flex-col empty:hidden md:flex-row md:items-baseline md:gap-3">
         <h1 className="whitespace-nowrap text-lg font-bold tracking-tight md:text-xl">{titolo}</h1>
         {sotto && <span className="truncate text-xs font-medium text-text-muted md:text-sm">{sotto}</span>}
       </div>
