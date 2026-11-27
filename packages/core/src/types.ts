@@ -71,7 +71,12 @@ export interface Comanda {
   /** Senza tavolo: banco o asporto, con un nome ("Banco", "Marco"). */
   canale?: 'tavolo' | 'banco' | 'asporto';
   etichetta?: string;
+  /** Chiuso come proforma: niente scontrino né incasso, i prodotti escono comunque dal magazzino. */
+  proforma?: Proforma;
 }
+
+/** Conto chiuso senza incasso (famiglia, amici, staff): valore registrato, nessun documento fiscale. */
+export interface Proforma { motivo: string; nome?: string; totaleCents: number; operatore?: string }
 
 export type StatoRiga =
   | 'da_inviare' | 'in_attesa_marcia' | 'inviata' | 'in_preparazione' | 'pronta' | 'servita' | 'stornata';

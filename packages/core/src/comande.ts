@@ -74,13 +74,16 @@ export interface DatiPreconto {
   tavolo: string; coperti: number; operatore: string; quando: string;
   righe: RigaComanda[]; copertoUnitarioCents: Cents; scontoCents: Cents; totaleCents: Cents;
   quote?: Cents[];
+  /** Proforma: titolo e motivo al posto di "PRECONTO". */
+  proforma?: { motivo: string; nome?: string };
 }
 
 export function ticketPreconto(d: DatiPreconto): Ticket {
   const r: RigaTicket[] = [];
   for (const l of d.intestazione) r.push({ k: 'testo', testo: l, allinea: 'centro', grassetto: true });
   r.push({ k: 'separatore' });
-  r.push({ k: 'coppia', sx: `PRECONTO  ${/^\d/.test(d.tavolo) ? 'Tavolo ' : ''}${d.tavolo}`, dx: ora(d.quando), grassetto: true });
+  r.push({ k: 'coppia', sx: `${d.proforma ? 'PROFORMA' : 'PRECONTO'}  ${/^\d/.test(d.tavolo) ? 'Tavolo ' : ''}${d.tavolo}`, dx: ora(d.quando), grassetto: true });
+  if (d.proforma) r.push({ k: 'testo', testo: [d.proforma.motivo, d.proforma.nome].filter(Boolean).join(' · ') });
   r.push({ k: 'coppia', sx: `${d.coperti} coperti`, dx: `Op. ${d.operatore}` });
   r.push({ k: 'separatore' });
   // Raggruppa righe uguali (stesso articolo, varianti, prezzo).
@@ -98,8 +101,9 @@ export function ticketPreconto(d: DatiPreconto): Ticket {
   r.push({ k: 'coppia', sx: 'TOTALE EUR', dx: euro(d.totaleCents, false), grassetto: true, doppiaAltezza: true });
   if (d.quote && d.quote.length > 1) r.push({ k: 'coppia', sx: `Alla romana (${d.quote.length})`, dx: euro(d.quote[0], false) });
   r.push({ k: 'separatore' });
+  if (d.proforma) r.push({ k: 'testo', testo: 'NON INCASSATO', allinea: 'centro', grassetto: true });
   r.push({ k: 'testo', testo: 'NON VALIDO COME DOCUMENTO FISCALE', allinea: 'centro', grassetto: true });
-  return { titolo: `Preconto · ${d.tavolo}`, righe: r, taglio: true };
+  return { titolo: `${d.proforma ? 'Proforma' : 'Preconto'} · ${d.tavolo}`, righe: r, taglio: true };
 }
 
 export interface DatiTicketMessaggio {

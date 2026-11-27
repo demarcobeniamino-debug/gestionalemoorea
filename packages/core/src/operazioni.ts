@@ -194,3 +194,28 @@ export function preparaAnnullaConto(s: Setup, c: Comanda, righe: RigaComanda[], 
   }
   return { lavori, inviate: inviate.length };
 }
+
+/** Proforma: il conto si chiude senza scontrino e senza incasso (famiglia, amici, staff). I piatti restano
+ *  come consumati (scarico di magazzino), il valore resta registrato. Si può stampare un foglio non fiscale. */
+export function preparaProforma(s: Setup, c: Comanda, righe: RigaComanda[], documenti: Documento[], motivo: string, quando: string, nome?: string, stampa = false) {
+  if (!motivo.trim()) throw new ErroreDominio('Serve il motivo');
+  if (c.stato === 'chiusa' || c.stato === 'annullata') throw new ErroreDominio('Il conto è già chiuso');
+  if (documenti.some((d) => d.tipo === 'documento_commerciale' && ['emesso', 'in_emissione', 'da_verificare'].includes(d.stato)))
+    throw new ErroreDominio('Su questo conto c’è già uno scontrino: non si può chiudere come proforma');
+  const attive = righe.filter((r) => r.stato !== 'stornata');
+  if (!attive.length) throw new ErroreDominio('Il conto è vuoto: usa “Elimina conto”');
+  const conto = calcolaConto(righe, c.coperti, s.locale.copertoCents);
+  const st = stampa ? s.stampanti.find((x) => x.perPreconto) : undefined;
+  if (stampa && !st) throw new ErroreDominio('Nessuna stampante preconto configurata');
+  const { numero } = tavoloLabel(s, c);
+  const n = nome?.trim() || undefined;
+  return {
+    totaleCents: conto.totaleCents,
+    lavoro: st ? { stampanteId: st.id, ticket: ticketPreconto({
+      intestazione: [s.locale.nome.toUpperCase(), s.locale.citta], tavolo: numero, coperti: c.coperti,
+      operatore: c.operatore, quando, righe, copertoUnitarioCents: s.locale.copertoCents,
+      scontoCents: 0, totaleCents: conto.totaleCents, proforma: { motivo, nome: n },
+    }) } : undefined,
+    proforma: { motivo: motivo.trim(), nome: n, totaleCents: conto.totaleCents },
+  };
+}

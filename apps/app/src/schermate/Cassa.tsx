@@ -117,7 +117,20 @@ export function Cassa() {
                   <dt className="text-text-muted">Sconti fatti</dt><dd className="text-right tabular-nums">{euro(r.scontiCents)}</dd>
                   <dt className="text-text-muted">Scontrini annullati</dt><dd className="text-right tabular-nums">{r.annullati} · {euro(r.annullatiCents)}</dd>
                   <dt className="text-text-muted">Piatti stornati</dt><dd className="text-right tabular-nums">{r.storni.quantita} · {euro(r.storni.importoCents)}</dd>
+                  <dt className="text-text-muted">Proforma (non incassati)</dt><dd className="text-right tabular-nums">{r.proforma.conti} · {euro(r.proforma.valoreCents)}</dd>
+                  <dt className="text-text-muted">Conti eliminati</dt><dd className="text-right tabular-nums">{r.eliminati}</dd>
                 </dl>
+                {r.proforma.elenco.length > 0 && (
+                  <ul className="mt-3 flex flex-col gap-1 border-t border-border pt-3 text-sm" aria-label="Proforma">
+                    {r.proforma.elenco.map((p) => (
+                      <li key={p.comandaId} className="flex items-baseline gap-2">
+                        <span className="tabular-nums text-text-muted">{ora(p.quando)}</span>
+                        <span className="flex-1 truncate">{nomeTavolo(p.comandaId)} · {p.motivo}{p.nome ? ` · ${p.nome}` : ''}</span>
+                        <span className="font-semibold tabular-nums">{euro(p.totaleCents)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </Pannello>
               <Pannello titolo="Per sala">
                 {r.perSala.length === 0 ? <Niente /> : <Barre righe={r.perSala.map((s) => ({ nome: s.nome, valore: s.incassoCents, nota: `${s.coperti} cop.` }))} />}

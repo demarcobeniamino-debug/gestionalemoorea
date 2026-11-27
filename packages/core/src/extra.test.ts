@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FakeDataLayer, CodaStampa, TrasportoSimulato, seedDemo, calcolaConto, calcolaFattura, xmlFattura, controllaIntestatario, controllaCedente, anteprima, type Cliente } from './index';
+import { FakeDataLayer, CodaStampa, TrasportoSimulato, seedDemo, calcolaConto, calcolaFattura, xmlFattura, controllaIntestatario, controllaCedente, anteprima, riepilogo, type Cliente } from './index';
 
 const OP = { id: 'op-aldo', nome: 'Aldo', ruolo: 'cameriere' };
 const nuovo = () => { const db = new FakeDataLayer(seedDemo()); return { db, coda: new CodaStampa(db, new TrasportoSimulato()) }; };
@@ -172,5 +172,42 @@ describe('Offerto dalla casa', () => {
     expect(calcolaConto(db.righe(c.id), 2, 200).totaleCents).toBe(2000 + 400);
     await db.offri(negroni.id, false, OP);
     expect(calcolaConto(db.righe(c.id), 2, 200).totaleCents).toBe(2000 + 400 + negroni.prezzoUnitarioCents);
+  });
+});
+
+describe('Proforma', () => {
+  it('chiude senza scontrino né incasso, il tavolo si libera, il valore resta nel riepilogo a parte', async () => {
+    const { db } = nuovo();
+    const c = await db.apriTavolo('t7', 3, OP);
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Polpo Scottato') });
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Negroni') });
+    await db.invia(c.id, 'k1', OP);
+    const totale = calcolaConto(db.righe(c.id), 3, db.setup().locale.copertoCents).totaleCents;
+    await expect(db.chiudiProforma(c.id, { motivo: ' ' }, 'p0', OP)).rejects.toThrow(/motivo/);
+    await db.chiudiProforma(c.id, { motivo: 'Famiglia', nome: 'Zia Anna', stampa: true }, 'p1', OP);
+    expect(db.comanda(c.id)?.stato).toBe('chiusa');
+    expect(db.comanda(c.id)?.proforma).toMatchObject({ motivo: 'Famiglia', nome: 'Zia Anna', totaleCents: totale });
+    expect(db.comandaDelTavolo('t7')).toBeUndefined();
+    expect(db.documenti(c.id)).toHaveLength(0);
+    expect(db.righe(c.id).every((r) => r.stato !== 'stornata')).toBe(true);
+    const foglio = db.lavori().find((j) => j.idempotencyKey === 'p1')!;
+    const testo = anteprima(foglio.ticket!, 42).map((x) => x.testo).join('\n');
+    expect(testo).toMatch(/PROFORMA/); expect(testo).toMatch(/Famiglia · Zia Anna/); expect(testo).toMatch(/NON INCASSATO/);
+
+    const r = riepilogo(await db.datiPeriodo(1), db.setup());
+    expect(r.incassoCents).toBe(0);
+    expect(r.conti).toBe(0);
+    expect(r.proforma).toMatchObject({ conti: 1, coperti: 3, valoreCents: totale });
+    expect(r.piatti.length).toBeGreaterThan(0); // consumati: contano nei piatti (e nello scarico)
+  });
+
+  it('non si fa su un conto con scontrino o vuoto', async () => {
+    const { db } = nuovo();
+    const c = await db.apriTavolo('t8', 0, OP);
+    await expect(db.chiudiProforma(c.id, { motivo: 'Amici' }, 'p2', OP)).rejects.toThrow(/vuoto/);
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Negroni') });
+    await db.invia(c.id, 'k', OP);
+    await db.incassa(c.id, { pagamenti: [{ tipo: 'carta', importoCents: db.righe(c.id)[0].prezzoUnitarioCents }] }, 'i');
+    await expect(db.chiudiProforma(c.id, { motivo: 'Amici' }, 'p3', OP)).rejects.toThrow(/scontrino/);
   });
 });

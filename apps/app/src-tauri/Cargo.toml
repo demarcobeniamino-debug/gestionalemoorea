@@ -1,6 +1,6 @@
 [package]
 name = "cassa"
-version = "0.7.2"
+version = "0.7.3"
 edition = "2021"
 description = "App di cassa: interfaccia + ponte verso stampanti comande ed Epson RT"
 

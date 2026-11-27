@@ -7,7 +7,7 @@ import {
   type Allergene, type Comanda, type DataLayer, type Documento, type EsitoLavoro, type Incasso, type NuovaRiga,
   type Operatore, type PrintJob, type RigaComanda, type Setup, setupDaTabelle, type Prenotazione,
   type Cliente, type ClienteNuovo, type DatiFiscali, type Fattura, type MessaggioReparto, type NuovaFattura, type NuovoMessaggio,
-  type StatoFattura, type StoricoCliente, type Ticket, type ChiusuraFiscale, preparaAnnullaConto, preparaMessaggio, rigaUguale,
+  type StatoFattura, type StoricoCliente, type Ticket, type ChiusuraFiscale, preparaAnnullaConto, preparaProforma, preparaMessaggio, rigaUguale,
   type Caparra, type Impostazioni, type MovimentoCassa, type Sospeso, type TipoMovimentoCassa, type TipoPagamento, righeMenu, xmlApriCassetto,
 } from '@gr/core';
 
@@ -42,6 +42,7 @@ const MESSAGGI: Record<string, string> = {
   FATTURA_GIA_EMESSA: 'Questo scontrino ha già la sua fattura.',
   CAPARRA_NON_DISPONIBILE: 'Questa caparra è già stata usata o restituita.',
   CONTO_CON_SCONTRINO: 'Su questo conto c’è già uno scontrino: annullalo prima dalla Cassa.',
+  CONTO_VUOTO: 'Il conto è vuoto: usa “Elimina conto”.',
   righe_comanda_libera_check: 'Scrivi cosa aggiungere.',
 };
 function errore(e: { message?: string } | null): never {
@@ -100,6 +101,7 @@ export class SupabaseDataLayer implements DataLayer {
     stato: c.stato, apertaAt: c.aperta_at, chiusaAt: c.chiusa_at ?? undefined, allergeniTavolo: c.allergeni_tavolo ?? [], version: c.version,
     prenotazioneId: c.prenotazione_id ?? undefined, clienteId: c.cliente_id ?? undefined,
     canale: c.canale, etichetta: c.tavolo_id ? undefined : c.note ?? undefined,
+    proforma: c.proforma ? { motivo: c.proforma.motivo, nome: c.proforma.nome ?? undefined, totaleCents: c.proforma.totale_cents ?? 0, operatore: c.proforma.operatore ?? undefined } : undefined,
   });
 
   private mappaMessaggio = (m: Riga): MessaggioReparto => ({
@@ -295,6 +297,19 @@ export class SupabaseDataLayer implements DataLayer {
     const { error } = await this.sb.rpc('annulla_comanda', {
       p_comanda: comandaId, p_motivo: motivo, p_operatore: operatore?.id ?? null, p_key: key,
       p_lavori: prep.lavori.map((l) => ({ stampante_id: l.stampanteId, payload: { ticket: l.ticket } })),
+    });
+    if (error) errore(error);
+    await this.caricaServizio();
+  }
+
+  async chiudiProforma(comandaId: string, p: { motivo: string; nome?: string; stampa?: boolean }, key: string, operatore?: Operatore) {
+    const c = this.comanda(comandaId);
+    if (!c) throw new ErroreDominio('Comanda inesistente');
+    const prep = preparaProforma(this._setup, c, this.righe(comandaId), this.documenti(comandaId), p.motivo, new Date().toISOString(), p.nome, p.stampa);
+    const { error } = await this.sb.rpc('chiudi_proforma', {
+      p_comanda: comandaId, p_motivo: prep.proforma.motivo, p_nome: prep.proforma.nome ?? null, p_totale: prep.totaleCents,
+      p_operatore: operatore?.id ?? null, p_key: key,
+      p_lavoro: prep.lavoro ? { stampante_id: prep.lavoro.stampanteId, payload: { ticket: prep.lavoro.ticket } } : null,
     });
     if (error) errore(error);
     await this.caricaServizio();

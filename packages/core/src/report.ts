@@ -25,6 +25,10 @@ export interface Riepilogo {
   perGiorno: { giorno: string; incassoCents: number; coperti: number }[];
   aperti: { tavoli: number; coperti: number; valoreCents: number };
   storni: { quantita: number; importoCents: number };
+  /** Conti chiusi come proforma (famiglia, amici, staff): consumati ma non incassati. */
+  proforma: { conti: number; coperti: number; valoreCents: number; elenco: { comandaId: string; motivo: string; nome?: string; totaleCents: number; quando: string }[] };
+  /** Conti eliminati (aperti per errore, prove…). */
+  eliminati: number;
 }
 
 const giorno = (iso: string) => {
@@ -48,7 +52,8 @@ export function riepilogo(d: DatiPeriodo, s: Setup): Riepilogo {
       perPagamento.contanti = (perPagamento.contanti ?? 0) + Math.max(0, doc.totaleCents - altri.reduce((t, p) => t + p.importoCents, 0));
   }
 
-  const chiuse = d.comande.filter((c) => c.stato === 'chiusa');
+  const proforma = d.comande.filter((c) => c.stato === 'chiusa' && c.proforma);
+  const chiuse = d.comande.filter((c) => c.stato === 'chiusa' && !c.proforma);
   const coperti = chiuse.reduce((t, c) => t + c.coperti, 0);
 
   const sala = (c?: Comanda) => s.sale.find((x) => x.id === s.tavoli.find((t) => t.id === c?.tavoloId)?.salaId)?.nome ?? 'Senza tavolo';
@@ -122,6 +127,13 @@ export function riepilogo(d: DatiPeriodo, s: Setup): Riepilogo {
       coperti: aperte.reduce((t, c) => t + c.coperti, 0),
       valoreCents: aperte.reduce((t, c) => t + d.righe.filter((r) => r.comandaId === c.id && r.stato !== 'stornata').reduce((a, r) => a + importoRiga(r), 0) + c.coperti * s.locale.copertoCents, 0),
     },
+    proforma: {
+      conti: proforma.length, coperti: proforma.reduce((t, c) => t + c.coperti, 0),
+      valoreCents: proforma.reduce((t, c) => t + (c.proforma?.totaleCents ?? 0), 0),
+      elenco: proforma.map((c) => ({ comandaId: c.id, motivo: c.proforma!.motivo, nome: c.proforma!.nome, totaleCents: c.proforma!.totaleCents, quando: c.chiusaAt ?? c.apertaAt }))
+        .sort((a, b) => b.quando.localeCompare(a.quando)),
+    },
+    eliminati: d.comande.filter((c) => c.stato === 'annullata').length,
     storni: { quantita: stornate.reduce((t, r) => t + r.quantita, 0), importoCents: stornate.reduce((t, r) => t + r.prezzoUnitarioCents * r.quantita, 0) },
   };
 }
@@ -130,6 +142,7 @@ export function riepilogo(d: DatiPeriodo, s: Setup): Riepilogo {
 export const totaliChiusura = (r: Riepilogo) => ({
   incasso_cents: r.incassoCents, sconti_cents: r.scontiCents, per_pagamento: r.perPagamento, scontrini: r.scontrini,
   annullati: r.annullati, conti: r.conti, coperti: r.coperti,
+  proforma_conti: r.proforma.conti, proforma_cents: r.proforma.valoreCents, conti_eliminati: r.eliminati,
   per_sala: r.perSala, per_operatore: r.perOperatore,
 });
 

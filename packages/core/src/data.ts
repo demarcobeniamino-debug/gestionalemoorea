@@ -8,7 +8,7 @@ import { controllaSceltaMenu, promoInVigore, TIPI_INCASSO_SOSPESO } from './serv
 import { xmlApriCassetto } from './epson';
 import { nomeCliente } from './types';
 import type { Setup } from './seed';
-import { ErroreDominio, preparaAnnullaConto, preparaAnnullo, preparaChiusura, preparaIncasso, preparaInvio, preparaMessaggio, preparaPreconto, preparaStorno, type Incasso } from './operazioni';
+import { ErroreDominio, preparaAnnullaConto, preparaAnnullo, preparaProforma, preparaChiusura, preparaIncasso, preparaInvio, preparaMessaggio, preparaPreconto, preparaStorno, type Incasso } from './operazioni';
 import type { CalcoloFattura } from './fattura';
 import type { DatiPeriodo } from './report';
 import { calcolaConto } from './conto';
@@ -89,6 +89,8 @@ export interface DataLayer {
   annullaDocumento(documentoId: string, idempotencyKey: string, operatore?: Operatore): Promise<void>;
   /** Annulla un conto aperto senza scontrini (prove, tavolo aperto per errore). Il tavolo torna libero. */
   annullaComanda(comandaId: string, motivo: string, idempotencyKey: string, operatore?: Operatore, avvisaReparti?: boolean): Promise<void>;
+  /** Chiude il conto come proforma: niente scontrino né incasso, i prodotti escono dal magazzino. */
+  chiudiProforma(comandaId: string, p: { motivo: string; nome?: string; stampa?: boolean }, idempotencyKey: string, operatore?: Operatore): Promise<void>;
   /** Chiusure fiscali fatte (più recenti per prime). */
   chiusure(giorni: number): Promise<ChiusuraFiscale[]>;
   /** Chiusura fiscale (Z) con i totali della giornata. */
@@ -561,6 +563,19 @@ export class FakeDataLayer implements DataLayer {
       for (const r of this.righe(comandaId)) if (r.stato !== 'stornata') { r.stato = 'stornata'; r.motivoStorno = motivo; }
       c.stato = 'annullata'; c.chiusaAt = this.now().toISOString(); c.version++;
       prep.lavori.forEach((l, i) => this.nuovoLavoro({ tipo: 'comanda', stampanteId: l.stampanteId, idempotencyKey: `${key}:${i + 1}`, comandaId, ticket: l.ticket }));
+      return true;
+    });
+  }
+
+  async chiudiProforma(comandaId: string, p: { motivo: string; nome?: string; stampa?: boolean }, key: string, op?: Operatore) {
+    this.idem(key, () => {
+      const c = this._comande.get(comandaId);
+      if (!c) throw new ErroreDominio('Comanda inesistente');
+      if (c.stato === 'chiusa' && c.proforma) return true;
+      const prep = preparaProforma(this.s, c, this.righe(comandaId), this.documenti(comandaId), p.motivo, this.now().toISOString(), p.nome, p.stampa);
+      c.stato = 'chiusa'; c.chiusaAt = this.now().toISOString(); c.version++;
+      c.proforma = { ...prep.proforma, operatore: op?.nome };
+      if (prep.lavoro) this.nuovoLavoro({ tipo: 'preconto', stampanteId: prep.lavoro.stampanteId, idempotencyKey: key, comandaId, ticket: prep.lavoro.ticket });
       return true;
     });
   }

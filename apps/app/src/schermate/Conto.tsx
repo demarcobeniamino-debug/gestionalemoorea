@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Bank, CheckCircle, CreditCard, Money, Percent, Ticket, Warning } from '@phosphor-icons/react';
+import { Bank, CheckCircle, CreditCard, HandHeart, Money, Percent, Ticket, Trash, Warning } from '@phosphor-icons/react';
+import { EliminaConto, Proforma } from './ChiudiSenzaIncasso';
 import { calcolaConto, dividiAllaRomana, euro, importoRiga, nomeCliente, type Cliente, type Documento, type TipoPagamento } from '@gr/core';
 import { nuovaChiave, useApp, useAzione, useDati } from '../dati/contesto';
 import { Testata } from '../ui/Testata';
@@ -28,6 +29,7 @@ export function Conto() {
   const [sconto, setSconto] = useState<{ cents: number; etichetta: string; da: string } | null>(null);
   const [scontoAperto, setScontoAperto] = useState(false);
   const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [senzaIncasso, setSenzaIncasso] = useState<'proforma' | 'elimina' | null>(null);
   useEffect(() => {
     if (!comanda?.clienteId) return;
     let v = true; db.cliente(comanda.clienteId).then((c) => v && setCliente(c)).catch(() => undefined); return () => { v = false; };
@@ -52,7 +54,7 @@ export function Conto() {
   const resto = metodo === 'contanti' ? ricevuto - daIncassare : 0;
 
   useEffect(() => {
-    if (comanda?.stato === 'chiusa') {
+    if (comanda?.stato === 'chiusa' && !comanda.proforma) {
       toast({ testo: 'Conto chiuso. Il tavolo è libero.', tipo: 'ok' });
       nav('/sala', { replace: true });
     }
@@ -223,8 +225,21 @@ export function Conto() {
             disabled={!prossima || !!inCorso || !!daVerificare || righe.length === 0} onClick={incassa}>
             {inCorso ? <span className="flex items-center gap-2"><Spinner />Scontrino in stampa</span> : 'Incassa e stampa scontrino'}
           </Pulsante>
+          {!emessi.length && !inCorso && !daVerificare && (
+            <div className="grid grid-cols-2 gap-2">
+              <Pulsante taglia="lg" icona={<HandHeart size={20} weight="bold" aria-hidden />} disabled={!righe.some((r) => r.stato !== 'stornata')}
+                onClick={() => setSenzaIncasso('proforma')}>Proforma</Pulsante>
+              <Pulsante taglia="lg" className="text-danger" icona={<Trash size={20} weight="bold" aria-hidden />}
+                onClick={() => setSenzaIncasso('elimina')}>Elimina conto</Pulsante>
+            </div>
+          )}
         </aside>
       </div>
+      <Foglio aperto={!!senzaIncasso} onChiudi={() => setSenzaIncasso(null)}
+        titolo={senzaIncasso === 'proforma' ? 'Chiudi come proforma' : 'Eliminare questo conto?'}>
+        {senzaIncasso === 'proforma' && <Proforma comandaId={comanda.id} totaleCents={conto.totaleCents} onFatto={() => setSenzaIncasso(null)} />}
+        {senzaIncasso === 'elimina' && <EliminaConto comandaId={comanda.id} inviate={righe.filter((r) => !['da_inviare', 'in_attesa_marcia', 'stornata'].includes(r.stato)).length} onFatto={() => setSenzaIncasso(null)} />}
+      </Foglio>
       <FoglioSconto aperto={scontoAperto} totaleCents={conto.totaleCents} onChiudi={() => setScontoAperto(false)}
         onApplica={(sc) => { setSconto(sc); setScontoAperto(false); setDigitato(''); }} />
     </div>
