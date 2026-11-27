@@ -118,3 +118,9 @@ Screenshot in `replica/clone-screens/`.
 - Per il commercialista (Cassa → Chiusure): CSV per Excel (punto e virgola, virgola decimale) con corrispettivi giorno per giorno (scontrini, contanti, elettronico, buoni, non riscosso, imponibile e IVA per aliquota, resi, annulli) ed elenco dei documenti; mese scorso o in corso.
 - Corretto: la lettura dei documenti dal database trattava come scontrino ogni tipo diverso da annullo.
 - Test: 61 unitari; e2e verdi (prova-cassa estesa con reso, CSV e ristampa).
+
+## 2026-11-27 — Cassa senza internet, livello 2 (v0.8.2)
+- La cassa installata salva sul disco una fotografia del servizio (listino, sale, conti aperti con righe e scontrini) a ogni cambiamento e controlla la linea ogni 10 s. Due controlli falliti: lavora da sola con la stessa logica della demo (`CassaOffline`), stampa comande e scontrini sulla rete del locale, fascia arancione "Senza internet". PIN: solo chi è già entrato su quella cassa (impronta SHA-256 sul dispositivo).
+- Ritorno della linea (due controlli riusciti): manda solo il nuovo/cambiato (`datiDaSincronizzare`) con DB 0018 `importa_offline` (idempotente: conti con il primo numero libero, righe, righe tolte, scontrini già emessi con numeri RT, sospesi e caparre dal trigger, scarico magazzino, movimenti, chiusure, audit `sync_offline`). Nessuna ristampa, nessuno scontrino ripetuto. Riavvio senza linea: riprende dallo stato salvato; riavvio con linea: prima sincronizza.
+- Senza linea non si fanno: caparre, incasso sospesi, fatture, clienti, impostazioni, Gestione.
+- Test: 62 unitari (nuovo "cassa senza internet"); importa_offline provato sul database in transazione annullata (anche ripetuto due volte: nessun doppione).
