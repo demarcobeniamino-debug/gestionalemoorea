@@ -13,3 +13,4 @@ export * from './stampanti';
 export * from './report';
 export * from './fattura';
 export * from './servizio';
+export * from './esporta';

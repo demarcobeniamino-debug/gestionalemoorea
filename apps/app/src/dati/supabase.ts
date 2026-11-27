@@ -7,7 +7,7 @@ import {
   type Allergene, type Comanda, type DataLayer, type Documento, type EsitoLavoro, type Incasso, type NuovaRiga,
   type Operatore, type PrintJob, type RigaComanda, type Setup, setupDaTabelle, type Prenotazione,
   type Cliente, type ClienteNuovo, type DatiFiscali, type Fattura, type MessaggioReparto, type NuovaFattura, type NuovoMessaggio,
-  type StatoFattura, type StoricoCliente, type Ticket, type PonteStampa, type StatoRt, type ChiusuraFiscale, preparaAnnullaConto, preparaProforma, comandaSulTavolo, preparaMessaggio, rigaUguale,
+  type StatoFattura, type StoricoCliente, type Ticket, type PonteStampa, type StatoRt, type ChiusuraFiscale, preparaAnnullaConto, preparaProforma, preparaReso, preparaRistampa, comandaSulTavolo, preparaMessaggio, rigaUguale,
   type Caparra, type Impostazioni, type MovimentoCassa, type Sospeso, type TipoMovimentoCassa, type TipoPagamento, righeMenu, xmlApriCassetto,
 } from '@gr/core';
 
@@ -44,6 +44,8 @@ const MESSAGGI: Record<string, string> = {
   CONTO_CON_SCONTRINO: 'Su questo conto c’è già uno scontrino: annullalo prima dalla Cassa.',
   TAVOLO_OCCUPATO: 'Uno dei tavoli è già occupato o unito a un altro conto.',
   SOLO_AL_TAVOLO: 'Solo un conto al tavolo può avere tavoli uniti.',
+  RESO_OLTRE_IL_TOTALE: 'Il reso supera quello che resta dello scontrino.',
+  RESO_VUOTO: 'Scegli cosa rendere.',
   CONTO_VUOTO: 'Il conto è vuoto: usa “Elimina conto”.',
   righe_comanda_libera_check: 'Scrivi cosa aggiungere.',
 };
@@ -135,7 +137,7 @@ export class SupabaseDataLayer implements DataLayer {
   });
 
   private mappaDocumento = (d: Riga): Documento => ({
-    id: d.id, comandaId: d.comanda_id ?? '', tipo: d.tipo === 'annullo' ? 'annullo' : 'documento_commerciale', stato: d.stato,
+    id: d.id, comandaId: d.comanda_id ?? '', tipo: d.tipo === 'annullo' || d.tipo === 'reso' ? d.tipo : 'documento_commerciale', stato: d.stato,
     origineId: d.documento_origine_id ?? undefined,
     righe: (d.righe_documento ?? []).map((x: Riga) => ({ descrizione: x.descrizione, quantita: Number(x.quantita), prezzoUnitarioCents: x.prezzo_unitario_cents, repartoRt: x.reparto_rt })),
     scontoCents: d.sconto_cents, totaleCents: d.totale_cents,
@@ -292,6 +294,31 @@ export class SupabaseDataLayer implements DataLayer {
     const prep = preparaAnnullo(this._setup, this.mappaDocumento(data as Riga));
     const r = await this.sb.rpc('annulla_documento', { p_documento: documentoId, p_stampante: prep.stampanteId, p_key: key, p_operatore: operatore?.id ?? null, p_xml: prep.xml });
     if (r.error) errore(r.error);
+    await this.caricaServizio();
+  }
+
+  async resoDocumento(documentoId: string, scelte: { indice: number; quantita: number }[], rimborso: 'contanti' | 'carta', key: string, operatore?: Operatore) {
+    const { data, error } = await this.sb.from('documenti').select('*, righe_documento(*), pagamenti(*)').eq('id', documentoId).single();
+    if (error) errore(error);
+    const { data: resi } = await this.sb.from('documenti').select('totale_cents').eq('documento_origine_id', documentoId).eq('tipo', 'reso').in('stato', ['in_emissione', 'emesso', 'da_verificare']);
+    const gia = ((resi ?? []) as Riga[]).reduce((t, x) => t + x.totale_cents, 0);
+    const prep = preparaReso(this._setup, this.mappaDocumento(data as Riga), scelte, rimborso, gia);
+    const r = await this.sb.rpc('reso_documento', {
+      p_documento: documentoId, p_stampante: prep.stampanteId, p_key: key, p_operatore: operatore?.id ?? null, p_xml: prep.xml,
+      p_totale: prep.totaleCents, p_sconto: prep.scontoCents, p_righe: prep.righe, p_rimborso: rimborso,
+    });
+    if (r.error) errore(r.error);
+    await this.caricaServizio();
+  }
+
+  async ristampa(comandaId: string, key: string, centroId?: string) {
+    const c = this.comanda(comandaId);
+    if (!c) throw new ErroreDominio('Comanda inesistente');
+    const lavori = preparaRistampa(this._setup, c, this.righe(comandaId), new Date().toISOString(), centroId);
+    for (const [i, l] of lavori.entries()) {
+      const { error } = await this.sb.rpc('accoda_lavoro', { p_locale: this.localeId, p_stampante: l.stampanteId, p_tipo: 'comanda', p_payload: { ticket: l.ticket }, p_key: `${key}:${i + 1}` });
+      if (error) errore(error);
+    }
     await this.caricaServizio();
   }
 

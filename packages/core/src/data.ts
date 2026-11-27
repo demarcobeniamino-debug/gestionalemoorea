@@ -9,7 +9,7 @@ import { comandaSulTavolo, controllaSceltaMenu, promoInVigore, TIPI_INCASSO_SOSP
 import { xmlApriCassetto, type StatoRt } from './epson';
 import { nomeCliente } from './types';
 import type { Setup } from './seed';
-import { ErroreDominio, preparaAnnullaConto, preparaAnnullo, preparaProforma, preparaChiusura, preparaIncasso, preparaInvio, preparaMessaggio, preparaPreconto, preparaStorno, type Incasso } from './operazioni';
+import { ErroreDominio, preparaAnnullaConto, preparaAnnullo, preparaProforma, preparaReso, preparaRistampa, preparaChiusura, preparaIncasso, preparaInvio, preparaMessaggio, preparaPreconto, preparaStorno, type Incasso } from './operazioni';
 import type { CalcoloFattura } from './fattura';
 import type { DatiPeriodo } from './report';
 import { calcolaConto } from './conto';
@@ -88,6 +88,10 @@ export interface DataLayer {
   /** Sposta alcune righe su un altro conto aperto. */
   spostaRighe(rigaIds: string[], destinazioneId: string): Promise<void>;
   annullaDocumento(documentoId: string, idempotencyKey: string, operatore?: Operatore): Promise<void>;
+  /** Reso parziale di uno scontrino: righe e quantità scelte, rimborso in contanti o sulla carta. */
+  resoDocumento(documentoId: string, scelte: { indice: number; quantita: number }[], rimborso: 'contanti' | 'carta', idempotencyKey: string, operatore?: Operatore): Promise<void>;
+  /** Ristampa della comanda per un reparto (o tutti). */
+  ristampa(comandaId: string, idempotencyKey: string, centroId?: string): Promise<void>;
   /** Annulla un conto aperto senza scontrini (prove, tavolo aperto per errore). Il tavolo torna libero. */
   annullaComanda(comandaId: string, motivo: string, idempotencyKey: string, operatore?: Operatore, avvisaReparti?: boolean): Promise<void>;
   /** Chiude il conto come proforma: niente scontrino né incasso, i prodotti escono dal magazzino. */
@@ -393,7 +397,7 @@ export class FakeDataLayer implements DataLayer {
             this._sospesi = this._sospesi.map((x) => (x.documentoId === o.id && x.stato === 'aperto' ? { ...x, stato: 'annullato' } : x));
             this._caparre = this._caparre.map((x) => (x.documentoId === o.id ? { ...x, stato: 'aperta', documentoId: undefined } : x));
           }
-        } else {
+        } else if (d.tipo === 'documento_commerciale') {
           this.registraDaDocumento(d);
           this.chiudiSePagata(d.comandaId);
         }
@@ -438,6 +442,29 @@ export class FakeDataLayer implements DataLayer {
     this.senzaPagamenti(...new Set(righe.map((r) => r.comandaId)));
     for (const r of righe) { const o = this._comande.get(r.comandaId); if (o) o.version++; r.comandaId = destinazioneId; }
     d.version++; this.emit();
+  }
+
+  async resoDocumento(documentoId: string, scelte: { indice: number; quantita: number }[], rimborso: 'contanti' | 'carta', key: string) {
+    this.idem(key, () => {
+      const o = this._documenti.get(documentoId);
+      if (!o) throw new ErroreDominio('Scontrino inesistente');
+      const giaResi = [...this._documenti.values()].filter((x) => x.tipo === 'reso' && x.origineId === documentoId && x.stato !== 'errore').reduce((t, x) => t + x.totaleCents, 0);
+      const prep = preparaReso(this.s, o, scelte, rimborso, giaResi);
+      const doc: Documento = { ...o, id: uid(), tipo: 'reso', origineId: o.id, comandaId: '', stato: 'in_emissione', idempotencyKey: key, createdAt: this.now().toISOString(),
+        righe: prep.righe, scontoCents: prep.scontoCents, totaleCents: prep.totaleCents, pagamenti: [{ tipo: rimborso, importoCents: prep.totaleCents }], rtZNumero: undefined, rtDocNumero: undefined };
+      this._documenti.set(doc.id, doc);
+      return this.nuovoLavoro({ tipo: 'reso', stampanteId: prep.stampanteId, idempotencyKey: key, documentoId: doc.id, xml: prep.xml });
+    });
+  }
+
+  async ristampa(comandaId: string, key: string, centroId?: string) {
+    this.idem(key, () => {
+      const c = this._comande.get(comandaId);
+      if (!c) throw new ErroreDominio('Comanda inesistente');
+      preparaRistampa(this.s, c, this.righe(comandaId), this.now().toISOString(), centroId)
+        .forEach((l, i) => this.nuovoLavoro({ tipo: 'comanda', stampanteId: l.stampanteId, idempotencyKey: `${key}:${i + 1}`, comandaId, ticket: l.ticket }));
+      return true;
+    });
   }
 
   async annullaDocumento(documentoId: string, key: string) {

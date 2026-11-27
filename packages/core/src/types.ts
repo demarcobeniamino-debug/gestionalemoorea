@@ -118,8 +118,8 @@ export interface RigaDocumento {
 }
 
 export interface Documento {
-  id: string; comandaId: string; tipo: 'documento_commerciale' | 'annullo';
-  /** Per un annullo: lo scontrino annullato. */
+  id: string; comandaId: string; tipo: 'documento_commerciale' | 'annullo' | 'reso';
+  /** Per un annullo o un reso: lo scontrino di partenza. */
   origineId?: string;
   stato: StatoDocumento; righe: RigaDocumento[]; scontoCents: Cents; totaleCents: Cents;
   pagamenti: Pagamento[]; quota?: { indice: number; di: number };
@@ -127,7 +127,7 @@ export interface Documento {
   idempotencyKey: string; createdAt: string;
 }
 
-export type TipoLavoro = 'comanda' | 'preconto' | 'non_fiscale' | 'documento_commerciale' | 'annullo' | 'chiusura_fiscale';
+export type TipoLavoro = 'comanda' | 'preconto' | 'non_fiscale' | 'documento_commerciale' | 'annullo' | 'reso' | 'chiusura_fiscale';
 export type StatoLavoro = 'in_coda' | 'preso' | 'stampato' | 'errore' | 'da_verificare' | 'annullato' | 'sospeso';
 
 /** La cassa che stampa batte un colpo ogni 30 secondi (con lo stato del registratore). */

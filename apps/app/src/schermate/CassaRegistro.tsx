@@ -2,8 +2,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle, Clock, FileText, Printer, Receipt, Vault, Warning, XCircle } from '@phosphor-icons/react';
-import { avvisiRt, euro, nomeConto, ponteVivo, type ChiusuraFiscale, type DatiPeriodo, type Documento, type Fattura, type PrintJob, type StatoLavoro } from '@gr/core';
+import { avvisiRt, esportaCorrispettivi, euro, nomeConto, ponteVivo, type ChiusuraFiscale, type DatiPeriodo, type Documento, type Fattura, type PrintJob, type StatoLavoro } from '@gr/core';
 import { useApp, useAzione, useDati } from '../dati/contesto';
+import { scaricaFile } from './Fattura';
 import { Foglio, Pulsante, Spinner } from '../ui/primitivi';
 
 const STATO: Record<StatoLavoro | 'sconosciuto', { testo: string; classe: string; icona: React.ReactNode }> = {
@@ -16,8 +17,8 @@ const STATO: Record<StatoLavoro | 'sconosciuto', { testo: string; classe: string
   annullato: { testo: 'Scartato', classe: 'bg-surface-2 text-text-muted', icona: <XCircle size={14} weight="bold" aria-hidden /> },
   sconosciuto: { testo: 'Registrata', classe: 'bg-surface-2 text-text-muted', icona: null },
 };
-const NOME_LAVORO: Partial<Record<PrintJob['tipo'], string>> = { documento_commerciale: 'Scontrino', annullo: 'Annullo', chiusura_fiscale: 'Chiusura Z' };
-const FISCALI = new Set(['documento_commerciale', 'annullo', 'chiusura_fiscale']);
+const NOME_LAVORO: Partial<Record<PrintJob['tipo'], string>> = { documento_commerciale: 'Scontrino', annullo: 'Annullo', reso: 'Reso', chiusura_fiscale: 'Chiusura Z' };
+const FISCALI = new Set(['documento_commerciale', 'annullo', 'reso', 'chiusura_fiscale']);
 // Le date dei lavori in memoria hanno un contatore in coda per l'ordinamento: lo si toglie prima di leggerle.
 const data = (iso: string) => new Date(iso.replace(/(Z)\d+$/, '$1'));
 const ora = (iso: string) => data(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
@@ -135,9 +136,10 @@ export function SituazioneChiusure() {
   const versione = useDati((d) => d.lavori().filter((j) => j.tipo === 'chiusura_fiscale').map((j) => j.stato).join());
   useEffect(() => { db.chiusure(60).then(setLista).catch(() => setLista([])); }, [db, versione]);
   if (!lista) return <div className="grid h-40 place-items-center"><Spinner /></div>;
-  if (!lista.length) return <p className="py-10 text-center text-text-muted">Nessuna chiusura negli ultimi 60 giorni. Si fa dalla scheda Riepilogo, a fine servizio.</p>;
+  if (!lista.length) return <div className="flex flex-col gap-5"><Commercialista /><p className="py-10 text-center text-text-muted">Nessuna chiusura negli ultimi 60 giorni. Si fa dalla scheda Riepilogo, a fine servizio.</p></div>;
   return (
     <div className="flex flex-col gap-3">
+      <Commercialista />
       <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
         {lista.map((c) => {
           const t = c.totali as { incasso_cents?: number; scontrini?: number; annullati?: number; coperti?: number };
@@ -301,4 +303,46 @@ function useOraLocale() {
   const [t, setT] = useState(() => new Date());
   useEffect(() => { const i = setInterval(() => setT(new Date()), 15000); return () => clearInterval(i); }, []);
   return t;
+}
+
+const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** File per il commercialista: corrispettivi giorno per giorno (pagamenti, IVA, resi, annulli) e elenco dei documenti. */
+function Commercialista() {
+  const { db, toast } = useApp();
+  const setup = useDati((d) => d.setup());
+  const [scelta, setScelta] = useState<'questo' | 'scorso'>('scorso');
+  const [inCorso, setInCorso] = useState(false);
+  const oggi = new Date();
+  const inizio = scelta === 'questo' ? new Date(oggi.getFullYear(), oggi.getMonth(), 1) : new Date(oggi.getFullYear(), oggi.getMonth() - 1, 1);
+  const fine = scelta === 'questo' ? oggi : new Date(oggi.getFullYear(), oggi.getMonth(), 0);
+  const etichetta = `${MESI[inizio.getMonth()]} ${inizio.getFullYear()}`;
+  const scarica = async (cosa: 'corrispettivi' | 'documenti') => {
+    setInCorso(true);
+    try {
+      const giorni = Math.ceil((oggi.getTime() - inizio.getTime()) / 86400000) + 2;
+      const e = esportaCorrispettivi(await db.datiPeriodo(giorni), setup, iso(inizio), iso(fine));
+      if (!e.giorni) { toast({ testo: `Nessuno scontrino in ${etichetta}`, tipo: 'info' }); return; }
+      scaricaFile(`${cosa}-${iso(inizio).slice(0, 7)}.csv`, e[cosa], 'text/csv;charset=utf-8');
+    } catch (e) { toast({ testo: (e as Error).message, tipo: 'errore' }); }
+    finally { setInCorso(false); }
+  };
+  return (
+    <section aria-label="Per il commercialista" className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface p-4">
+      <FileText size={28} weight="duotone" aria-hidden className="text-accent" />
+      <div className="min-w-0 flex-1">
+        <p className="font-bold">Per il commercialista · {etichetta}</p>
+        <p className="text-sm text-text-muted">File che si aprono in Excel: corrispettivi giorno per giorno (pagamenti, IVA, resi, annulli) ed elenco degli scontrini.</p>
+      </div>
+      <div className="flex gap-1 rounded-pill bg-bg p-1">
+        {(['scorso', 'questo'] as const).map((k) => (
+          <button key={k} type="button" aria-pressed={scelta === k} onClick={() => setScelta(k)}
+            className={`premibile h-9 rounded-pill px-3 text-sm font-semibold ${scelta === k ? 'bg-accent text-on-accent' : 'text-text-muted'}`}>{k === 'scorso' ? 'Mese scorso' : 'Questo mese'}</button>
+        ))}
+      </div>
+      <Pulsante taglia="md" variante="primario" disabled={inCorso} onClick={() => void scarica('corrispettivi')}>Corrispettivi</Pulsante>
+      <Pulsante taglia="md" disabled={inCorso} onClick={() => void scarica('documenti')}>Elenco scontrini</Pulsante>
+    </section>
+  );
 }

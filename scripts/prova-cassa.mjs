@@ -98,6 +98,35 @@ await p.screenshot({ path: `${OUT}/C04-riepilogativa.png` });
 await p.keyboard.press('Escape');
 passo('fattura riepilogativa su 2 scontrini');
 
+// Reso parziale di uno scontrino, poi file per il commercialista
+await vai('/cassa');
+await p.getByRole('button', { name: 'Reso', exact: true }).first().click();
+await foglio().getByRole('button', { name: /^Più / }).first().click();
+await foglio().getByRole('button', { name: 'Fai il reso' }).click();
+await p.getByText('Reso inviato alla cassa').waitFor();
+await p.waitForTimeout(1500);
+await p.getByText(/^Reso( n\.|$)/).first().waitFor();
+await p.getByRole('tab', { name: 'Chiusure' }).click();
+await p.getByRole('button', { name: 'Questo mese' }).click();
+const [file] = await Promise.all([p.waitForEvent('download'), p.getByRole('button', { name: 'Corrispettivi' }).click()]);
+const testo = await (await import('node:fs/promises')).readFile(await file.path(), 'utf8');
+if (!/Corrispettivi/.test(testo) || testo.trim().split('\n').length < 3) throw new Error('CSV corrispettivi vuoto: ' + testo);
+passo('reso parziale e corrispettivi scaricati (' + file.suggestedFilename() + ')');
+
+// Ristampa dal tavolo
+await vai('/sala');
+await p.getByRole('button', { name: /^Tavolo 6, libero/ }).click();
+await p.getByRole('button', { name: 'Apri e prendi la comanda' }).click();
+await p.getByRole('button', { name: 'Antipasti', exact: true }).first().click();
+await p.getByRole('button', { name: /^Cozze/ }).click();
+await p.getByRole('button', { name: /^Invia \(1\)/ }).click();
+await p.waitForTimeout(500);
+await p.getByRole('button', { name: 'Sposta, unisci o dividi il tavolo' }).click();
+await foglio().getByRole('button', { name: /Ristampa comanda/ }).click();
+await foglio().getByRole('button', { name: /Ristampa per Cucina/ }).click();
+await p.getByText('Ristampa mandata a Cucina').waitFor();
+passo('ristampa della comanda alla cucina');
+
 // Promozione happy hour e menu fisso dalla Gestione
 await vai('/gestione/promozioni');
 await p.getByRole('button', { name: 'Nuova promozione' }).click();

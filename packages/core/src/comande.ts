@@ -24,48 +24,41 @@ export interface DatiTicketComanda {
   inAttesa?: number[];               // portate ancora in attesa di marcia
 }
 
+/** Tutto maiuscolo: si legge meglio da lontano sulla carta termica. */
+const M = (t: string) => t.toLocaleUpperCase('it-IT');
+
 export function ticketComanda(d: DatiTicketComanda): Ticket {
   const r: RigaTicket[] = [];
   const intestazione = { invio: '', marcia: '*** MARCIA ***', storno: '*** STORNO ***', ristampa: '*** RISTAMPA ***' }[d.tipo];
-  r.push({ k: 'coppia', sx: d.centro.toUpperCase(), dx: `#${String(d.comanda.numero).padStart(4, '0')}`, grassetto: true });
-  if (intestazione) r.push({ k: 'testo', testo: intestazione, inverso: true, grassetto: true, allinea: 'centro', doppiaAltezza: true });
-  r.push({ k: 'testo', testo: /^\d/.test(d.tavolo) ? `TAVOLO ${d.tavolo}` : d.tavolo.toUpperCase(), grande: true, grassetto: true });
-  r.push({ k: 'coppia', sx: `${d.comanda.coperti} coperti${d.sala ? ' · ' + d.sala : ''}`, dx: ora(d.quando) });
-  r.push({ k: 'testo', testo: `Cameriere: ${d.comanda.operatore}` });
+  r.push({ k: 'coppia', sx: M(d.centro), dx: `#${String(d.comanda.numero).padStart(4, '0')}  ${ora(d.quando)}`, grassetto: true });
+  if (intestazione) r.push({ k: 'testo', testo: intestazione, inverso: true, grassetto: true, allinea: 'centro' });
+  r.push({ k: 'testo', testo: /^\d/.test(d.tavolo) ? `TAVOLO ${d.tavolo}` : M(d.tavolo), grande: true, grassetto: true });
+  const coperti = d.comanda.coperti ? `${d.comanda.coperti} COPERTI` : '';
+  r.push({ k: 'testo', testo: M([coperti, d.sala, d.comanda.operatore].filter(Boolean).join(' · ')) });
 
   // Allergeni: del tavolo e delle righe, sempre in cima e in negativo.
   const allergeni = new Map<string, string>();
-  for (const a of d.comanda.allergeniTavolo) allergeni.set(a.allergene + (a.posto ?? ''), `${ALLERGENI_ETICHETTA[a.allergene]}${a.posto ? ' · posto ' + a.posto : ''}`);
-  if (allergeni.size) {
-    r.push({ k: 'separatore' });
-    for (const t of allergeni.values()) r.push({ k: 'testo', testo: `!! ALLERGIA ${t.toUpperCase()} !!`, inverso: true, grassetto: true, allinea: 'centro' });
-  }
-  r.push({ k: 'separatore' });
+  for (const a of d.comanda.allergeniTavolo) allergeni.set(a.allergene + (a.posto ?? ''), `${ALLERGENI_ETICHETTA[a.allergene]}${a.posto ? ' · POSTO ' + a.posto : ''}`);
+  for (const t of allergeni.values()) r.push({ k: 'testo', testo: `!! ALLERGIA ${M(t)} !!`, inverso: true, grassetto: true, allinea: 'centro' });
 
-  // Leggibilità in servizio: piatti in carattere doppio (largo e alto) e grassetto, una riga vuota fra un piatto
-  // e l'altro, varianti e note in grassetto rientrate, portata come fascia nera.
+  // Compatta e leggibile: piatti alti (non larghi) in grassetto, varianti e note subito sotto, rientrate;
+  // la portata è una riga di separazione, senza righe vuote fra un piatto e l'altro.
   const portate = [...new Set(d.righe.map((x) => x.portata))].sort((a, b) => a - b);
   for (const p of portate) {
-    r.push({ k: 'vuota' });
-    r.push({ k: 'testo', testo: ` ${titoloPortata(p)} `, inverso: true, grassetto: true, doppiaAltezza: true, allinea: 'centro' });
+    r.push({ k: 'testo', testo: ` ${titoloPortata(p)} `, inverso: true, grassetto: true, allinea: 'centro' });
     for (const riga of d.righe.filter((x) => x.portata === p)) {
-      r.push({ k: 'vuota' });
       const q = Number.isInteger(riga.quantita) ? String(riga.quantita) : riga.quantita.toFixed(3).replace('.', ',');
-      r.push({ k: 'testo', testo: `${q} x ${riga.descrizione}`, grande: true, grassetto: true });
-      for (const v of riga.varianti.filter((x) => !x.promo)) r.push({ k: 'testo', testo: `> ${v.nome.replace(/^[-+]\s*/, (m) => m.trim() === '+' ? '+ ' : '')}`, rientro: 2, grassetto: true, doppiaAltezza: true });
-      if (riga.posto) r.push({ k: 'testo', testo: `> posto ${riga.posto}`, rientro: 2, grassetto: true, doppiaAltezza: true });
-      if (riga.note) r.push({ k: 'testo', testo: `> ${riga.note.toUpperCase()}`, rientro: 2, grassetto: true, doppiaAltezza: true });
+      r.push({ k: 'testo', testo: M(`${q} x ${riga.descrizione}`), doppiaAltezza: true, grassetto: true });
+      for (const v of riga.varianti.filter((x) => !x.promo)) r.push({ k: 'testo', testo: M(`> ${v.nome.replace(/^[-+]\s*/, (m) => m.trim() === '+' ? '+ ' : '')}`), rientro: 2, grassetto: true });
+      if (riga.posto) r.push({ k: 'testo', testo: `> POSTO ${riga.posto}`, rientro: 2, grassetto: true });
+      if (riga.note) r.push({ k: 'testo', testo: M(`> ${riga.note}`), rientro: 2, grassetto: true });
       // Solo se il piatto contiene un allergene dichiarato al tavolo: allora in negativo, impossibile da non vedere.
       const critici = riga.allergeni.filter((a) => d.comanda.allergeniTavolo.some((x) => x.allergene === a));
-      if (critici.length) r.push({ k: 'testo', testo: `!! CONTIENE ${critici.map((a) => ALLERGENI_ETICHETTA[a as Allergene].toUpperCase()).join(', ')} !!`, inverso: true, grassetto: true, rientro: 2 });
-      if (d.tipo === 'storno' && riga.motivoStorno) r.push({ k: 'testo', testo: `motivo: ${riga.motivoStorno}`, rientro: 2, grassetto: true });
+      if (critici.length) r.push({ k: 'testo', testo: `!! CONTIENE ${critici.map((a) => M(ALLERGENI_ETICHETTA[a as Allergene])).join(', ')} !!`, inverso: true, grassetto: true, rientro: 2 });
+      if (d.tipo === 'storno' && riga.motivoStorno) r.push({ k: 'testo', testo: M(`MOTIVO: ${riga.motivoStorno}`), rientro: 2, grassetto: true });
     }
   }
-  r.push({ k: 'vuota' });
-  if (d.inAttesa?.length) {
-    r.push({ k: 'separatore' });
-    r.push({ k: 'testo', testo: `In attesa di marcia: ${d.inAttesa.map(nomePortata).join(', ')}` });
-  }
+  if (d.inAttesa?.length) r.push({ k: 'testo', testo: M(`In attesa di marcia: ${d.inAttesa.map(nomePortata).join(', ')}`) });
   return { titolo: `${d.centro} · ${d.tavolo}`, righe: r, taglio: true };
 }
 
@@ -127,12 +120,12 @@ export function ticketMessaggio(d: DatiTicketMessaggio): Ticket {
   r.push({ k: 'testo', testo: `*** ${titolo} ***`, inverso: true, grassetto: true, allinea: 'centro', doppiaAltezza: true });
   if (d.tavolo) r.push({ k: 'testo', testo: /^\d/.test(d.tavolo) ? `TAVOLO ${d.tavolo}` : d.tavolo.toUpperCase(), grande: true, grassetto: true });
   if (d.portata !== undefined) r.push({ k: 'testo', testo: titoloPortata(d.portata), doppiaAltezza: true, grassetto: true });
-  if (d.testo?.trim()) { r.push({ k: 'separatore' }); r.push({ k: 'testo', testo: d.testo.trim(), doppiaAltezza: true, grassetto: true }); }
+  if (d.testo?.trim()) { r.push({ k: 'separatore' }); r.push({ k: 'testo', testo: M(d.testo.trim()), doppiaAltezza: true, grassetto: true }); }
   const rr = (d.righe ?? []).filter((x) => x.stato !== 'stornata');
   if (rr.length) {
     r.push({ k: 'separatore' });
     for (const x of rr) {
-      r.push({ k: 'testo', testo: `${x.quantita} x ${x.descrizione}`, grande: true, grassetto: true });
+      r.push({ k: 'testo', testo: M(`${x.quantita} x ${x.descrizione}`), doppiaAltezza: true, grassetto: true });
       for (const v of x.varianti.filter((y) => !y.promo)) r.push({ k: 'testo', testo: `- ${v.nome}`, rientro: 4 });
     }
   }

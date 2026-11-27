@@ -222,3 +222,43 @@ export function preparaProforma(s: Setup, c: Comanda, righe: RigaComanda[], docu
     proforma: { motivo: motivo.trim(), nome: n, totaleCents: conto.totaleCents },
   };
 }
+
+/** Reso parziale: alcune righe di uno scontrino emesso (quantità a scelta), restituite in contanti o sulla carta.
+ *  Se lo scontrino aveva uno sconto, il reso lo applica in proporzione. */
+export function preparaReso(s: Setup, d: Documento, scelte: { indice: number; quantita: number }[], rimborso: 'contanti' | 'carta', giaResi = 0) {
+  if (d.tipo !== 'documento_commerciale' || d.stato !== 'emesso') throw new ErroreDominio('Si fa il reso solo di scontrini emessi');
+  if (d.rtZNumero == null || d.rtDocNumero == null) throw new ErroreDominio('Mancano i dati del registratore (Z e numero) per il reso');
+  const righe = scelte.filter((x) => x.quantita > 0).map((x) => {
+    const r = d.righe[x.indice];
+    if (!r) throw new ErroreDominio('Riga inesistente');
+    if (x.quantita > r.quantita) throw new ErroreDominio(`${r.descrizione}: al massimo ${r.quantita}`);
+    return { ...r, quantita: x.quantita };
+  });
+  if (!righe.length) throw new ErroreDominio('Scegli cosa rendere');
+  const lordoOrig = d.righe.reduce((t, r) => t + Math.round(r.prezzoUnitarioCents * r.quantita), 0);
+  const lordo = righe.reduce((t, r) => t + Math.round(r.prezzoUnitarioCents * r.quantita), 0);
+  const sconto = d.scontoCents && lordoOrig ? Math.round((d.scontoCents * lordo) / lordoOrig) : 0;
+  const totale = lordo - sconto;
+  if (giaResi + totale > d.totaleCents) throw new ErroreDominio(`Si può rendere al massimo ${(d.totaleCents - giaResi) / 100} €`.replace('.', ','));
+  const rt = rtDi(s);
+  const quando = d.rtData ? new Date(d.rtData.split('/').reverse().join('-')) : new Date(d.createdAt);
+  const xml = xmlAnnulloReso('REFUND', { zNumero: d.rtZNumero, docNumero: d.rtDocNumero, data: quando, matricola: rt.matricolaRt ?? '' },
+    { righe, scontoCents: sconto, pagamenti: [{ tipo: rimborso, importoCents: totale }] }, { host: rt.host });
+  return { stampanteId: rt.id, xml, righe, scontoCents: sconto, totaleCents: totale };
+}
+
+/** Ristampa della comanda per un reparto (o per tutti): i piatti già mandati e non stornati, con la scritta RISTAMPA. */
+export function preparaRistampa(s: Setup, c: Comanda, righe: RigaComanda[], quando: string, centroId?: string) {
+  const inviate = righe.filter((r) => !['da_inviare', 'in_attesa_marcia', 'stornata'].includes(r.stato) && r.centroProduzioneId && (!centroId || r.centroProduzioneId === centroId));
+  const { numero, sala } = tavoloLabel(s, c);
+  const perCentro = new Map<string, RigaComanda[]>();
+  for (const r of inviate) perCentro.set(r.centroProduzioneId!, [...(perCentro.get(r.centroProduzioneId!) ?? []), r]);
+  const lavori: { stampanteId: string; ticket: Ticket }[] = [];
+  for (const [id, rr] of perCentro) {
+    const centro = s.centri.find((x) => x.id === id);
+    if (!centro?.stampanteId) continue;
+    lavori.push({ stampanteId: centro.stampanteId, ticket: ticketComanda({ centro: centro.nome, comanda: c, tavolo: numero, sala, righe: rr, tipo: 'ristampa', quando }) });
+  }
+  if (!lavori.length) throw new ErroreDominio('Niente da ristampare: nessun piatto è ancora stato mandato a questo reparto');
+  return lavori;
+}

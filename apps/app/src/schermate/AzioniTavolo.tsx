@@ -1,12 +1,12 @@
 // Azioni sul tavolo dalla comanda: sposta su un altro tavolo, unisci un altro tavolo, sposta alcuni piatti, proforma o elimina il conto.
 import { useState, type ReactNode } from 'react';
-import { ArrowsLeftRight, ArrowsMerge, ForkKnife, HandHeart, Trash } from '@phosphor-icons/react';
+import { ArrowsLeftRight, ArrowsMerge, ForkKnife, HandHeart, Printer, Trash } from '@phosphor-icons/react';
 import { calcolaConto, euro, importoRiga, nomeConto, type Comanda } from '@gr/core';
-import { useApp, useAzione, useDati } from '../dati/contesto';
+import { nuovaChiave, useApp, useAzione, useDati } from '../dati/contesto';
 import { EliminaConto, Proforma } from './ChiudiSenzaIncasso';
 import { Foglio, Pulsante } from '../ui/primitivi';
 
-type Vista = 'menu' | 'sposta' | 'unisci' | 'piatti' | 'piatti-dove' | 'annulla' | 'proforma';
+type Vista = 'menu' | 'sposta' | 'unisci' | 'piatti' | 'piatti-dove' | 'annulla' | 'proforma' | 'ristampa';
 
 export function AzioniTavolo({ comanda, aperto, onChiudi, onSpostata }: {
   comanda: Comanda; aperto: boolean; onChiudi: () => void; onSpostata?: (nuovaComandaId: string) => void;
@@ -24,7 +24,7 @@ export function AzioniTavolo({ comanda, aperto, onChiudi, onSpostata }: {
   const nome = nomeConto(setup, comanda);
   const spostabili = righe.filter((r) => r.stato !== 'stornata');
 
-  const titolo = { menu: nome, sposta: 'Sposta su un tavolo libero', unisci: `Unisci tavoli a ${nome}`, piatti: 'Quali piatti spostare?', 'piatti-dove': 'Su quale tavolo?', annulla: `Eliminare il conto · ${nome}?`, proforma: `Proforma · ${nome}` }[vista];
+  const titolo = { menu: nome, sposta: 'Sposta su un tavolo libero', unisci: `Unisci tavoli a ${nome}`, piatti: 'Quali piatti spostare?', 'piatti-dove': 'Su quale tavolo?', annulla: `Eliminare il conto · ${nome}?`, proforma: `Proforma · ${nome}`, ristampa: `Ristampa · ${nome}` }[vista];
   const conScontrino = db.documenti(comanda.id).some((d) => d.tipo === 'documento_commerciale' && ['emesso', 'in_emissione', 'da_verificare'].includes(d.stato));
 
   return (
@@ -46,6 +46,9 @@ export function AzioniTavolo({ comanda, aperto, onChiudi, onSpostata }: {
             <Voce icona={<ArrowsLeftRight size={22} weight="bold" aria-hidden />} titolo="Sposta tavolo" testo="Il conto passa su un tavolo libero, con tutto quello che è stato ordinato." onClick={() => setVista('sposta')} />
             <Voce icona={<ForkKnife size={22} weight="bold" aria-hidden />} titolo="Sposta piatti" testo="Alcuni piatti vanno sul conto di un altro tavolo (es. chi si sposta al bar)." onClick={() => setVista('piatti')} disabled={!spostabili.length || !altri.length} />
           </>}
+          <Voce icona={<Printer size={22} weight="bold" aria-hidden />} titolo="Ristampa comanda"
+            testo="La cucina o il bar hanno perso il foglio? Ristampa i piatti già mandati, con scritto RISTAMPA."
+            onClick={() => setVista('ristampa')} disabled={!righe.some((r) => !['da_inviare', 'in_attesa_marcia', 'stornata'].includes(r.stato))} />
           <Voce icona={<HandHeart size={22} weight="bold" aria-hidden />} titolo="Proforma"
             testo={conScontrino ? 'C’è già uno scontrino su questo conto.' : 'Famiglia, amici, staff: non incassi, ma i prodotti escono dal magazzino.'}
             onClick={() => setVista('proforma')} disabled={conScontrino || !spostabili.length} />
@@ -55,6 +58,16 @@ export function AzioniTavolo({ comanda, aperto, onChiudi, onSpostata }: {
         </div>
       )}
 
+      {vista === 'ristampa' && (
+        <div className="flex flex-col gap-2">
+          {setup.centri.filter((c) => c.stampanteId && righe.some((r) => r.centroProduzioneId === c.id && !['da_inviare', 'in_attesa_marcia', 'stornata'].includes(r.stato))).map((c) => (
+            <Pulsante key={c.id} taglia="lg" icona={<Printer size={20} weight="bold" aria-hidden />} disabled={inCorso}
+              onClick={() => void esegui(async () => { await db.ristampa(comanda.id, nuovaChiave(), c.id); chiudi(); }, `Ristampa mandata a ${c.nome}`)}>Ristampa per {c.nome}</Pulsante>
+          ))}
+          <Pulsante variante="primario" taglia="lg" disabled={inCorso}
+            onClick={() => void esegui(async () => { await db.ristampa(comanda.id, nuovaChiave()); chiudi(); }, 'Ristampa mandata a tutti i reparti')}>Tutti i reparti</Pulsante>
+        </div>
+      )}
       {vista === 'proforma' && <Proforma comandaId={comanda.id} totaleCents={calcolaConto(righe, comanda.coperti, setup.locale.copertoCents).totaleCents} onFatto={chiudi} />}
       {vista === 'annulla' && <EliminaConto comandaId={comanda.id} inviate={righe.filter((r) => !['da_inviare', 'in_attesa_marcia', 'stornata'].includes(r.stato)).length} onFatto={chiudi} />}
 

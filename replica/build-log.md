@@ -110,3 +110,11 @@ Screenshot in `replica/clone-screens/`.
 - Telefono: sala a griglia grande con barra in basso (Banco, Unisci, Prenotati, Altro), testata senza sbordare, conto scorrevole.
 - Confronto completo con Menu: `replica/gap-passepartout.md`.
 - Test: 58 unitari; e2e verdi (11 prove, nuove `prova-epson`, `prova-cassa`; `prova-banco` anche su telefono).
+
+## 2026-11-27 — Reso parziale, ristampa, export, comande compatte (v0.8.1)
+- Comande: tutto maiuscolo e più compatte. Tavolo grande, piatti alti ma non larghi (niente più righe spezzate), varianti e note subito sotto, portata come fascia nera senza righe vuote; interlinea 32. Anche marcia/sollecito/messaggi in maiuscolo.
+- Reso parziale (Cassa → scontrino → Reso): righe e quantità a scelta, rimborso in contanti o sulla carta, documento REFUND con Z/numero/data/matricola dell'originale, più resi fino al totale; sconto ripartito in proporzione. Resi tolti dall'incasso e dai pagamenti nel riepilogo. DB 0017 `reso_documento` (audit `reso`).
+- Ristampa comanda (Tavolo → Ristampa comanda): per reparto o tutti, solo piatti già mandati e non stornati, con "*** RISTAMPA ***".
+- Per il commercialista (Cassa → Chiusure): CSV per Excel (punto e virgola, virgola decimale) con corrispettivi giorno per giorno (scontrini, contanti, elettronico, buoni, non riscosso, imponibile e IVA per aliquota, resi, annulli) ed elenco dei documenti; mese scorso o in corso.
+- Corretto: la lettura dei documenti dal database trattava come scontrino ogni tipo diverso da annullo.
+- Test: 61 unitari; e2e verdi (prova-cassa estesa con reso, CSV e ristampa).

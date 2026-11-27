@@ -13,6 +13,9 @@ export interface Riepilogo {
   scontrini: number;
   annullati: number;
   annullatiCents: number;
+  /** Resi parziali emessi (rimborsati): già tolti dall'incasso. */
+  resi: number;
+  resiCents: number;
   conti: number;
   coperti: number;
   contoMedioCents: number;
@@ -31,7 +34,7 @@ export interface Riepilogo {
   eliminati: number;
 }
 
-const giorno = (iso: string) => {
+export const giornoDiServizio = (iso: string) => {
   // Giornata di servizio: le 01:30 appartengono alla sera prima (cambio alle 05:00, ora locale).
   const d = new Date(new Date(iso).getTime() - 5 * 3600_000);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -41,7 +44,9 @@ export function riepilogo(d: DatiPeriodo, s: Setup): Riepilogo {
   const validi = d.documenti.filter((x) => x.tipo === 'documento_commerciale' && x.stato === 'emesso');
   const annullati = d.documenti.filter((x) => x.tipo === 'documento_commerciale' && x.stato === 'annullato');
   const comanda = new Map(d.comande.map((c) => [c.id, c]));
-  const incasso = validi.reduce((t, x) => t + x.totaleCents, 0);
+  const resi = d.documenti.filter((x) => x.tipo === 'reso' && x.stato === 'emesso');
+  const resiCents = resi.reduce((t, x) => t + x.totaleCents, 0);
+  const incasso = validi.reduce((t, x) => t + x.totaleCents, 0) - resiCents;
 
   // Il contante ricevuto può superare il dovuto (c'è il resto): conta solo l'incassato.
   const perPagamento: Riepilogo['perPagamento'] = {};
@@ -53,6 +58,8 @@ export function riepilogo(d: DatiPeriodo, s: Setup): Riepilogo {
   }
 
   const proforma = d.comande.filter((c) => c.stato === 'chiusa' && c.proforma);
+  for (const x of resi) for (const p of x.pagamenti) perPagamento[p.tipo] = (perPagamento[p.tipo] ?? 0) - p.importoCents;
+
   const chiuse = d.comande.filter((c) => c.stato === 'chiusa' && !c.proforma);
   const coperti = chiuse.reduce((t, c) => t + c.coperti, 0);
 
@@ -94,14 +101,14 @@ export function riepilogo(d: DatiPeriodo, s: Setup): Riepilogo {
   for (const doc of validi) {
     const h = new Date(doc.createdAt).getHours();
     perOra.set(h, (perOra.get(h) ?? 0) + doc.totaleCents);
-    const g = perGiorno.get(giorno(doc.createdAt)) ?? { incassoCents: 0, coperti: 0 };
+    const g = perGiorno.get(giornoDiServizio(doc.createdAt)) ?? { incassoCents: 0, coperti: 0 };
     g.incassoCents += doc.totaleCents;
-    perGiorno.set(giorno(doc.createdAt), g);
+    perGiorno.set(giornoDiServizio(doc.createdAt), g);
   }
   for (const c of chiuse) {
-    const g = perGiorno.get(giorno(c.chiusaAt ?? c.apertaAt)) ?? { incassoCents: 0, coperti: 0 };
+    const g = perGiorno.get(giornoDiServizio(c.chiusaAt ?? c.apertaAt)) ?? { incassoCents: 0, coperti: 0 };
     g.coperti += c.coperti;
-    perGiorno.set(giorno(c.chiusaAt ?? c.apertaAt), g);
+    perGiorno.set(giornoDiServizio(c.chiusaAt ?? c.apertaAt), g);
   }
 
   const aperte = d.comande.filter((c) => c.stato === 'aperta' || c.stato === 'preconto');
@@ -112,6 +119,7 @@ export function riepilogo(d: DatiPeriodo, s: Setup): Riepilogo {
     scontrini: validi.length,
     annullati: annullati.length,
     annullatiCents: annullati.reduce((t, x) => t + x.totaleCents, 0),
+    resi: resi.length, resiCents,
     conti: chiuse.length,
     coperti,
     contoMedioCents: chiuse.length ? Math.round(incasso / chiuse.length) : 0,
@@ -142,7 +150,7 @@ export function riepilogo(d: DatiPeriodo, s: Setup): Riepilogo {
 /** Totali salvati con la chiusura fiscale (tabella chiusure). */
 export const totaliChiusura = (r: Riepilogo) => ({
   incasso_cents: r.incassoCents, sconti_cents: r.scontiCents, per_pagamento: r.perPagamento, scontrini: r.scontrini,
-  annullati: r.annullati, conti: r.conti, coperti: r.coperti,
+  annullati: r.annullati, resi_cents: r.resiCents, conti: r.conti, coperti: r.coperti,
   proforma_conti: r.proforma.conti, proforma_cents: r.proforma.valoreCents, conti_eliminati: r.eliminati,
   per_sala: r.perSala, per_operatore: r.perOperatore,
 });

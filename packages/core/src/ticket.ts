@@ -112,7 +112,7 @@ export function renderEscPos(t: Ticket, o: OpzioniEscPos): Uint8Array {
   const cp = o.codePage ?? 19; // 19 = PC858 su Epson e compatibili; si cambia dalle impostazioni stampanti
   b.push(ESC, 0x40);            // init
   b.push(ESC, 0x74, cp);        // code page
-  b.push(ESC, 0x33, 40);        // interlinea un po' più ariosa (normale: 30)
+  b.push(ESC, 0x33, 32);        // interlinea appena più ariosa del normale (30): compatta ma leggibile
   const stile = (grassetto = false, dimensione = 0x00, inverso = false, allinea: Allineamento = 'sx') => {
     b.push(ESC, 0x45, grassetto ? 1 : 0);
     b.push(GS, 0x21, dimensione);

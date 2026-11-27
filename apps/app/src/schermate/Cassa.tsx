@@ -39,6 +39,7 @@ export function Cassa() {
   const [dati, setDati] = useState<DatiPeriodo | null>(null);
   const [errore, setErrore] = useState<string | null>(null);
   const [annulla, setAnnulla] = useState<Documento | null>(null);
+  const [reso, setReso] = useState<Documento | null>(null);
   const [chiusura, setChiusura] = useState(false);
   const [fattura, setFattura] = useState<Documento | Documento[] | null>(null);
   /** Fattura riepilogativa: scontrini scelti. */
@@ -69,7 +70,7 @@ export function Cassa() {
   }
 
   const scontrini = (dati?.documenti ?? [])
-    .filter((d) => d.tipo === 'documento_commerciale' && (d.stato === 'emesso' || d.stato === 'annullato'))
+    .filter((d) => (d.tipo === 'documento_commerciale' && (d.stato === 'emesso' || d.stato === 'annullato')) || (d.tipo === 'reso' && d.stato === 'emesso'))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const nomeTavolo = (comandaId: string) => {
     const c = dati?.comande.find((x) => x.id === comandaId);
@@ -122,6 +123,7 @@ export function Cassa() {
                 )}
                 <dl className="mt-4 grid grid-cols-2 gap-y-1 border-t border-border pt-3 text-sm">
                   <dt className="text-text-muted">Sconti fatti</dt><dd className="text-right tabular-nums">{euro(r.scontiCents)}</dd>
+                  <dt className="text-text-muted">Resi</dt><dd className="text-right tabular-nums">{r.resi} · {euro(r.resiCents)}</dd>
                   <dt className="text-text-muted">Scontrini annullati</dt><dd className="text-right tabular-nums">{r.annullati} · {euro(r.annullatiCents)}</dd>
                   <dt className="text-text-muted">Piatti stornati</dt><dd className="text-right tabular-nums">{r.storni.quantita} · {euro(r.storni.importoCents)}</dd>
                   <dt className="text-text-muted">Proforma (non incassati)</dt><dd className="text-right tabular-nums">{r.proforma.conti} · {euro(r.proforma.valoreCents)}</dd>
@@ -198,7 +200,7 @@ export function Cassa() {
                       ) : <Receipt size={20} weight="duotone" aria-hidden="true" className="flex-none text-text-muted" />}
                       <span className="flex-1">
                         <span className="block font-semibold">
-                          {d.rtDocNumero ? `N. ${d.rtZNumero ?? '–'}-${String(d.rtDocNumero).padStart(4, '0')}` : 'Scontrino'} · {nomeTavolo(d.comandaId)}
+                          {d.tipo === 'reso' ? 'Reso' : d.rtDocNumero ? `N. ${d.rtZNumero ?? '–'}-${String(d.rtDocNumero).padStart(4, '0')}` : 'Scontrino'}{d.tipo === 'reso' ? (d.rtDocNumero ? ` n. ${d.rtZNumero}-${String(d.rtDocNumero).padStart(4, '0')}` : '') : ` · ${nomeTavolo(d.comandaId)}`}
                         </span>
                         <span className="block text-sm text-text-muted">
                           {giorni === 1 ? ora(d.createdAt) : new Date(d.createdAt).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
@@ -207,11 +209,14 @@ export function Cassa() {
                           {d.stato === 'annullato' ? ' · annullato' : ''}
                         </span>
                       </span>
-                      <span className={`font-semibold tabular-nums ${d.stato === 'annullato' ? 'line-through' : ''}`}>{euro(d.totaleCents)}</span>
-                      {d.stato === 'emesso' && !scelti && (
+                      <span className={`font-semibold tabular-nums ${d.stato === 'annullato' ? 'line-through' : ''} ${d.tipo === 'reso' ? 'text-danger' : ''}`}>{d.tipo === 'reso' ? '−' : ''}{euro(d.totaleCents)}</span>
+                      {d.stato === 'emesso' && d.tipo === 'documento_commerciale' && !scelti && (
                         <Pulsante taglia="md" icona={<FileText size={16} weight="bold" aria-hidden="true" />} onClick={() => setFattura(d)}>Fattura</Pulsante>
                       )}
-                      {d.stato === 'emesso' && giorni === 1 && responsabile && (
+                      {d.stato === 'emesso' && d.tipo === 'documento_commerciale' && responsabile && (
+                        <Pulsante taglia="md" onClick={() => setReso(d)}>Reso</Pulsante>
+                      )}
+                      {d.stato === 'emesso' && d.tipo === 'documento_commerciale' && giorni === 1 && responsabile && (
                         <Pulsante taglia="md" icona={<ArrowCounterClockwise size={16} weight="bold" aria-hidden="true" />} onClick={() => setAnnulla(d)}>Annulla</Pulsante>
                       )}
                     </li>
@@ -226,6 +231,7 @@ export function Cassa() {
       {fattura && <FoglioFattura documento={fattura} tavolo={Array.isArray(fattura) ? `${fattura.length} scontrini` : nomeTavolo(fattura.comandaId)}
         clienteIdIniziale={Array.isArray(fattura) ? undefined : dati?.comande.find((c) => c.id === fattura.comandaId)?.clienteId}
         onChiudi={() => { setFattura(null); setScelti(null); }} />}
+      {reso && <FoglioReso documento={reso} tavolo={nomeTavolo(reso.comandaId)} onChiudi={() => { setReso(null); void carica(); }} />}
       {annulla && <FoglioAnnullo documento={annulla} tavolo={nomeTavolo(annulla.comandaId)} onChiudi={() => { setAnnulla(null); void carica(); }} />}
       {chiusura && r && <FoglioChiusura totali={totaliChiusura(r)} incasso={r.incassoCents} aperti={r.aperti.tavoli} onChiudi={() => { setChiusura(false); void carica(); }} />}
     </div>
@@ -251,6 +257,42 @@ function FoglioAnnullo({ documento, tavolo, onChiudi }: { documento: Documento; 
         La cassa fiscale stampa un documento di annullo collegato allo scontrino. Si fa solo nella stessa giornata, prima della chiusura.
         Se il cliente deve pagare di nuovo, riapri il conto dalla sala.
       </p>
+    </Foglio>
+  );
+}
+
+/** Reso parziale: il cliente riporta o non ha avuto alcune cose. Documento di reso collegato allo scontrino. */
+function FoglioReso({ documento, tavolo, onChiudi }: { documento: Documento; tavolo: string; onChiudi: () => void }) {
+  const { db, operatore } = useApp();
+  const { esegui, inCorso } = useAzione();
+  const [chiave] = useState(nuovaChiave);
+  const [qta, setQta] = useState<number[]>(documento.righe.map(() => 0));
+  const [rimborso, setRimborso] = useState<'contanti' | 'carta'>(documento.pagamenti.some((p) => p.tipo === 'contanti') ? 'contanti' : 'carta');
+  const lordoTot = documento.righe.reduce((t, r) => t + Math.round(r.prezzoUnitarioCents * r.quantita), 0);
+  const lordo = documento.righe.reduce((t, r, i) => t + Math.round(r.prezzoUnitarioCents * qta[i]), 0);
+  const totale = lordo - (documento.scontoCents && lordoTot ? Math.round((documento.scontoCents * lordo) / lordoTot) : 0);
+  const vai = async () => {
+    const ok = await esegui(() => db.resoDocumento(documento.id, qta.map((q, i) => ({ indice: i, quantita: q })).filter((x) => x.quantita > 0), rimborso, chiave, operatore ?? undefined), 'Reso inviato alla cassa');
+    if (ok) onChiudi();
+  };
+  return (
+    <Foglio aperto onChiudi={onChiudi} titolo="Reso di una parte" piede={<>
+      <span className="flex-1 text-base font-semibold">Da rendere <span className="tabular-nums">{euro(totale)}</span></span>
+      <Pulsante taglia="md" onClick={onChiudi}>Annulla</Pulsante>
+      <Pulsante variante="pericolo" taglia="md" disabled={totale <= 0} caricamento={inCorso} onClick={() => void vai()}>Fai il reso</Pulsante>
+    </>}>
+      <p className="mb-4 text-sm text-text-muted">Scontrino del {tavolo} delle {ora(documento.createdAt)}, {euro(documento.totaleCents)}. Scegli cosa rendere: la cassa fiscale stampa un documento di reso collegato a questo scontrino.</p>
+      <ul className="mb-5 flex flex-col gap-2">
+        {documento.righe.map((r, i) => (
+          <li key={i} className="flex items-center gap-3 rounded-md bg-bg px-3 py-2">
+            <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{r.descrizione}</span><span className="text-sm text-text-muted">{r.quantita} × {euro(r.prezzoUnitarioCents)}</span></span>
+            <button type="button" aria-label={`Meno ${r.descrizione}`} disabled={qta[i] <= 0} onClick={() => setQta(qta.map((q, j) => (j === i ? q - 1 : q)))} className="premibile grid h-10 w-10 place-items-center rounded-md bg-surface-2 text-xl font-semibold disabled:opacity-40">−</button>
+            <output className="w-6 text-center text-lg font-bold tabular-nums">{qta[i]}</output>
+            <button type="button" aria-label={`Più ${r.descrizione}`} disabled={qta[i] >= r.quantita} onClick={() => setQta(qta.map((q, j) => (j === i ? q + 1 : q)))} className="premibile grid h-10 w-10 place-items-center rounded-md bg-surface-2 text-xl font-semibold disabled:opacity-40">+</button>
+          </li>
+        ))}
+      </ul>
+      <Segmenti etichetta="Rimborso" valore={rimborso} onCambia={setRimborso} opzioni={[{ valore: 'contanti', testo: 'In contanti' }, { valore: 'carta', testo: 'Sulla carta' }]} />
     </Foglio>
   );
 }

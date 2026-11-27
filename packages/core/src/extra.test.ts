@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FakeDataLayer, CodaStampa, TrasportoSimulato, seedDemo, calcolaConto, calcolaFattura, xmlFattura, controllaIntestatario, controllaCedente, anteprima, riepilogo, ponteVivo, type Cliente } from './index';
+import { FakeDataLayer, CodaStampa, TrasportoSimulato, seedDemo, calcolaConto, calcolaFattura, xmlFattura, controllaIntestatario, controllaCedente, anteprima, riepilogo, ponteVivo, esportaCorrispettivi, giornoDiServizio, type Cliente } from './index';
 
 const OP = { id: 'op-aldo', nome: 'Aldo', ruolo: 'cameriere' };
 const nuovo = () => { const db = new FakeDataLayer(seedDemo()); return { db, coda: new CodaStampa(db, new TrasportoSimulato()) }; };
@@ -17,7 +17,7 @@ describe('Voci libere e quantità', () => {
     expect(s.articoli.some((a) => /pomodoro/i.test(a.nome) && a.prezzoCents === 1200)).toBe(false);
     const jobs = await db.invia(c.id, 'k1', OP);
     expect(jobs).toHaveLength(1);
-    expect(anteprima(jobs[0].ticket!, 42).map((x) => x.testo).join('\n')).toMatch(/1 x Pasta al pomodoro/);
+    expect(anteprima(jobs[0].ticket!, 42).map((x) => x.testo).join('\n')).toMatch(/1 X PASTA AL POMODORO/);
     await expect(db.aggiungiRiga(c.id, { libera: { descrizione: '  ', prezzoCents: 100, centroId: null, aliquotaIvaId: iva10.id } })).rejects.toThrow(/Scrivi/);
   });
 
@@ -54,7 +54,7 @@ describe('Messaggi ai reparti', () => {
     const testo = anteprima(nuovi[0].ticket!, 42).map((x) => x.testo).join('\n');
     expect(testo).toMatch(/MARCIA/);
     expect(testo).toMatch(/TAVOLO 5/);
-    expect(testo).toMatch(/Entrec/);
+    expect(testo).toMatch(/ENTREC/);
     expect(testo).not.toMatch(/Polpo/);
     expect(db.messaggi()[0].tipo).toBe('marcia');
     await db.segnaMessaggioVisto(db.messaggi()[0].id);
@@ -131,7 +131,7 @@ describe('Annulla conto', () => {
     expect(db.righe(c.id).every((r) => r.stato === 'stornata')).toBe(true);
     const storni = db.lavori().filter((j) => j.idempotencyKey.startsWith('a1:'));
     expect(storni).toHaveLength(2); // cucina e bar, non la lasagna mai inviata
-    expect(anteprima(storni[0].ticket!, 42).map((x) => x.testo).join('\n')).toMatch(/CONTO ANNULLATO: Prova/);
+    expect(anteprima(storni[0].ticket!, 42).map((x) => x.testo).join('\n')).toMatch(/CONTO ANNULLATO: PROVA/);
 
     const d = await db.apriTavolo('t8', 2, OP);
     await db.aggiungiRiga(d.id, { articoloId: art(db, 'Negroni') });
@@ -301,5 +301,65 @@ describe('Cassa completa', () => {
     expect(s).toMatchObject({ tipo: 'camera', descrizione: '12 Rossi', importoCents: tot - 1000, stato: 'aperto' });
     await db.incassaSospeso(s.id, 'carta');
     expect((await db.sospesi())[0].stato).toBe('incassato');
+  });
+});
+
+describe('Reso parziale e ristampa', () => {
+  it('reso di una riga: documento REFUND con il riferimento, incasso ridotto; non oltre il totale', async () => {
+    const { db, coda } = nuovo();
+    const c = await db.apriTavolo('t5', 0, OP);
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Polpo Scottato'), quantita: 2 });
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Negroni') });
+    await db.invia(c.id, 'k', OP);
+    const tot = calcolaConto(db.righe(c.id), 0, 0).totaleCents;
+    const doc = await db.incassa(c.id, { pagamenti: [{ tipo: 'carta', importoCents: tot }] }, 'i');
+    await coda.elabora();
+    const emesso = db.documenti(c.id)[0];
+    const i = emesso.righe.findIndex((r) => /Polpo/.test(r.descrizione));
+    await db.resoDocumento(doc.id, [{ indice: i, quantita: 1 }], 'carta', 'r1');
+    const job = db.lavori().find((j) => j.tipo === 'reso')!;
+    expect(job.xml).toMatch(/REFUND \d{4} \d{4} \d{8}/);
+    expect(job.xml).toMatch(/quantity="1"/);
+    await coda.elabora();
+    const r = riepilogo(await db.datiPeriodo(1), db.setup());
+    expect(r.resi).toBe(1);
+    expect(r.incassoCents).toBe(tot - emesso.righe[i].prezzoUnitarioCents);
+    await expect(db.resoDocumento(doc.id, [{ indice: i, quantita: 2 }], 'carta', 'r2')).rejects.toThrow(/al massimo/);
+  });
+
+  it('ristampa: solo i piatti già mandati, al reparto giusto, con RISTAMPA', async () => {
+    const { db } = nuovo();
+    const c = await db.apriTavolo('t6', 2, OP);
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Polpo Scottato') });
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Negroni') });
+    await expect(db.ristampa(c.id, 'x0')).rejects.toThrow(/Niente da ristampare/);
+    await db.invia(c.id, 'k', OP);
+    const cucina = db.setup().centri.find((x) => /cucina/i.test(x.nome))!;
+    await db.ristampa(c.id, 'x1', cucina.id);
+    const j = db.lavori().filter((x) => x.idempotencyKey.startsWith('x1:'));
+    expect(j).toHaveLength(1);
+    const t = anteprima(j[0].ticket!, 42).map((x) => x.testo).join('\n');
+    expect(t).toMatch(/RISTAMPA/); expect(t).toMatch(/POLPO/); expect(t).not.toMatch(/NEGRONI/);
+  });
+});
+
+describe('Export per il commercialista', () => {
+  it('corrispettivi del giorno con IVA scorporata e resi; elenco documenti', async () => {
+    const { db, coda } = nuovo();
+    const c = await db.apriTavolo('t4', 0, OP);
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Polpo Scottato') });
+    await db.invia(c.id, 'k', OP);
+    const tot = calcolaConto(db.righe(c.id), 0, 0).totaleCents;
+    const doc = await db.incassa(c.id, { pagamenti: [{ tipo: 'contanti', importoCents: tot + 500 }] }, 'i');
+    await coda.elabora();
+    await db.resoDocumento(doc.id, [{ indice: 0, quantita: 1 }], 'contanti', 'r');
+    await coda.elabora();
+    const oggi = giornoDiServizio(new Date().toISOString());
+    const e = esportaCorrispettivi(await db.datiPeriodo(1), db.setup(), oggi, oggi);
+    const righe = e.corrispettivi.trim().split('\r\n');
+    expect(righe[0]).toMatch(/^Data;Scontrini;Corrispettivi;Contanti/);
+    expect(righe[1].split(';')[1]).toBe('1');
+    expect(righe[1].split(';')[2]).toBe('0,00'); // reso totale: corrispettivi a zero
+    expect(e.documenti).toMatch(/Reso;\d+-\d{4};-/);
   });
 });
