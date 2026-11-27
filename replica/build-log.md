@@ -64,3 +64,15 @@ Screenshot in `replica/clone-screens/`.
 - Gestione → Personale: persone, ruoli, PIN (4–6 cifre, mai uguali), disattivazione.
 - DB (0008, 0009): `importa_menu`, `sposta_comanda`, `unisci_comande`, `sposta_righe`, `operatore_salva`, `annulla_documento`, `chiusura_giornaliera`; `esito_lavoro` segna l'originale annullato e salva lo Z. Annullo e chiusura provati sul database vero in transazione annullata.
 - Test: 38 unitari; e2e verdi `prova-flusso`, `prova-gestione`, `prova-prenotazioni` e nuovo `prova-servizio` (sposta → sconto con PIN → incasso 34,20 € → cassa → annullo → Z → personale).
+
+## 2026-11-27 — Comanda veloce, messaggi, clienti, fatture (v0.7.0)
+- Voce libera: piatto fuori menu con nome, prezzo, reparto, portata e IVA scelti al volo; non crea articoli. Le ultime 8 restano sul dispositivo ("rifai con un tocco"). Dalla ricerca: scrivi "pasta al pomodoro" → Voce libera già compilata. Nelle statistiche finiscono sotto "Fuori menu".
+- Comanda più veloce: ×2…×6 per il prossimo piatto; stesso piatto toccato due volte = quantità +1 (non righe doppie); − e + sulle righe non inviate; scheda "Più usati" (i piatti che il dispositivo usa di più).
+- Marcia e Sollecita per portata, direttamente nel riepilogo: ticket MARCIA/SOLLECITO grande con tavolo e piatti, solo ai reparti coinvolti. Messaggi ai reparti (dal tavolo o dalla sala): frasi pronte o testo libero, a cucina, bar o tutti. Il monitor cucina mostra gli avvisi in alto (tocca = visto) ed evidenzia il tavolo con marcia/sollecito.
+- Clienti: anagrafica (contatti, compleanno, allergie, preferenze, sconto abituale, dati per la fattura, consenso), Gestione → Clienti con storico (visite, spesa, piatti preferiti, fatture). Dal tavolo: "Cliente" collega o crea; le sue allergie passano al tavolo. Al conto: sconto abituale in un tocco.
+- Fatture elettroniche FatturaPA (FPR12) dallo scontrino in Cassa: scorporo IVA per aliquota al centesimo (anche con sconto), controlli su intestatario e locale, numero progressivo dal server senza buchi, XML da scaricare (nome file SDI), copia di cortesia sulla stampante dei preconti. Gestione → Fatture: dati fiscali del locale, elenco, stato (da inviare / inviata / scartata / annullata). L'invio allo SDI resta manuale (Fatture e Corrispettivi o commercialista).
+- Ruolo Cassa: entra in "Cassa" per fatture e statistiche; annullo e Z restano ai responsabili.
+- Ottimizzazione: bundle iniziale da 978 kB a 211 kB (Gestione, Cassa e pagine rare caricate al primo uso; librerie in pezzi separati in cache).
+- Design: testata della comanda che non taglia più il numero del tavolo, icone sole su telefono, barre di portata e quantità scorrevoli.
+- DB 0010 `clienti_fatture_messaggi`: `righe_comanda.articolo_id` facoltativo, `locali.dati_fiscali`, `messaggi_reparto` (+ Realtime), `invia_messaggio`, `fatture`, `emetti_fattura`.
+- Test: 44 unitari; e2e verdi `prova-flusso`, `prova-gestione`, `prova-prenotazioni`, `prova-servizio` e nuovo `prova-extra` (dati fiscali → ×3 → voce libera → cliente con allergia → marcia/sollecito → messaggio → monitor → incasso → fattura con XML verificato → schede).

@@ -1,17 +1,27 @@
-import { useMemo, useRef, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { ArrowsLeftRight, Check, Pause, Prohibit, Warning } from '@phosphor-icons/react';
+import { ArrowsLeftRight, BellRinging, ChatCircleText, Check, Lightning, Minus, Pause, PencilSimpleLine, Plus, Prohibit, Star, UserCircle, Warning } from '@phosphor-icons/react';
 import {
-  ALLERGENI_ETICHETTA, calcolaConto, euro, importoRiga, nomePortata,
-  type Allergene, type Articolo, type RigaComanda, type RigaVariante,
+  ALLERGENI_ETICHETTA, calcolaConto, euro, importoRiga, nomeCliente, nomePortata,
+  type Allergene, type Articolo, type Cliente, type RigaComanda, type RigaVariante, type VoceLibera,
 } from '@gr/core';
 import { nuovaChiave, useApp, useAzione, useDati } from '../dati/contesto';
 import { Testata } from '../ui/Testata';
 import { Foglio, Icona, Pulsante, useConferma } from '../ui/primitivi';
 import { vibra } from '../dati/piattaforma';
 import { AzioniTavolo } from './AzioniTavolo';
+import { FoglioVoceLibera } from './VoceLibera';
+import { FoglioMessaggio } from './Messaggi';
+import { FoglioClienteTavolo } from './Clienti';
 
 const PORTATE = [0, 1, 2, 3, 9];
+const RAPIDI = '__rapidi';
+const MOLTIPLICATORI = [2, 3, 4, 5, 6];
+
+// Piatti più usati su questo dispositivo: la prima scheda, per i tocchi di tutte le sere.
+const CHIAVE_USO = 'cassa.usoArticoli';
+const leggiUso = (): Record<string, number> => { try { return JSON.parse(localStorage.getItem(CHIAVE_USO) ?? '{}'); } catch { return {}; } };
+const contaUso = (id: string) => { try { const u = leggiUso(); u[id] = (u[id] ?? 0) + 1; localStorage.setItem(CHIAVE_USO, JSON.stringify(u)); } catch { /* niente */ } };
 const STATO_RIGA: Partial<Record<RigaComanda['stato'], { testo: string; icona: ReactElement }>> = {
   in_attesa_marcia: { testo: 'in attesa', icona: <Pause size={12} weight="fill" aria-hidden /> },
   in_preparazione: { testo: 'in preparazione', icona: <Pause size={12} weight="fill" aria-hidden /> },
@@ -27,7 +37,14 @@ export function ComandaSchermata() {
   const { esegui, inCorso } = useAzione();
   const nav = useNavigate();
   const { comanda, righe, setup } = useDati((d) => ({ comanda: d.comanda(id), righe: d.righe(id), setup: d.setup() }));
-  const [categoriaId, setCategoriaId] = useState(setup.categorie[0]?.id);
+  const [uso] = useState(leggiUso);
+  const rapidi = useMemo(() => Object.entries(uso).sort((a, b) => b[1] - a[1]).map(([id]) => setup.articoli.find((a) => a.id === id)).filter((a): a is Articolo => !!a).slice(0, 16), [uso, setup.articoli]);
+  const [categoriaId, setCategoriaId] = useState(rapidi.length >= 4 ? RAPIDI : setup.categorie[0]?.id);
+  const [molt, setMolt] = useState(1);
+  const [liberaAperta, setLiberaAperta] = useState(false);
+  const [messaggioAperto, setMessaggioAperto] = useState(false);
+  const [clienteAperto, setClienteAperto] = useState(false);
+  const [cliente, setCliente] = useState<Cliente | null>(null);
   const [portata, setPortata] = useState<number | null>(null);
   const [cerca, setCerca] = useState('');
   const [varianti, setVarianti] = useState<Articolo | null>(null);
@@ -41,20 +58,35 @@ export function ComandaSchermata() {
   const lungo = useRef(false);
 
   const tavolo = setup.tavoli.find((t) => t.id === comanda?.tavoloId);
+  useEffect(() => {
+    if (!comanda?.clienteId) { setCliente(null); return; }
+    let v = true; db.cliente(comanda.clienteId).then((c) => v && setCliente(c)).catch(() => undefined); return () => { v = false; };
+  }, [comanda?.clienteId, db]);
   const conto = useMemo(() => calcolaConto(righe, comanda?.coperti ?? 0, setup.locale.copertoCents), [righe, comanda, setup]);
 
   if (!comanda) return <main className="p-8 text-text"><p className="mb-4 text-base">Questa comanda non esiste più.</p><Link className="underline" to="/sala">Torna alla sala</Link></main>;
   if (comanda.stato === 'chiusa' || comanda.stato === 'annullata') { nav('/sala', { replace: true }); return null; }
 
   const q = cerca.trim().toLowerCase();
-  const articoli = setup.articoli.filter((a) => (q ? a.nome.toLowerCase().includes(q) : a.categoriaId === categoriaId));
+  const articoli = q ? setup.articoli.filter((a) => a.nome.toLowerCase().includes(q))
+    : categoriaId === RAPIDI ? rapidi.map((a) => setup.articoli.find((x) => x.id === a.id) ?? a)
+    : setup.articoli.filter((a) => a.categoriaId === categoriaId);
+  const categorieNav = [...(rapidi.length ? [{ id: RAPIDI, nome: 'Più usati', colore: 'var(--c-accent)', testoColore: 'var(--c-on-accent)' }] : []), ...setup.categorie];
   const portataEffettiva = (a: Articolo) => portata ?? setup.categorie.find((c) => c.id === a.categoriaId)!.portataPredefinita;
   const daInviare = righe.filter((r) => r.stato === 'da_inviare');
   const nelConto = (a: Articolo) => righe.filter((r) => r.articoloId === a.id && r.stato !== 'stornata').reduce((s, r) => s + r.quantita, 0);
 
   const aggiungi = (a: Articolo, extra: { varianti?: RigaVariante[]; note?: string; posto?: number } = {}) => {
-    void esegui(async () => { const r = await db.aggiungiRiga(comanda.id, { articoloId: a.id, portata: portataEffettiva(a), ...extra }); setUltima(r.id); });
+    const quantita = molt; setMolt(1); contaUso(a.id);
+    void esegui(async () => { const r = await db.aggiungiRiga(comanda.id, { articoloId: a.id, portata: portataEffettiva(a), quantita, ...extra }); setUltima(r.id); });
   };
+  const aggiungiLibera = (v: VoceLibera, extra: { portata: number; quantita: number; note?: string }) => {
+    setLiberaAperta(false);
+    void esegui(async () => { const r = await db.aggiungiRiga(comanda.id, { libera: v, ...extra }); setUltima(r.id); }, `${v.descrizione} aggiunto`);
+  };
+  const sollecita = (tipo: 'marcia' | 'sollecito', p: number) => void esegui(
+    () => db.inviaMessaggio({ centriIds: setup.centri.map((c) => c.id), tipo, portata: p, comandaId: comanda.id }, nuovaChiave(), operatore ?? undefined),
+    `${tipo === 'marcia' ? 'Marcia' : 'Sollecito'} ${nomePortata(p).toLowerCase()} inviato`);
 
   const invia = () => {
     void esegui(async () => {
@@ -81,29 +113,48 @@ export function ComandaSchermata() {
         {righe.length === 0 && (
           <div className="px-3 py-10 text-center">
             <p className="text-base font-semibold">Il conto è vuoto</p>
-            <p className="mt-1 text-sm text-text-muted">Scegli una categoria e tocca un piatto. Tocco lungo per varianti e note.</p>
+            <p className="mt-1 text-sm text-text-muted">Tocca un piatto per aggiungerlo, tienilo premuto per varianti e note. Fuori menu? “Voce libera”.</p>
           </div>
         )}
         {conto.perPortata.map(({ portata: p, righe: rr }) => {
           const nuove = rr.some((r) => r.stato === 'da_inviare');
+          const inCucina = rr.some((r) => ['inviata', 'in_preparazione'].includes(r.stato));
           return (
             <section key={p} className="mb-3">
-              <h3 className="sticky top-0 z-[1] mb-1 flex justify-between bg-surface px-2 py-1 text-xs font-bold uppercase tracking-wide">
-                <span className={nuove ? 'text-accent' : 'text-text-muted'}>{nomePortata(p)}</span>
-                <span className={nuove ? 'text-accent' : 'text-text-muted'}>{nuove ? 'Da inviare' : 'Inviata'}</span>
+              <h3 className="sticky top-0 z-[1] mb-1 flex min-h-8 items-center gap-1.5 bg-surface px-2 py-1 text-xs font-bold uppercase tracking-wide">
+                <span className={`flex-1 ${nuove ? 'text-accent' : 'text-text-muted'}`}>{nomePortata(p)}</span>
+                {inCucina && !nuove && (<>
+                  <button type="button" onClick={() => sollecita('marcia', p)} aria-label={`Marcia ${nomePortata(p)}`}
+                    className="premibile flex h-8 items-center gap-1 rounded-pill bg-accent px-3 text-[12px] font-bold normal-case tracking-normal text-on-accent">
+                    <Lightning size={13} weight="fill" aria-hidden />Marcia</button>
+                  <button type="button" onClick={() => sollecita('sollecito', p)} aria-label={`Sollecita ${nomePortata(p)}`}
+                    className="premibile flex h-8 items-center gap-1 rounded-pill border border-border px-3 text-[12px] font-bold normal-case tracking-normal text-text">
+                    <BellRinging size={13} weight="bold" aria-hidden />Sollecita</button>
+                </>)}
+                {(nuove || !inCucina) && <span className={nuove ? 'text-accent' : 'text-text-muted'}>{nuove ? 'Da inviare' : rr.every((r) => r.stato === 'pronta' || r.stato === 'stornata') ? 'Pronta' : 'Inviata'}</span>}
               </h3>
               <ul className="flex flex-col gap-0.5">
                 {rr.map((r) => {
                   const st = STATO_RIGA[r.stato];
                   const daInv = r.stato === 'da_inviare';
                   return (
-                    <li key={r.id}>
-                      <button type="button"
-                        onClick={() => daInv ? void esegui(() => db.togliRiga(r.id)) : r.stato !== 'stornata' && setStorno(r)}
-                        aria-label={`${r.quantita} ${r.descrizione}, ${euro(importoRiga(r))}. ${daInv ? 'Tocca per togliere' : 'Tocca per stornare'}`}
-                        className={`premibile w-full rounded-md px-2 py-1.5 text-left text-[15px] tabular-nums ${daInv ? 'bg-[color-mix(in_srgb,var(--c-accent)_12%,transparent)]' : 'text-text-muted'} ${r.id === ultima ? 'riga-nuova' : ''}`}>
+                    <li key={r.id} className={daInv ? 'flex items-start gap-1' : ''}>
+                      {daInv && (
+                        <span className="flex flex-none items-center gap-0.5 pt-0.5" role="group" aria-label={`Quantità di ${r.descrizione}`}>
+                          <button type="button" aria-label={r.quantita > 1 ? `Uno in meno: ${r.descrizione}` : `Togli ${r.descrizione}`}
+                            onClick={() => void esegui(() => db.cambiaQuantita(r.id, r.quantita - 1))}
+                            className="premibile grid h-9 w-9 place-items-center rounded-md bg-surface-2 text-text">{r.quantita > 1 ? <Minus size={16} weight="bold" aria-hidden /> : <Prohibit size={16} weight="bold" aria-hidden />}</button>
+                          <button type="button" aria-label={`Uno in più: ${r.descrizione}`}
+                            onClick={() => void esegui(() => db.cambiaQuantita(r.id, r.quantita + 1))}
+                            className="premibile grid h-9 w-9 place-items-center rounded-md bg-surface-2 text-text"><Plus size={16} weight="bold" aria-hidden /></button>
+                        </span>
+                      )}
+                      <button type="button" disabled={daInv}
+                        onClick={() => r.stato !== 'stornata' && setStorno(r)}
+                        aria-label={`${r.quantita} ${r.descrizione}, ${euro(importoRiga(r))}${daInv ? ', da inviare' : '. Tocca per stornare'}`}
+                        className={`premibile min-w-0 flex-1 w-full rounded-md disabled:cursor-default px-2 py-1.5 text-left text-[15px] tabular-nums ${daInv ? 'bg-[color-mix(in_srgb,var(--c-accent)_12%,transparent)]' : 'text-text-muted'} ${r.id === ultima ? 'riga-nuova' : ''}`}>
                         <span className={`flex justify-between gap-2 ${r.stato === 'stornata' ? 'line-through' : ''}`}>
-                          <span className={daInv ? 'font-semibold text-text' : ''}>{r.quantita} × {r.descrizione}</span>
+                          <span className={daInv ? 'font-semibold text-text' : ''}>{r.quantita} × {r.descrizione}{r.articoloId === null && <PencilSimpleLine size={13} weight="bold" aria-label="voce libera" className="ml-1 inline align-[-1px] text-text-muted" />}</span>
                           <span>{euro(importoRiga(r), false)}</span>
                         </span>
                         {r.varianti.map((v) => <span key={v.nome} className="block pl-5 text-[13px] text-text-muted">{v.nome}{v.deltaCents ? ` ${euro(v.deltaCents, false)}` : ''}</span>)}
@@ -142,27 +193,35 @@ export function ComandaSchermata() {
   return (
     <div className="flex h-full flex-col bg-bg text-text">
       <Testata indietro="/sala" titolo={`Tavolo ${tavolo?.numero ?? ''}`} sotto={`${comanda.coperti} coperti · ${comanda.operatore || operatore?.nome || ''}`}>
+        <button type="button" onClick={() => setClienteAperto(true)} aria-label={cliente ? `Cliente: ${nomeCliente(cliente)}` : 'Collega un cliente'}
+          className={`premibile flex h-10 max-w-[12rem] flex-none items-center gap-1.5 rounded-md px-3 text-sm font-bold ${cliente ? 'bg-surface-2 text-accent ring-1 ring-accent' : 'border border-border bg-surface-2'}`}>
+          <UserCircle size={18} weight={cliente ? 'fill' : 'bold'} aria-hidden /><span className="hidden truncate xl:inline">{cliente ? nomeCliente(cliente) : 'Cliente'}</span>
+        </button>
+        <button type="button" onClick={() => setMessaggioAperto(true)} aria-label="Messaggio ai reparti"
+          className="premibile flex h-10 flex-none items-center gap-1.5 rounded-md border border-border bg-surface-2 px-3 text-sm font-bold">
+          <ChatCircleText size={18} weight="bold" aria-hidden /><span className="hidden xl:inline">Messaggio</span>
+        </button>
         <button type="button" onClick={() => setAzioniAperte(true)} aria-label="Sposta, unisci o dividi il tavolo"
           className="premibile flex h-10 flex-none items-center gap-1.5 rounded-md border border-border bg-surface-2 px-3 text-sm font-bold">
-          <ArrowsLeftRight size={16} weight="bold" aria-hidden /><span className="hidden sm:inline">Tavolo</span>
+          <ArrowsLeftRight size={16} weight="bold" aria-hidden /><span className="hidden xl:inline">Tavolo</span>
         </button>
         <button type="button" onClick={() => setAllergeniAperto(true)}
           className={`premibile flex h-10 flex-none items-center gap-1.5 rounded-md px-3 text-sm font-bold ${comanda.allergeniTavolo.length ? 'bg-allergene text-on-allergene' : 'border border-border bg-surface-2'}`}>
-          {comanda.allergeniTavolo.length > 0 && <Warning size={16} weight="fill" aria-hidden />}
-          Allergie{comanda.allergeniTavolo.length ? ` (${comanda.allergeniTavolo.length})` : ''}
+          <Warning size={16} weight={comanda.allergeniTavolo.length ? 'fill' : 'bold'} aria-hidden />
+          <span className={comanda.allergeniTavolo.length ? '' : 'hidden md:inline'}>Allergie{comanda.allergeniTavolo.length ? ` (${comanda.allergeniTavolo.length})` : ''}</span>
         </button>
       </Testata>
 
       <div className="flex min-h-0 flex-1">
         <nav aria-label="Categorie" className="hidden w-44 flex-none flex-col gap-1.5 overflow-y-auto border-r border-border p-2.5 md:flex">
-          {setup.categorie.map((c) => {
+          {categorieNav.map((c) => {
             const attiva = c.id === categoriaId && !q;
             return (
               <button key={c.id} type="button" onClick={() => { setCategoriaId(c.id); setCerca(''); }} aria-pressed={attiva}
                 style={attiva ? { background: c.colore, color: c.testoColore } : undefined}
                 className={`premibile relative flex h-14 flex-none items-center overflow-hidden rounded-md pl-5 pr-3 text-left text-[15px] font-bold ${attiva ? '' : 'bg-surface text-text'}`}>
                 <i aria-hidden="true" className="absolute inset-y-0 left-0 w-1.5" style={{ background: c.colore }} />
-                {c.nome}
+                {c.id === RAPIDI && <Star size={15} weight="fill" aria-hidden className="mr-1.5 flex-none" />}{c.nome}
               </button>
             );
           })}
@@ -170,13 +229,21 @@ export function ComandaSchermata() {
 
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2.5 md:px-4">
-            <div role="radiogroup" aria-label="Portata" className="flex gap-1 overflow-x-auto rounded-pill bg-surface p-1">
+            <div className="-mx-3 flex min-w-0 max-w-full gap-2 overflow-x-auto px-3 md:mx-0 md:px-0">
+            <div role="radiogroup" aria-label="Portata" className="flex flex-none gap-1 rounded-pill bg-surface p-1">
               <button type="button" role="radio" aria-checked={portata === null} onClick={() => setPortata(null)}
                 className={`premibile h-9 flex-none rounded-pill px-3.5 text-sm font-semibold ${portata === null ? 'bg-accent text-on-accent' : 'text-text-muted'}`}>Auto</button>
               {PORTATE.map((p) => (
                 <button key={p} type="button" role="radio" aria-checked={portata === p} onClick={() => setPortata(p)}
                   className={`premibile h-9 flex-none rounded-pill px-3.5 text-sm font-semibold ${portata === p ? 'bg-accent text-on-accent' : 'text-text-muted'}`}>{nomePortata(p).replace(' portata', '')}</button>
               ))}
+            </div>
+            <div role="radiogroup" aria-label="Quantità per il prossimo piatto" className="flex flex-none gap-1 rounded-pill bg-surface p-1">
+              {MOLTIPLICATORI.map((m) => (
+                <button key={m} type="button" role="radio" aria-checked={molt === m} onClick={() => setMolt(molt === m ? 1 : m)}
+                  className={`premibile h-9 min-w-9 flex-none rounded-pill px-2.5 text-sm font-bold tabular-nums ${molt === m ? 'bg-warning text-on-warning' : 'text-text-muted'}`}>×{m}</button>
+              ))}
+            </div>
             </div>
             <span className="flex-1" />
             <label className="flex h-10 w-full items-center gap-2 rounded-md border border-border-input bg-bg px-3 text-text-muted focus-within:border-focus sm:w-64">
@@ -186,7 +253,7 @@ export function ComandaSchermata() {
           </div>
 
           <div className="flex gap-1.5 overflow-x-auto px-3 py-2 md:hidden" role="tablist" aria-label="Categorie">
-            {setup.categorie.map((c) => {
+            {categorieNav.map((c) => {
               const attiva = c.id === categoriaId && !q;
               return (
                 <button key={c.id} type="button" role="tab" aria-selected={attiva} onClick={() => { setCategoriaId(c.id); setCerca(''); }}
@@ -197,7 +264,12 @@ export function ComandaSchermata() {
           </div>
 
           <div className="grid flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto p-3 sm:grid-cols-3 lg:grid-cols-4 md:p-4">
-            {articoli.length === 0 && <p className="col-span-full py-12 text-center text-base text-text-muted">{q ? `Nessun piatto per “${cerca}”.` : 'Nessun piatto in questa categoria.'}</p>}
+            <button type="button" onClick={() => setLiberaAperta(true)} aria-label="Voce libera: un piatto fuori menu, con prezzo a scelta"
+              className="premibile flex min-h-[92px] flex-col justify-between gap-2 rounded-md border-2 border-dashed border-border p-3 text-left text-text-muted hover:border-accent hover:text-text">
+              <span className="flex items-center gap-1.5 text-[15px] font-bold"><PencilSimpleLine size={18} weight="bold" aria-hidden />Voce libera</span>
+              <span className="text-sm">{q ? `“${cerca}” fuori menu` : 'Fuori menu, prezzo a scelta'}</span>
+            </button>
+            {articoli.length === 0 && <p className="col-span-full py-12 text-center text-base text-text-muted">{q ? `Nessun piatto per “${cerca}”.` : categoriaId === RAPIDI ? 'I piatti che usi di più compariranno qui.' : 'Nessun piatto in questa categoria.'}</p>}
             {articoli.map((a) => {
               const n = nelConto(a);
               return (
@@ -218,7 +290,7 @@ export function ComandaSchermata() {
               );
             })}
           </div>
-          <p className="hidden px-4 pb-2 text-xs text-text-muted md:block">Tocco: aggiungi. Tocco lungo o tasto destro: varianti, posto e note.</p>
+          <p className="hidden px-4 pb-2 text-xs text-text-muted md:block">{molt > 1 ? `Il prossimo piatto entra ×${molt}.` : 'Tocco: aggiungi. Tocco lungo o tasto destro: varianti, posto e note. ×2…×6: quantità del prossimo piatto.'}</p>
         </main>
 
         <div className="hidden w-[380px] flex-none border-l border-border md:block">{riepilogo}</div>
@@ -256,6 +328,9 @@ export function ComandaSchermata() {
       </Foglio>
 
       <AzioniTavolo comanda={comanda} aperto={azioniAperte} onChiudi={() => setAzioniAperte(false)} />
+      <FoglioVoceLibera aperto={liberaAperta} portataIniziale={portata} descrizioneIniziale={cerca.trim()} onChiudi={() => setLiberaAperta(false)} onAggiungi={aggiungiLibera} />
+      <FoglioMessaggio aperto={messaggioAperto} comanda={comanda} onChiudi={() => setMessaggioAperto(false)} />
+      <FoglioClienteTavolo aperto={clienteAperto} comanda={comanda} onChiudi={() => setClienteAperto(false)} />
       <FoglioAllergeni aperto={allergeniAperto} valore={comanda.allergeniTavolo} onChiudi={() => setAllergeniAperto(false)}
         onSalva={(v) => void esegui(() => db.impostaAllergeni(comanda.id, v))} />
       {conferma.ui}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Bank, CheckCircle, CreditCard, Money, Percent, Ticket, Warning } from '@phosphor-icons/react';
-import { calcolaConto, dividiAllaRomana, euro, importoRiga, type Documento, type TipoPagamento } from '@gr/core';
+import { calcolaConto, dividiAllaRomana, euro, importoRiga, nomeCliente, type Cliente, type Documento, type TipoPagamento } from '@gr/core';
 import { nuovaChiave, useApp, useAzione, useDati } from '../dati/contesto';
 import { Testata } from '../ui/Testata';
 import { Foglio, Icona, Pulsante, Spinner } from '../ui/primitivi';
@@ -27,6 +27,11 @@ export function Conto() {
   const [digitato, setDigitato] = useState('');
   const [sconto, setSconto] = useState<{ cents: number; etichetta: string; da: string } | null>(null);
   const [scontoAperto, setScontoAperto] = useState(false);
+  const [cliente, setCliente] = useState<Cliente | null>(null);
+  useEffect(() => {
+    if (!comanda?.clienteId) return;
+    let v = true; db.cliente(comanda.clienteId).then((c) => v && setCliente(c)).catch(() => undefined); return () => { v = false; };
+  }, [comanda?.clienteId, db]);
 
   const conto = useMemo(() => calcolaConto(righe, comanda?.coperti ?? 0, setup.locale.copertoCents), [righe, comanda, setup]);
   const emessi = documenti.filter((d) => d.stato === 'emesso');
@@ -153,6 +158,15 @@ export function Conto() {
                 className="premibile mt-3 flex h-touch items-center justify-center gap-2 rounded-md border border-border text-sm font-semibold">
                 <Percent size={18} weight="bold" aria-hidden />{sconto ? 'Togli lo sconto' : 'Sconto'}
               </button>
+            )}
+            {modoEff === 'unico' && !emessi.length && !sconto && cliente && cliente.scontoPct > 0 && (
+              <button type="button" onClick={() => setSconto({ cents: Math.round((conto.totaleCents * cliente.scontoPct) / 100), etichetta: `${cliente.scontoPct}%`, da: `cliente ${nomeCliente(cliente)}` })}
+                className="premibile mt-2 flex h-touch items-center justify-center gap-2 rounded-md bg-surface-2 text-sm font-semibold text-accent">
+                <Percent size={18} weight="bold" aria-hidden />Sconto abituale di {nomeCliente(cliente)}: {cliente.scontoPct}%
+              </button>
+            )}
+            {cliente && (cliente.piva || cliente.codiceFiscale) && (
+              <p className="mt-2 text-center text-xs text-text-muted">Vuole la fattura? Dopo lo scontrino: Cassa → “Fattura” accanto allo scontrino.</p>
             )}
           </div>
         </section>

@@ -93,3 +93,38 @@ export function ticketPreconto(d: DatiPreconto): Ticket {
   r.push({ k: 'testo', testo: 'NON VALIDO COME DOCUMENTO FISCALE', allinea: 'centro', grassetto: true });
   return { titolo: `Preconto · ${d.tavolo}`, righe: r, taglio: true };
 }
+
+export interface DatiTicketMessaggio {
+  centro: string;
+  tipo: 'messaggio' | 'marcia' | 'sollecito';
+  tavolo?: string;
+  comanda?: Comanda;
+  portata?: number;
+  testo?: string;
+  operatore: string;
+  quando: string;
+  /** Per marcia e sollecito: i piatti di quella portata per questo reparto. */
+  righe?: RigaComanda[];
+}
+
+/** Ticket breve per il reparto: MARCIA / SOLLECITO / MESSAGGIO, grande e in negativo. */
+export function ticketMessaggio(d: DatiTicketMessaggio): Ticket {
+  const r: RigaTicket[] = [];
+  const titolo = { messaggio: 'MESSAGGIO', marcia: 'MARCIA', sollecito: 'SOLLECITO' }[d.tipo];
+  r.push({ k: 'coppia', sx: d.centro.toUpperCase(), dx: ora(d.quando), grassetto: true });
+  r.push({ k: 'testo', testo: `*** ${titolo} ***`, inverso: true, grassetto: true, allinea: 'centro', doppiaAltezza: true });
+  if (d.tavolo) r.push({ k: 'testo', testo: /^\d/.test(d.tavolo) ? `TAVOLO ${d.tavolo}` : d.tavolo.toUpperCase(), grande: true, grassetto: true });
+  if (d.portata !== undefined) r.push({ k: 'testo', testo: nomePortata(d.portata).toUpperCase(), doppiaAltezza: true, grassetto: true });
+  if (d.testo?.trim()) { r.push({ k: 'separatore' }); r.push({ k: 'testo', testo: d.testo.trim(), doppiaAltezza: true, grassetto: true }); }
+  const rr = (d.righe ?? []).filter((x) => x.stato !== 'stornata');
+  if (rr.length) {
+    r.push({ k: 'separatore' });
+    for (const x of rr) {
+      r.push({ k: 'testo', testo: `${x.quantita} x ${x.descrizione}`, grassetto: true });
+      for (const v of x.varianti) r.push({ k: 'testo', testo: `- ${v.nome}`, rientro: 4 });
+    }
+  }
+  r.push({ k: 'separatore' });
+  r.push({ k: 'testo', testo: `da ${d.operatore}` });
+  return { titolo: `${titolo} · ${d.tavolo ?? d.centro}`, righe: r, taglio: true };
+}

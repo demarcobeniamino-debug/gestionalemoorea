@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CalendarCheck, Clock, ChartBar, GearSix, Receipt, Warning } from '@phosphor-icons/react';
+import { CalendarCheck, ChatCircleText, Clock, ChartBar, GearSix, Receipt, Warning } from '@phosphor-icons/react';
+import { FoglioMessaggio } from './Messaggi';
 import { ALLERGENI_ETICHETTA, calcolaConto, daAccogliere, euro, type Comanda, type Prenotazione, type Tavolo } from '@gr/core';
 import { useApp, useAzione, useDati, useOra } from '../dati/contesto';
 import { Testata } from '../ui/Testata';
-import { puoGestire } from './gestione/Layout';
+import { puoGestire } from '../dati/ruoli';
 import { Foglio, Icona, Pulsante, useConferma } from '../ui/primitivi';
 
 const RITARDO_MIN = 20;
@@ -48,6 +49,7 @@ export function Sala() {
   const [pren, setPren] = useState<string>('');
   const [aspettaTavolo, setAspettaTavolo] = useState<Prenotazione | null>(null);
   const [vista, setVista] = useState<'sala' | 'prenotazioni'>('sala');
+  const [messaggio, setMessaggio] = useState(false);
   const [listaAperta, setListaAperta] = useState(false);
   const { chiedi, ui: conferma } = useConferma();
   const daSedere = prenotazioni.filter(daAccogliere);
@@ -139,8 +141,9 @@ export function Sala() {
             <button type="button" onClick={() => setListaAperta(true)} className="premibile flex h-9 items-center gap-2 rounded-md border border-border px-3 text-text lg:hidden">
               <CalendarCheck size={18} weight="bold" aria-hidden="true" />Prenotazioni {daSedere.length}
             </button>
+            <button type="button" onClick={() => setMessaggio(true)} className="premibile flex h-9 items-center gap-2 rounded-md border border-border px-3 text-text"><ChatCircleText size={18} weight="bold" aria-hidden="true" />Messaggio</button>
             <Link to="/cucina" className="premibile flex h-9 items-center gap-2 rounded-md border border-border px-3 text-text">{Icona.cucina}Monitor cucina</Link>
-            {puoGestire(operatore?.ruolo) && (
+            {(puoGestire(operatore?.ruolo) || operatore?.ruolo === 'cassiere') && (
               <Link to="/cassa" className="premibile flex h-9 items-center gap-2 rounded-md border border-border px-3 text-text"><ChartBar size={18} weight="bold" aria-hidden="true" />Cassa</Link>
             )}
             {puoGestire(operatore?.ruolo) && (
@@ -281,6 +284,7 @@ export function Sala() {
           onNonArrivati={(p) => chiedi(`${p.nome} (${p.coperti}) non si è presentato? Su Table Flow risulterà "no show".`, () => void esegui(() => db.segnaNonPresentato(p.id), 'Segnato come non presentato'), 'Non si è presentato')} />
       </Foglio>
       {conferma}
+      <FoglioMessaggio aperto={messaggio} onChiudi={() => setMessaggio(false)} />
     </div>
   );
 }

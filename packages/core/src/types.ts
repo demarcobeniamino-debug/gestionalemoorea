@@ -66,6 +66,8 @@ export interface Comanda {
   version: number;
   /** Prenotazione di Table Flow da cui è stato aperto il tavolo. */
   prenotazioneId?: string;
+  /** Cliente dell'anagrafica collegato al conto (per storico, allergie e fattura). */
+  clienteId?: string;
 }
 
 export type StatoRiga =
@@ -74,7 +76,9 @@ export type StatoRiga =
 export interface RigaVariante { nome: string; deltaCents: Cents; }
 
 export interface RigaComanda {
-  id: string; comandaId: string; articoloId: string; descrizione: string;
+  id: string; comandaId: string;
+  /** null = voce libera (es. "pasta al pomodoro" fuori menu). */
+  articoloId: string | null; descrizione: string;
   quantita: number; prezzoUnitarioCents: Cents; varianti: RigaVariante[]; note?: string;
   portata: number; centroProduzioneId: string | null; aliquotaIvaId: string;
   allergeni: Allergene[]; posto?: number; omaggio: boolean; stato: StatoRiga;
@@ -107,7 +111,7 @@ export interface Documento {
   idempotencyKey: string; createdAt: string;
 }
 
-export type TipoLavoro = 'comanda' | 'preconto' | 'documento_commerciale' | 'annullo' | 'chiusura_fiscale';
+export type TipoLavoro = 'comanda' | 'preconto' | 'non_fiscale' | 'documento_commerciale' | 'annullo' | 'chiusura_fiscale';
 export type StatoLavoro = 'in_coda' | 'preso' | 'stampato' | 'errore' | 'da_verificare';
 
 export interface PrintJob {
@@ -133,3 +137,54 @@ export interface Prenotazione {
 
 /** Prenotazione ancora da far sedere? */
 export const daAccogliere = (p: Prenotazione) => p.stato === 'confermata' || p.stato === 'richiesta';
+
+// ---------------------------------------------------------------------------
+// Messaggi ai reparti
+export type TipoMessaggio = 'messaggio' | 'marcia' | 'sollecito';
+
+export interface MessaggioReparto {
+  id: string; centroId: string | null; comandaId: string | null; tipo: TipoMessaggio;
+  testo: string; portata?: number; operatore: string; createdAt: string; vistoAt?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Clienti (anagrafica del gruppo, condivisa tra i locali)
+export interface IndirizzoFiscale {
+  via: string; civico?: string; cap: string; comune: string; provincia?: string; nazione: string;
+}
+
+export interface Cliente {
+  id: string; nome: string; cognome?: string; telefono?: string; email?: string;
+  compleanno?: string; preferenze?: string; allergeni: Allergene[]; noteAllergie?: string;
+  scontoPct: number;
+  ragioneSociale?: string; piva?: string; codiceFiscale?: string; codiceSdi?: string; pec?: string;
+  indirizzoFiscale?: IndirizzoFiscale; consensoMarketing: boolean; createdAt?: string;
+}
+
+export const nomeCliente = (c: Pick<Cliente, 'nome' | 'cognome' | 'ragioneSociale'>) =>
+  c.ragioneSociale?.trim() || [c.nome, c.cognome].filter(Boolean).join(' ');
+
+export interface StoricoCliente {
+  visite: number; spesaCents: number; ultimaVisita?: string;
+  piatti: { descrizione: string; quantita: number }[];
+  fatture: Fattura[];
+}
+
+// ---------------------------------------------------------------------------
+// Fatture elettroniche
+export type StatoFattura = 'da_inviare' | 'inviata' | 'scartata' | 'annullata';
+
+export interface Fattura {
+  id: string; anno: number; numero: number; data: string; clienteId: string | null;
+  documentoId: string | null; comandaId: string | null;
+  imponibileCents: Cents; ivaCents: Cents; totaleCents: Cents; xml: string; stato: StatoFattura;
+  intestatario: string; createdAt: string;
+}
+
+/** Dati del locale per fatturare (cedente/prestatore). */
+export interface DatiFiscali {
+  ragioneSociale: string; piva: string; codiceFiscale?: string;
+  regime: string; via: string; civico?: string; cap: string; comune: string; provincia: string;
+  rea?: { ufficio: string; numero: string };
+  telefono?: string; email?: string;
+}

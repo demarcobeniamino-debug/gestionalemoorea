@@ -1,0 +1,117 @@
+import { describe, it, expect } from 'vitest';
+import { FakeDataLayer, CodaStampa, TrasportoSimulato, seedDemo, calcolaConto, calcolaFattura, xmlFattura, controllaIntestatario, controllaCedente, anteprima, type Cliente } from './index';
+
+const OP = { id: 'op-aldo', nome: 'Aldo', ruolo: 'cameriere' };
+const nuovo = () => { const db = new FakeDataLayer(seedDemo()); return { db, coda: new CodaStampa(db, new TrasportoSimulato()) }; };
+const art = (db: FakeDataLayer, nome: string) => db.setup().articoli.find((a) => a.nome === nome)!.id;
+
+describe('Voci libere e quantità', () => {
+  it('voce libera: niente articolo, prezzo e reparto scelti al volo, va in cucina', async () => {
+    const { db } = nuovo();
+    const s = db.setup();
+    const c = await db.apriTavolo('t1', 2, OP);
+    const cucina = s.centri.find((x) => /cucina/i.test(x.nome))!;
+    const iva10 = s.aliquote.find((a) => a.percentuale === 10)!;
+    const r = await db.aggiungiRiga(c.id, { libera: { descrizione: 'Pasta al pomodoro', prezzoCents: 1200, centroId: cucina.id, aliquotaIvaId: iva10.id }, portata: 1 });
+    expect(r.articoloId).toBeNull();
+    expect(s.articoli.some((a) => /pomodoro/i.test(a.nome) && a.prezzoCents === 1200)).toBe(false);
+    const jobs = await db.invia(c.id, 'k1', OP);
+    expect(jobs).toHaveLength(1);
+    expect(anteprima(jobs[0].ticket!, 42).map((x) => x.testo).join('\n')).toMatch(/1 x Pasta al pomodoro/);
+    await expect(db.aggiungiRiga(c.id, { libera: { descrizione: '  ', prezzoCents: 100, centroId: null, aliquotaIvaId: iva10.id } })).rejects.toThrow(/Scrivi/);
+  });
+
+  it('lo stesso piatto toccato due volte aumenta la quantità; con una nota diventa una riga nuova', async () => {
+    const { db } = nuovo();
+    const c = await db.apriTavolo('t1', 2, OP);
+    const id = art(db, 'Polpo Scottato');
+    await db.aggiungiRiga(c.id, { articoloId: id });
+    await db.aggiungiRiga(c.id, { articoloId: id });
+    expect(db.righe(c.id)).toHaveLength(1);
+    expect(db.righe(c.id)[0].quantita).toBe(2);
+    await db.aggiungiRiga(c.id, { articoloId: id, note: 'senza burrata' });
+    expect(db.righe(c.id)).toHaveLength(2);
+    await db.cambiaQuantita(db.righe(c.id)[0].id, 5);
+    expect(calcolaConto(db.righe(c.id), 2, 200).totaleCents).toBe(6 * 2000 + 400);
+    await db.cambiaQuantita(db.righe(c.id)[0].id, 0);
+    expect(db.righe(c.id)).toHaveLength(1);
+  });
+});
+
+describe('Messaggi ai reparti', () => {
+  it('marcia della 2ª portata: solo ai reparti che hanno piatti di quella portata, con l\'elenco', async () => {
+    const { db, coda } = nuovo();
+    const c = await db.apriTavolo('t5', 2, OP);
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Polpo Scottato'), portata: 1 });
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Entrecôte alla Griglia'), portata: 2 });
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Negroni') });
+    await db.invia(c.id, 'k1', OP);
+    await coda.elabora();
+    const tutti = db.setup().centri.map((x) => x.id);
+    await db.inviaMessaggio({ centriIds: tutti, tipo: 'marcia', portata: 2, comandaId: c.id }, 'm1', OP);
+    const nuovi = db.lavori().filter((j) => j.idempotencyKey.startsWith('m1:'));
+    expect(nuovi).toHaveLength(1);
+    const testo = anteprima(nuovi[0].ticket!, 42).map((x) => x.testo).join('\n');
+    expect(testo).toMatch(/MARCIA/);
+    expect(testo).toMatch(/TAVOLO 5/);
+    expect(testo).toMatch(/Entrec/);
+    expect(testo).not.toMatch(/Polpo/);
+    expect(db.messaggi()[0].tipo).toBe('marcia');
+    await db.segnaMessaggioVisto(db.messaggi()[0].id);
+    expect(db.messaggi()[0].vistoAt).toBeTruthy();
+  });
+
+  it('messaggio libero a tutti i reparti; vuoto non parte', async () => {
+    const { db } = nuovo();
+    const tutti = db.setup().centri.map((x) => x.id);
+    await db.inviaMessaggio({ centriIds: tutti, tipo: 'messaggio', testo: 'Tavolo 12 arriva tra 10 minuti' }, 'm2', OP);
+    expect(db.messaggi()).toHaveLength(tutti.length);
+    await expect(db.inviaMessaggio({ centriIds: tutti, tipo: 'messaggio', testo: ' ' }, 'm3', OP)).rejects.toThrow(/Scrivi/);
+  });
+});
+
+describe('Fatture', () => {
+  const s = seedDemo();
+  const iva10 = s.aliquote.find((a) => a.percentuale === 10)!;
+  const iva22 = s.aliquote.find((a) => a.percentuale === 22)!;
+
+  it('scorporo IVA: righe e riepiloghi tornano al centesimo, anche con sconto', () => {
+    const righe = [
+      { descrizione: 'Polpo', quantita: 1, prezzoUnitarioCents: 2000, repartoRt: iva10.repartoRt },
+      { descrizione: 'Gnocchi', quantita: 3, prezzoUnitarioCents: 1333, repartoRt: iva10.repartoRt },
+      { descrizione: 'Vino', quantita: 1, prezzoUnitarioCents: 3200, repartoRt: iva22.repartoRt },
+    ];
+    const f = calcolaFattura(righe, 777, s.aliquote);
+    const lordo = 2000 + 3999 + 3200 - 777;
+    expect(f.totaleCents).toBe(lordo);
+    for (const r of f.riepilogo) expect(f.linee.filter((l) => l.aliquota === r.aliquota).reduce((t, l) => t + l.totaleCents, 0)).toBe(r.imponibileCents);
+    const r10 = f.riepilogo.find((r) => r.aliquota === 10)!;
+    expect(Math.abs(r10.impostaCents - Math.round(r10.imponibileCents * 0.1))).toBeLessThanOrEqual(1);
+  });
+
+  it('controlli su intestatario e locale; XML con numero dal server', async () => {
+    const privato: Cliente = { id: 'c1', nome: 'Mario', cognome: 'Rossi', allergeni: [], scontoPct: 0, consensoMarketing: false, codiceFiscale: 'RSSMRA80A01F839W' };
+    expect(controllaIntestatario(privato)).toContain('indirizzo (via, CAP, comune)');
+    privato.indirizzoFiscale = { via: 'Via Roma', civico: '1', cap: '84010', comune: 'Maiori', provincia: 'SA', nazione: 'IT' };
+    expect(controllaIntestatario(privato)).toEqual([]);
+    expect(controllaCedente({ ragioneSociale: 'Da completare' })).toContain('ragione sociale del locale');
+
+    const ced = { ragioneSociale: 'Moorea S.r.l.', piva: '01234567890', regime: 'RF01', via: 'Lungomare Amendola', civico: '1', cap: '84010', comune: 'Maiori', provincia: 'SA' };
+    const calcolo = calcolaFattura([{ descrizione: 'Cena & vino <rosso>', quantita: 2, prezzoUnitarioCents: 4500, repartoRt: iva10.repartoRt }], 0, s.aliquote);
+    const xml = xmlFattura({ cedente: ced, cliente: privato, data: '2026-11-27', calcolo, progressivo: 'A1B2C', riferimento: 'scontrino 41-0001' });
+    expect(xml).toMatch(/<CodiceDestinatario>0000000<\/CodiceDestinatario>/);
+    expect(xml).toMatch(/<Numero>__NUMERO__<\/Numero>/);
+    expect(xml).toMatch(/Cena &amp; vino &lt;rosso&gt;/);
+    expect(xml).toMatch(/<ImportoTotaleDocumento>90.00<\/ImportoTotaleDocumento>/);
+    expect(xml).toMatch(/<ImponibileImporto>81.82<\/ImponibileImporto>/);
+
+    const { db } = nuovo();
+    const cl = await db.salvaCliente({ ...privato, id: undefined });
+    const f1 = await db.emettiFattura({ clienteId: cl.id, documentoId: 'd1', data: '2026-11-27', calcolo, xml, progressivo: 'A1B2C', intestatario: 'Mario Rossi' }, 'f1');
+    const f2 = await db.emettiFattura({ clienteId: cl.id, documentoId: 'd2', data: '2026-11-27', calcolo, xml, progressivo: 'A1B2D', intestatario: 'Mario Rossi' }, 'f2');
+    expect([f1.numero, f2.numero]).toEqual([1, 2]);
+    expect(f2.xml).toMatch(/<Numero>2<\/Numero>/);
+    await expect(db.emettiFattura({ clienteId: cl.id, documentoId: 'd1', data: '2026-11-27', calcolo, xml, progressivo: 'X', intestatario: '' }, 'f3')).rejects.toThrow(/già/);
+    expect((await db.storicoCliente(cl.id)).fatture).toHaveLength(2);
+  });
+});

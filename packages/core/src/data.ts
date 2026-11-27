@@ -3,17 +3,34 @@
 //  - SupabaseDataLayer (nell'app): database vero, con cache locale aggiornata in tempo reale.
 // Le letture sono immediate (dalla cache); le scritture sono asincrone.
 
-import type { Allergene, Comanda, Documento, Prenotazione, PrintJob, RigaComanda, RigaVariante } from './types';
+import type { Allergene, Cliente, Comanda, DatiFiscali, Documento, Fattura, MessaggioReparto, Prenotazione, PrintJob, RigaComanda, RigaVariante, StatoFattura, StoricoCliente, TipoMessaggio } from './types';
+import { nomeCliente } from './types';
 import type { Setup } from './seed';
-import { ErroreDominio, preparaAnnullo, preparaChiusura, preparaIncasso, preparaInvio, preparaPreconto, preparaStorno, type Incasso } from './operazioni';
+import { ErroreDominio, preparaAnnullo, preparaChiusura, preparaIncasso, preparaInvio, preparaMessaggio, preparaPreconto, preparaStorno, type Incasso } from './operazioni';
+import type { CalcoloFattura } from './fattura';
 import type { DatiPeriodo } from './report';
 import { calcolaConto } from './conto';
 
 export { ErroreDominio, type Incasso };
 
 export interface NuovaRiga {
-  articoloId: string; quantita?: number; varianti?: RigaVariante[]; note?: string; portata?: number; posto?: number;
+  /** Articolo del menu. Assente = voce libera (serve "libera"). */
+  articoloId?: string;
+  libera?: VoceLibera;
+  quantita?: number; varianti?: RigaVariante[]; note?: string; portata?: number; posto?: number;
 }
+
+/** Voce fuori menu, creata al volo: non diventa un articolo. */
+export interface VoceLibera { descrizione: string; prezzoCents: number; centroId: string | null; aliquotaIvaId: string }
+
+export interface NuovoMessaggio { centriIds: string[]; tipo: TipoMessaggio; testo?: string; portata?: number; comandaId?: string }
+
+export interface NuovaFattura {
+  clienteId: string; documentoId?: string; comandaId?: string; data: string;
+  calcolo: CalcoloFattura; xml: string; progressivo: string; intestatario: string;
+}
+
+export type ClienteNuovo = Omit<Cliente, 'id'> & { id?: string };
 
 export interface Operatore { id: string; nome: string; ruolo: string }
 
@@ -38,8 +55,11 @@ export interface DataLayer {
   segnaNonPresentato(prenotazioneId: string): Promise<void>;
   /** Legge subito le prenotazioni nuove da Table Flow (dove c'è il collegamento). */
   sincronizzaPrenotazioni?(): Promise<{ importate: number; inviate: number; errori: string[] }>;
+  /** Aggiunge un piatto (o una voce libera). Lo stesso piatto senza varianti, non ancora inviato, aumenta la quantità. */
   aggiungiRiga(comandaId: string, r: NuovaRiga): Promise<RigaComanda>;
   togliRiga(rigaId: string): Promise<void>;
+  /** Solo righe non ancora inviate. 0 = toglie la riga. */
+  cambiaQuantita(rigaId: string, quantita: number): Promise<void>;
   impostaAllergeni(comandaId: string, a: { allergene: Allergene; posto?: number }[]): Promise<void>;
   invia(comandaId: string, idempotencyKey: string, operatore?: Operatore, portata?: number): Promise<PrintJob[]>;
   storna(rigaId: string, motivo: string, idempotencyKey: string, operatore?: Operatore): Promise<void>;
@@ -60,6 +80,26 @@ export interface DataLayer {
   chiusuraFiscale(totali: object, idempotencyKey: string, operatore?: Operatore): Promise<void>;
   /** Conti, righe e scontrini degli ultimi n giorni di servizio (1 = oggi). */
   datiPeriodo(giorni: number): Promise<DatiPeriodo>;
+
+  /** Messaggi ai reparti delle ultime ore (i più recenti per primi). */
+  messaggi(): MessaggioReparto[];
+  inviaMessaggio(m: NuovoMessaggio, idempotencyKey: string, operatore?: Operatore): Promise<void>;
+  segnaMessaggioVisto(id: string): Promise<void>;
+
+  /** Anagrafica clienti (condivisa tra i locali del gruppo). */
+  cercaClienti(testo: string): Promise<Cliente[]>;
+  cliente(id: string): Promise<Cliente | null>;
+  salvaCliente(c: ClienteNuovo): Promise<Cliente>;
+  impostaCliente(comandaId: string, clienteId: string | null): Promise<void>;
+  storicoCliente(id: string): Promise<StoricoCliente>;
+
+  /** Dati del locale per le fatture. */
+  salvaDatiFiscali(d: DatiFiscali): Promise<void>;
+  emettiFattura(f: NuovaFattura, idempotencyKey: string, operatore?: Operatore): Promise<Fattura>;
+  fatture(giorni: number): Promise<Fattura[]>;
+  impostaStatoFattura(id: string, stato: StatoFattura): Promise<void>;
+  /** Stampa non fiscale (es. copia di cortesia della fattura) sulla stampante dei preconti. */
+  stampaNonFiscale(ticket: import('./ticket').Ticket, idempotencyKey: string): Promise<void>;
 
   /** Solo l'app di cassa: prende i lavori da stampare (nessun altro dispositivo li riceve). */
   prendiLavori(max?: number): Promise<PrintJob[]>;
@@ -147,10 +187,21 @@ export class FakeDataLayer implements DataLayer {
 
   async aggiungiRiga(comandaId: string, r: NuovaRiga): Promise<RigaComanda> {
     const c = this.comandaAperta(comandaId);
+    const uguale = rigaUguale(this.righe(comandaId), r);
+    if (uguale) { uguale.quantita += r.quantita ?? 1; c.version++; this.emit(); return uguale; }
     const riga = nuovaRiga(this.s, comandaId, r, uid(), this.stamp());
     this._righe.set(riga.id, riga);
     if (c.stato === 'preconto') c.stato = 'aperta';
     c.version++; this.emit(); return riga;
+  }
+
+  async cambiaQuantita(rigaId: string, quantita: number) {
+    const r = this._righe.get(rigaId);
+    if (!r) return;
+    if (r.stato !== 'da_inviare' && r.stato !== 'in_attesa_marcia') throw new ErroreDominio('Riga già inviata: va stornata');
+    if (quantita <= 0) this._righe.delete(rigaId); else r.quantita = quantita;
+    const c = this._comande.get(r.comandaId); if (c) c.version++;
+    this.emit();
   }
 
   async togliRiga(rigaId: string) {
@@ -300,6 +351,87 @@ export class FakeDataLayer implements DataLayer {
     });
   }
 
+  // ---------------------------------------------------------------- messaggi
+  private _messaggi: MessaggioReparto[] = [];
+  messaggi() { return this._messaggi; }
+  async inviaMessaggio(m: NuovoMessaggio, key: string, op?: Operatore) {
+    this.idem(key, () => {
+      const c = m.comandaId ? this.comandaAperta(m.comandaId) : undefined;
+      const quando = this.now().toISOString();
+      const prep = preparaMessaggio(this.s, { ...m, comanda: c, righe: c ? this.righe(c.id) : [], operatore: op?.nome ?? c?.operatore ?? '', quando });
+      prep.reparti.forEach((rep, i) => {
+        this._messaggi = [{ id: uid(), centroId: rep.centroId, comandaId: c?.id ?? null, tipo: m.tipo, testo: m.testo ?? '', portata: m.portata, operatore: op?.nome ?? '', createdAt: this.now().toISOString() }, ...this._messaggi];
+        if (rep.stampanteId) this.nuovoLavoro({ tipo: 'comanda', stampanteId: rep.stampanteId, idempotencyKey: `${key}:${i + 1}`, comandaId: c?.id, ticket: rep.ticket });
+      });
+      return true;
+    });
+  }
+  async segnaMessaggioVisto(id: string) {
+    this._messaggi = this._messaggi.map((x) => (x.id === id ? { ...x, vistoAt: this.now().toISOString() } : x)); this.emit();
+  }
+
+  // ---------------------------------------------------------------- clienti
+  private _clienti = new Map<string, Cliente>();
+  async cercaClienti(testo: string) {
+    const q = testo.trim().toLowerCase();
+    return [...this._clienti.values()]
+      .filter((c) => !q || [nomeCliente(c), c.telefono, c.email, c.piva, c.codiceFiscale].some((v) => v?.toLowerCase().includes(q)))
+      .sort((a, b) => nomeCliente(a).localeCompare(nomeCliente(b))).slice(0, 50);
+  }
+  async cliente(id: string) { return this._clienti.get(id) ?? null; }
+  async salvaCliente(c: ClienteNuovo) {
+    if (!c.nome.trim() && !c.ragioneSociale?.trim()) throw new ErroreDominio('Manca il nome');
+    const v: Cliente = { ...c, id: c.id ?? uid(), createdAt: c.createdAt ?? this.now().toISOString() };
+    this._clienti.set(v.id, v); this.emit(); return v;
+  }
+  async impostaCliente(comandaId: string, clienteId: string | null) {
+    const c = this.comandaAperta(comandaId); c.clienteId = clienteId ?? undefined; c.version++; this.emit();
+  }
+  async storicoCliente(id: string): Promise<StoricoCliente> {
+    const comande = [...this._comande.values()].filter((c) => c.clienteId === id && c.stato === 'chiusa');
+    const ids = new Set(comande.map((c) => c.id));
+    const spesa = [...this._documenti.values()].filter((d) => ids.has(d.comandaId) && d.stato === 'emesso').reduce((t, d) => t + d.totaleCents, 0);
+    const piatti = new Map<string, number>();
+    for (const r of this._righe.values()) if (ids.has(r.comandaId) && r.stato !== 'stornata') piatti.set(r.descrizione, (piatti.get(r.descrizione) ?? 0) + r.quantita);
+    return {
+      visite: comande.length, spesaCents: spesa, ultimaVisita: comande.map((c) => c.apertaAt).sort().pop(),
+      piatti: [...piatti].map(([descrizione, quantita]) => ({ descrizione, quantita })).sort((a, b) => b.quantita - a.quantita).slice(0, 8),
+      fatture: this._fatture.filter((f) => f.clienteId === id),
+    };
+  }
+
+  // ---------------------------------------------------------------- fatture
+  private _fatture: Fattura[] = [];
+  async salvaDatiFiscali(d: DatiFiscali) { this.s = { ...this.s, locale: { ...this.s.locale, fiscali: d } }; this.emit(); }
+  async emettiFattura(f: NuovaFattura, key: string) {
+    return this.idem(key, () => {
+      if (f.documentoId && this._fatture.some((x) => x.documentoId === f.documentoId && x.stato !== 'annullata')) throw new ErroreDominio('Questo scontrino ha già la sua fattura');
+      const anno = Number(f.data.slice(0, 4));
+      const numero = Math.max(0, ...this._fatture.filter((x) => x.anno === anno).map((x) => x.numero)) + 1;
+      const v: Fattura = {
+        id: uid(), anno, numero, data: f.data, clienteId: f.clienteId, documentoId: f.documentoId ?? null, comandaId: f.comandaId ?? null,
+        imponibileCents: f.calcolo.imponibileCents, ivaCents: f.calcolo.ivaCents, totaleCents: f.calcolo.totaleCents,
+        xml: f.xml.replace('__NUMERO__', String(numero)), stato: 'da_inviare', intestatario: f.intestatario, createdAt: this.now().toISOString(),
+      };
+      this._fatture = [v, ...this._fatture];
+      return v;
+    });
+  }
+  async fatture(giorni: number) {
+    const da = this.now().getTime() - giorni * 24 * 3600_000;
+    return this._fatture.filter((f) => new Date(f.createdAt).getTime() >= da);
+  }
+  async impostaStatoFattura(id: string, stato: StatoFattura) {
+    this._fatture = this._fatture.map((f) => (f.id === id ? { ...f, stato } : f)); this.emit();
+  }
+  async stampaNonFiscale(ticket: import('./ticket').Ticket, key: string) {
+    this.idem(key, () => {
+      const st = this.s.stampanti.find((x) => x.perPreconto) ?? this.s.stampanti.find((x) => x.tipo === 'comande_escpos');
+      if (!st) throw new ErroreDominio('Nessuna stampante per le stampe non fiscali');
+      return this.nuovoLavoro({ tipo: 'non_fiscale', stampanteId: st.id, idempotencyKey: key, ticket });
+    });
+  }
+
   chiusure: { totali: object; quando: string }[] = [];
   async chiusuraFiscale(totali: object, key: string) {
     this.idem(key, () => {
@@ -335,8 +467,27 @@ export class FakeDataLayer implements DataLayer {
   }
 }
 
+/** Riga uguale ancora da inviare (stesso piatto, portata, nessuna variante/nota/posto): si aumenta la quantità. */
+export function rigaUguale(righe: RigaComanda[], r: NuovaRiga): RigaComanda | undefined {
+  if (!r.articoloId || r.varianti?.length || r.note || r.posto) return undefined;
+  return righe.find((x) => x.stato === 'da_inviare' && x.articoloId === r.articoloId && !x.varianti.length && !x.note && !x.posto
+    && (r.portata === undefined || x.portata === r.portata));
+}
+
 /** Costruisce una riga di comanda dall'articolo (prezzo, IVA, centro, allergeni copiati al momento dell'ordine). */
 export function nuovaRiga(s: Setup, comandaId: string, r: NuovaRiga, id: string, createdAt: string): RigaComanda {
+  if (!r.articoloId) {
+    const l = r.libera;
+    if (!l || !l.descrizione.trim()) throw new ErroreDominio('Scrivi cosa aggiungere');
+    if (!Number.isFinite(l.prezzoCents) || l.prezzoCents < 0) throw new ErroreDominio('Prezzo non valido');
+    if (!s.aliquote.some((a) => a.id === l.aliquotaIvaId)) throw new ErroreDominio('Scegli l\'IVA');
+    return {
+      id, comandaId, articoloId: null, descrizione: l.descrizione.trim().slice(0, 60),
+      quantita: r.quantita ?? 1, prezzoUnitarioCents: Math.round(l.prezzoCents), varianti: [], note: r.note,
+      portata: r.portata ?? 1, centroProduzioneId: l.centroId, aliquotaIvaId: l.aliquotaIvaId, allergeni: [], posto: r.posto,
+      omaggio: false, stato: 'da_inviare', createdAt,
+    };
+  }
   const art = s.articoli.find((x) => x.id === r.articoloId);
   if (!art) throw new ErroreDominio('Articolo inesistente');
   if (art.esaurito) throw new ErroreDominio(`${art.nome} è esaurito`);

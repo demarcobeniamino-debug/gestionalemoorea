@@ -72,10 +72,12 @@ export function riepilogo(d: DatiPeriodo, s: Setup): Riepilogo {
   for (const r of venduti) {
     const art = s.articoli.find((a) => a.id === r.articoloId);
     const cat = s.categorie.find((c) => c.id === art?.categoriaId);
-    const p = piatti.get(r.articoloId) ?? { articoloId: r.articoloId, descrizione: art?.nome ?? r.descrizione, categoria: cat?.nome ?? '', quantita: 0, importoCents: 0 };
+    // Voci libere: raggruppate per descrizione.
+    const chiave = r.articoloId ?? `libera:${r.descrizione.toLowerCase()}`;
+    const p = piatti.get(chiave) ?? { articoloId: chiave, descrizione: art?.nome ?? r.descrizione, categoria: cat?.nome ?? 'Fuori menu', quantita: 0, importoCents: 0 };
     p.quantita += r.quantita; p.importoCents += importoRiga(r);
-    piatti.set(r.articoloId, p);
-    const nome = cat?.nome ?? 'Altro';
+    piatti.set(chiave, p);
+    const nome = cat?.nome ?? (r.articoloId ? 'Altro' : 'Fuori menu');
     const c = categorie.get(nome) ?? { nome, colore: cat?.colore ?? '#a3acba', importoCents: 0, quantita: 0 };
     c.importoCents += importoRiga(r); c.quantita += r.quantita;
     categorie.set(nome, c);

@@ -2,13 +2,14 @@
 // Solo per i responsabili.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowCounterClockwise, Receipt, Vault } from '@phosphor-icons/react';
+import { ArrowCounterClockwise, FileText, Receipt, Vault } from '@phosphor-icons/react';
+import { FoglioFattura } from './Fattura';
 import { euro, riepilogo, totaliChiusura, type DatiPeriodo, type Documento, type TipoPagamento } from '@gr/core';
 import { nuovaChiave, useApp, useAzione, useDati } from '../dati/contesto';
 import { Testata } from '../ui/Testata';
 import { Foglio, Pulsante, Spinner } from '../ui/primitivi';
 import { Segmenti } from '../ui/campi';
-import { puoGestire } from './gestione/Layout';
+import { puoGestire } from '../dati/ruoli';
 
 const PAGAMENTI: Record<TipoPagamento, string> = {
   contanti: 'Contanti', carta: 'Carta', buono_pasto: 'Buoni pasto', prepagata: 'Prepagata', sospeso: 'Sospeso', camera: 'Addebito camera',
@@ -37,6 +38,7 @@ export function Cassa() {
   const [errore, setErrore] = useState<string | null>(null);
   const [annulla, setAnnulla] = useState<Documento | null>(null);
   const [chiusura, setChiusura] = useState(false);
+  const [fattura, setFattura] = useState<Documento | null>(null);
 
   const carica = useCallback(async () => {
     try { setErrore(null); setDati(await db.datiPeriodo(giorni)); }
@@ -46,12 +48,13 @@ export function Cassa() {
 
   const r = useMemo(() => (dati ? riepilogo(dati, setup) : null), [dati, setup]);
 
-  if (!puoGestire(operatore?.ruolo)) {
+  const responsabile = puoGestire(operatore?.ruolo);
+  if (!responsabile && operatore?.ruolo !== 'cassiere') {
     return (
       <main className="grid h-full place-items-center bg-bg p-6 text-text">
         <div className="max-w-sm text-center">
           <h1 className="mb-2 text-xl font-bold">Solo per i responsabili</h1>
-          <p className="mb-6 text-text-muted">Incassi, annulli e chiusura di cassa sono riservati a chi ha il ruolo di responsabile.</p>
+          <p className="mb-6 text-text-muted">Incassi, fatture e chiusura di cassa sono per la cassa e i responsabili.</p>
           <Link to="/sala" className="premibile inline-flex h-touch items-center rounded-md bg-surface-2 px-5 font-semibold">Torna alla sala</Link>
         </div>
       </main>
@@ -74,7 +77,7 @@ export function Cassa() {
           <div className="flex flex-wrap items-center gap-3">
             <div className="w-full max-w-sm"><Segmenti etichetta="Periodo" valore={String(giorni)} onCambia={(v) => setGiorni(Number(v))} opzioni={PERIODI} /></div>
             <span className="flex-1" />
-            {giorni === 1 && (
+            {giorni === 1 && responsabile && (
               <Pulsante variante="primario" taglia="md" icona={<Vault size={18} weight="bold" aria-hidden="true" />} onClick={() => setChiusura(true)} disabled={!r}>
                 Chiusura fiscale
               </Pulsante>
@@ -153,7 +156,10 @@ export function Cassa() {
                         </span>
                       </span>
                       <span className={`font-semibold tabular-nums ${d.stato === 'annullato' ? 'line-through' : ''}`}>{euro(d.totaleCents)}</span>
-                      {d.stato === 'emesso' && giorni === 1 && (
+                      {d.stato === 'emesso' && (
+                        <Pulsante taglia="md" icona={<FileText size={16} weight="bold" aria-hidden="true" />} onClick={() => setFattura(d)}>Fattura</Pulsante>
+                      )}
+                      {d.stato === 'emesso' && giorni === 1 && responsabile && (
                         <Pulsante taglia="md" icona={<ArrowCounterClockwise size={16} weight="bold" aria-hidden="true" />} onClick={() => setAnnulla(d)}>Annulla</Pulsante>
                       )}
                     </li>
@@ -164,6 +170,8 @@ export function Cassa() {
           </>)}
         </div>
       </main>
+      {fattura && <FoglioFattura documento={fattura} tavolo={nomeTavolo(fattura.comandaId)}
+        clienteIdIniziale={dati?.comande.find((c) => c.id === fattura.comandaId)?.clienteId} onChiudi={() => setFattura(null)} />}
       {annulla && <FoglioAnnullo documento={annulla} tavolo={nomeTavolo(annulla.comandaId)} onChiudi={() => { setAnnulla(null); void carica(); }} />}
       {chiusura && r && <FoglioChiusura totali={totaliChiusura(r)} incasso={r.incassoCents} aperti={r.aperti.tavoli} onChiudi={() => { setChiusura(false); void carica(); }} />}
     </div>

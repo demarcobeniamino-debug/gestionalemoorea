@@ -4,7 +4,7 @@ import { testoSu } from './gestione';
 import type { AliquotaIva, Articolo, Categoria, CentroProduzione, Sala, Stampante, Tavolo, Variante } from './types';
 
 export interface Setup {
-  locale: { id: string; nome: string; citta: string; copertoCents: number; aliquotaCopertoId: string };
+  locale: { id: string; nome: string; citta: string; copertoCents: number; aliquotaCopertoId: string; fiscali?: Partial<import('./types').DatiFiscali> };
   stampanti: Stampante[];
   centri: CentroProduzione[];
   aliquote: AliquotaIva[];

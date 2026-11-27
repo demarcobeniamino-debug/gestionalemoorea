@@ -13,7 +13,7 @@ export function Testata({ titolo, sotto, indietro, children }: { titolo: ReactNo
         <Link to={indietro} aria-label="Indietro" className="premibile grid h-10 w-10 flex-none place-items-center rounded-md bg-surface-2">{Icona.indietro}</Link>
       )}
       <div className="flex min-w-0 flex-col md:flex-row md:items-baseline md:gap-3">
-        <h1 className="truncate text-lg font-bold tracking-tight md:text-xl">{titolo}</h1>
+        <h1 className="whitespace-nowrap text-lg font-bold tracking-tight md:text-xl">{titolo}</h1>
         {sotto && <span className="truncate text-xs font-medium text-text-muted md:text-sm">{sotto}</span>}
       </div>
       {modalita === 'demo' && (
@@ -21,8 +21,8 @@ export function Testata({ titolo, sotto, indietro, children }: { titolo: ReactNo
       )}
       <div className="flex-1" />
       {children}
-      <div className="hidden lg:block"><StatoStampanti /></div>
-      <div className="lg:hidden"><StatoStampanti compatto /></div>
+      <div className="hidden 2xl:block"><StatoStampanti /></div>
+      <div className="2xl:hidden"><StatoStampanti compatto /></div>
       {operatore && (
         <button type="button" onClick={() => { setOperatore(null); nav('/accesso'); }}
           className="premibile hidden h-10 flex-none items-center gap-2 rounded-md border border-border bg-surface-2 px-3 text-sm font-semibold sm:flex"
@@ -30,7 +30,7 @@ export function Testata({ titolo, sotto, indietro, children }: { titolo: ReactNo
           {Icona.utente}{operatore.nome}
         </button>
       )}
-      <time className="hidden text-xl font-semibold tabular-nums md:block">
+      <time className="hidden text-xl font-semibold tabular-nums lg:block">
         {ora.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
       </time>
     </header>

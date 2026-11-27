@@ -1,12 +1,12 @@
 // Preparazione delle operazioni di servizio: funzioni pure, usate sia dai dati in memoria (demo)
 // sia dal database (Supabase). Così il ticket e lo scontrino sono identici in entrambi i casi.
 
-import type { Comanda, Documento, Pagamento, RigaComanda, RigaDocumento } from './types';
+import type { Comanda, Documento, Pagamento, RigaComanda, RigaDocumento, TipoMessaggio } from './types';
 import { PAGAMENTO_RT } from './types';
 import type { Setup } from './seed';
 import type { Ticket } from './ticket';
 import { calcolaConto, righeDocumento, totaleRighe } from './conto';
-import { ticketComanda, ticketPreconto } from './comande';
+import { ticketComanda, ticketMessaggio, ticketPreconto } from './comande';
 import { dividiAllaRomana } from './money';
 import { xmlAnnulloReso, xmlChiusuraGiornaliera, xmlDocumentoCommerciale } from './epson';
 
@@ -136,4 +136,36 @@ export function preparaAnnullo(s: Setup, d: Documento) {
 export function preparaChiusura(s: Setup) {
   const rt = rtDi(s);
   return { stampanteId: rt.id, xml: xmlChiusuraGiornaliera({ host: rt.host }) };
+}
+
+export interface MessaggioPreparato { reparti: { centroId: string; stampanteId: string | null; ticket: Ticket }[] }
+
+/**
+ * Messaggio ai reparti. Marcia e sollecito riguardano un tavolo e una portata: vanno solo ai reparti
+ * che hanno piatti di quella portata (se nessuno, a tutti quelli scelti).
+ */
+export function preparaMessaggio(s: Setup, m: {
+  centriIds: string[]; tipo: TipoMessaggio; testo?: string; portata?: number; comanda?: Comanda; righe?: RigaComanda[]; operatore: string; quando: string;
+}): MessaggioPreparato {
+  if (m.tipo === 'messaggio' && !m.testo?.trim()) throw new ErroreDominio('Scrivi il messaggio');
+  if (m.tipo !== 'messaggio' && !m.comanda) throw new ErroreDominio('Marcia e sollecito vanno fatti da un tavolo');
+  const tav = m.comanda ? tavoloLabel(s, m.comanda).numero : undefined;
+  const righePortata = (m.righe ?? []).filter((r) => r.stato !== 'stornata' && r.stato !== 'da_inviare' && (m.portata === undefined || r.portata === m.portata));
+  let centri = m.centriIds;
+  if (m.tipo !== 'messaggio') {
+    const coinvolti = [...new Set(righePortata.map((r) => r.centroProduzioneId).filter((x): x is string => !!x))];
+    if (coinvolti.length) centri = coinvolti;
+  }
+  if (!centri.length) throw new ErroreDominio('Scegli almeno un reparto');
+  return {
+    reparti: centri.map((id) => {
+      const c = s.centri.find((x) => x.id === id);
+      if (!c) throw new ErroreDominio('Reparto inesistente');
+      return {
+        centroId: id, stampanteId: c.stampanteId,
+        ticket: ticketMessaggio({ centro: c.nome, tipo: m.tipo, tavolo: tav, comanda: m.comanda, portata: m.portata, testo: m.testo, operatore: m.operatore, quando: m.quando,
+          righe: righePortata.filter((r) => r.centroProduzioneId === id) }),
+      };
+    }),
+  };
 }

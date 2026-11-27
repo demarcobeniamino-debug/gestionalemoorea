@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle, Warning } from '@phosphor-icons/react';
+import { BellRinging, ChatCircleText, CheckCircle, Lightning, Warning } from '@phosphor-icons/react';
 import { ALLERGENI_ETICHETTA, nomePortata } from '@gr/core';
 import { useApp, useAzione, useDati, useOra } from '../dati/contesto';
 import { Icona, IconaCentro } from '../ui/primitivi';
@@ -15,6 +15,10 @@ export function Cucina() {
   const { centri, tavoli } = useDati((d) => ({ centri: d.setup().centri, tavoli: d.setup().tavoli }));
   const [centroId, setCentroId] = useState(centri[0]?.id);
   const lista = useDati((d) => d.righeDaPreparare(centroId));
+  // Messaggi non ancora visti per questo reparto (ultime 3 ore).
+  const messaggi = useDati((d) => d.messaggi()).filter((m) => m.centroId === centroId && !m.vistoAt && ora.getTime() - new Date(m.createdAt).getTime() < 3 * 3600_000);
+  const avvisoTavolo = (comandaId: string) => messaggi.find((m) => m.comandaId === comandaId && m.tipo !== 'messaggio');
+  const numeroTavolo = (comandaId: string | null) => { const c = comandaId ? db.comanda(comandaId) : undefined; return tavoli.find((t) => t.id === c?.tavoloId)?.numero; };
   const minuti = (iso?: string) => (iso ? Math.max(0, Math.floor((ora.getTime() - new Date(iso).getTime()) / 60000)) : 0);
 
   return (
@@ -33,6 +37,28 @@ export function Cucina() {
         <time className="text-2xl font-bold tabular-nums">{ora.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</time>
       </header>
 
+      {messaggi.length > 0 && (
+        <section aria-label="Messaggi dalla sala" aria-live="polite" className="flex flex-none gap-2 overflow-x-auto border-b border-border bg-surface px-3 py-2.5">
+          {messaggi.map((m) => {
+            const tav = numeroTavolo(m.comandaId);
+            const Icon = m.tipo === 'marcia' ? Lightning : m.tipo === 'sollecito' ? BellRinging : ChatCircleText;
+            return (
+              <button key={m.id} type="button" onClick={() => void esegui(() => db.segnaMessaggioVisto(m.id))} aria-label={`Visto: ${m.tipo} ${tav ? 'tavolo ' + tav : ''} ${m.testo}`}
+                className={`ticket-nuovo premibile flex min-w-[15rem] max-w-[24rem] flex-none items-start gap-3 rounded-lg px-4 py-3 text-left ${m.tipo === 'messaggio' ? 'bg-surface-2 text-text' : m.tipo === 'marcia' ? 'bg-accent text-on-accent' : 'bg-warning text-on-warning'}`}>
+                <Icon size={26} weight="fill" aria-hidden className="mt-0.5 flex-none" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-lg font-extrabold uppercase leading-6">
+                    {m.tipo === 'messaggio' ? (tav ? `Tavolo ${tav}` : 'Messaggio') : `${m.tipo} ${tav ? 'tav. ' + tav : ''}`}{m.portata !== undefined ? ` · ${nomePortata(m.portata)}` : ''}
+                  </span>
+                  {m.testo && <span className="block text-base font-semibold leading-5">{m.testo}</span>}
+                  <span className="mt-1 block text-xs font-semibold opacity-80">{m.operatore ? `${m.operatore} · ` : ''}{new Date(m.createdAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} · tocca: visto</span>
+                </span>
+              </button>
+            );
+          })}
+        </section>
+      )}
+
       {lista.length === 0 ? (
         <div className="grid flex-1 place-items-center text-center">
           <div>
@@ -50,15 +76,22 @@ export function Cucina() {
             const nuovo = m < 1;
             const daFare = righe.filter((r) => r.stato !== 'pronta');
             const portate = [...new Set(righe.map((r) => r.portata))].sort((a, b) => a - b);
+            const avviso = avvisoTavolo(comanda.id);
             return (
               <article key={comanda.id} aria-label={`Tavolo ${t?.numero}, ${m} minuti${ritardo ? ', in ritardo' : ''}`}
-                className={`ticket-nuovo flex flex-col overflow-hidden rounded-lg bg-surface ${ritardo ? 'ring-[3px] ring-danger' : nuovo ? 'ring-[3px] ring-accent' : 'ring-1 ring-border'}`}>
+                className={`ticket-nuovo flex flex-col overflow-hidden rounded-lg bg-surface ${ritardo ? 'ring-[3px] ring-danger' : avviso ? 'ring-[3px] ring-warning' : nuovo ? 'ring-[3px] ring-accent' : 'ring-1 ring-border'}`}>
                 <button type="button" onClick={() => void esegui(() => db.segnaPronte(daFare.map((r) => r.id)))}
                   className={`premibile flex items-baseline justify-between px-4 py-3 text-left ${ritardo ? 'bg-danger text-on-danger' : ''}`}
                   aria-label={`Segna tutto pronto per il tavolo ${t?.numero}`}>
                   <b className="text-2xl tracking-tight">Tavolo {t?.numero}</b>
                   <span className={`text-xl font-bold tabular-nums ${nuovo && !ritardo ? 'text-accent' : ''}`}>{nuovo ? 'Nuovo' : `${m}′`}</span>
                 </button>
+                {avviso && (
+                  <div className={`flex items-center gap-2 px-4 py-1.5 text-base font-extrabold uppercase ${avviso.tipo === 'marcia' ? 'bg-accent text-on-accent' : 'bg-warning text-on-warning'}`}>
+                    {avviso.tipo === 'marcia' ? <Lightning size={18} weight="fill" aria-hidden /> : <BellRinging size={18} weight="fill" aria-hidden />}
+                    {avviso.tipo}{avviso.portata !== undefined ? ` ${nomePortata(avviso.portata)}` : ''}
+                  </div>
+                )}
                 {comanda.allergeniTavolo.length > 0 && (
                   <div className="flex items-start gap-2 bg-allergene px-4 py-2 text-lg font-extrabold uppercase leading-6 text-on-allergene">
                     <Warning size={22} weight="fill" className="mt-0.5 flex-none" aria-hidden />

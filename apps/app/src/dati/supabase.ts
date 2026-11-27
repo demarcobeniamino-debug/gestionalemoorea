@@ -6,6 +6,8 @@ import {
   ErroreDominio, nuovaRiga, preparaAnnullo, preparaChiusura, preparaIncasso, preparaInvio, preparaPreconto, preparaStorno,
   type Allergene, type Comanda, type DataLayer, type Documento, type EsitoLavoro, type Incasso, type NuovaRiga,
   type Operatore, type PrintJob, type RigaComanda, type Setup, setupDaTabelle, type Prenotazione,
+  type Cliente, type ClienteNuovo, type DatiFiscali, type Fattura, type MessaggioReparto, type NuovaFattura, type NuovoMessaggio,
+  type StatoFattura, type StoricoCliente, type Ticket, preparaMessaggio, rigaUguale,
 } from '@gr/core';
 
 const URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -35,6 +37,9 @@ const MESSAGGI: Record<string, string> = {
   PIN_GIA_USATO: 'Questo PIN è già usato da un altro operatore.',
   PIN_NON_VALIDO: 'Il PIN deve avere da 4 a 6 cifre.',
   NOME_MANCANTE: 'Manca il nome.',
+  TESTO_MANCANTE: 'Scrivi il messaggio.',
+  FATTURA_GIA_EMESSA: 'Questo scontrino ha già la sua fattura.',
+  righe_comanda_libera_check: 'Scrivi cosa aggiungere.',
 };
 function errore(e: { message?: string } | null): never {
   const codice = Object.keys(MESSAGGI).find((k) => e?.message?.includes(k));
@@ -51,6 +56,8 @@ export class SupabaseDataLayer implements DataLayer {
   private _documenti: Documento[] = [];
   private _lavori: PrintJob[] = [];
   private _prenotazioni: Prenotazione[] = [];
+  private _messaggi: MessaggioReparto[] = [];
+  private gruppoId = '';
   private listeners = new Set<() => void>();
   private ricarica?: ReturnType<typeof setTimeout>;
 
@@ -70,6 +77,7 @@ export class SupabaseDataLayer implements DataLayer {
   private async caricaSetup() {
     const q = (t: string, cols = '*') => this.sb.from(t).select(cols).then(({ data, error }) => { if (error) errore(error); return (data ?? []) as Riga[]; });
     const [locale] = await q('locali');
+    this.gruppoId = locale?.gruppo_id ?? '';
     const [stampanti, centri, aliquote, sale, tavoli, categorie, articoli, prezzi, listini, varianti, av, operatori] = await Promise.all([
       q('stampanti'), q('centri_produzione'), q('aliquote_iva'), q('sale'), q('tavoli'), q('categorie'), q('articoli'),
       q('prezzi_listino'), q('listini'), q('varianti'), q('articolo_varianti'), q('operatori', 'id,nome,ruolo,attivo'),
@@ -87,7 +95,26 @@ export class SupabaseDataLayer implements DataLayer {
   private mappaComanda = (c: Riga): Comanda => ({
     id: c.id, numero: c.numero, tavoloId: c.tavolo_id, coperti: c.coperti, operatore: this.nomeOperatore(c.operatore_id),
     stato: c.stato, apertaAt: c.aperta_at, chiusaAt: c.chiusa_at ?? undefined, allergeniTavolo: c.allergeni_tavolo ?? [], version: c.version,
-    prenotazioneId: c.prenotazione_id ?? undefined,
+    prenotazioneId: c.prenotazione_id ?? undefined, clienteId: c.cliente_id ?? undefined,
+  });
+
+  private mappaMessaggio = (m: Riga): MessaggioReparto => ({
+    id: m.id, centroId: m.centro_id, comandaId: m.comanda_id, tipo: m.tipo, testo: m.testo, portata: m.portata ?? undefined,
+    operatore: this.nomeOperatore(m.operatore_id), createdAt: m.created_at, vistoAt: m.visto_at ?? undefined,
+  });
+
+  private mappaCliente = (c: Riga): Cliente => ({
+    id: c.id, nome: c.nome, cognome: c.cognome ?? undefined, telefono: c.telefono ?? undefined, email: c.email ?? undefined,
+    compleanno: c.compleanno ?? undefined, preferenze: c.preferenze ?? undefined, allergeni: c.allergeni ?? [], noteAllergie: c.note_allergie ?? undefined,
+    scontoPct: Number(c.sconto_pct ?? 0), ragioneSociale: c.ragione_sociale ?? undefined, piva: c.piva ?? undefined,
+    codiceFiscale: c.codice_fiscale ?? undefined, codiceSdi: c.codice_sdi ?? undefined, pec: c.pec ?? undefined,
+    indirizzoFiscale: c.indirizzo_fiscale ?? undefined, consensoMarketing: !!c.consenso_marketing, createdAt: c.created_at,
+  });
+
+  private mappaFattura = (f: Riga): Fattura => ({
+    id: f.id, anno: f.anno, numero: f.numero, data: f.data, clienteId: f.cliente_id, documentoId: f.documento_id, comandaId: f.comanda_id,
+    imponibileCents: f.imponibile_cents, ivaCents: f.iva_cents, totaleCents: f.totale_cents, xml: f.xml, stato: f.stato,
+    intestatario: f.dati?.intestatario ?? '', createdAt: f.created_at,
   });
 
   private mappaRiga = (r: Riga): RigaComanda => ({
@@ -139,6 +166,8 @@ export class SupabaseDataLayer implements DataLayer {
     this._righe = ((righe.data ?? []) as Riga[]).map(this.mappaRiga).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     this._documenti = ((documenti.data ?? []) as Riga[]).map(this.mappaDocumento);
     this._lavori = ((lavori.data ?? []) as Riga[]).map(this.mappaLavoro);
+    const { data: msg } = await this.sb.from('messaggi_reparto').select('*').gte('created_at', da).order('created_at', { ascending: false }).limit(200);
+    this._messaggi = ((msg ?? []) as Riga[]).map(this.mappaMessaggio);
     // Prenotazioni della serata: da 8 ore fa a 18 ore avanti (copre pranzo, cena e il dopo mezzanotte).
     const { data: pren } = await this.sb.from('prenotazioni').select('*')
       .gte('inizio_at', new Date(Date.now() - 8 * 3600_000).toISOString())
@@ -161,7 +190,7 @@ export class SupabaseDataLayer implements DataLayer {
   private ascolta() {
     const filtro = `locale_id=eq.${this.localeId}`;
     const canale = this.sb.channel(`servizio-${this.localeId}`);
-    for (const t of ['comande', 'righe_comanda', 'documenti', 'print_jobs', 'prenotazioni']) {
+    for (const t of ['comande', 'righe_comanda', 'documenti', 'print_jobs', 'prenotazioni', 'messaggi_reparto']) {
       canale.on('postgres_changes', { event: '*', schema: 'public', table: t, filter: filtro }, () => this.programmaRicarica());
     }
     // Listino, sale e stampanti cambiati dalla Gestione (anche da un altro dispositivo).
@@ -298,6 +327,8 @@ export class SupabaseDataLayer implements DataLayer {
 
   async aggiungiRiga(comandaId: string, r: NuovaRiga) {
     const c = this.comandaAperta(comandaId);
+    const uguale = rigaUguale(this.righe(comandaId), r);
+    if (uguale) { await this.cambiaQuantita(uguale.id, uguale.quantita + (r.quantita ?? 1)); return { ...uguale, quantita: uguale.quantita + (r.quantita ?? 1) }; }
     const riga = nuovaRiga(this._setup, comandaId, r, crypto.randomUUID(), new Date().toISOString());
     // Aggiornamento ottimista: la riga compare subito, il database conferma subito dopo.
     this._righe = [...this._righe, riga]; this.emit();
@@ -310,6 +341,15 @@ export class SupabaseDataLayer implements DataLayer {
     if (error) { this._righe = this._righe.filter((x) => x.id !== riga.id); this.emit(); errore(error); }
     if (c.stato === 'preconto') await this.sb.from('comande').update({ stato: 'aperta' }).eq('id', comandaId);
     return riga;
+  }
+
+  async cambiaQuantita(rigaId: string, quantita: number) {
+    const r = this._righe.find((x) => x.id === rigaId);
+    if (r && r.stato !== 'da_inviare' && r.stato !== 'in_attesa_marcia') throw new ErroreDominio('Riga già inviata: va stornata');
+    if (quantita <= 0) return this.togliRiga(rigaId);
+    this._righe = this._righe.map((x) => (x.id === rigaId ? { ...x, quantita } : x)); this.emit();
+    const { error } = await this.sb.from('righe_comanda').update({ quantita, updated_at: new Date().toISOString() }).eq('id', rigaId).in('stato', ['da_inviare', 'in_attesa_marcia']);
+    if (error) { await this.caricaServizio(); errore(error); }
   }
 
   async togliRiga(rigaId: string) {
@@ -376,6 +416,127 @@ export class SupabaseDataLayer implements DataLayer {
     if (error) errore(error);
     await this.caricaServizio();
     return this._documenti.find((d) => d.id === (data as Riga).id)!;
+  }
+
+  // ------------------------------------------------------------------ messaggi ai reparti
+  messaggi() { return this._messaggi; }
+
+  async inviaMessaggio(m: NuovoMessaggio, key: string, operatore?: Operatore) {
+    const c = m.comandaId ? this.comandaAperta(m.comandaId) : undefined;
+    const prep = preparaMessaggio(this._setup, { ...m, comanda: c, righe: c ? this.righe(c.id) : [], operatore: operatore?.nome ?? c?.operatore ?? '', quando: new Date().toISOString() });
+    const { error } = await this.sb.rpc('invia_messaggio', {
+      p_locale: this.localeId, p_comanda: c?.id ?? null, p_tipo: m.tipo, p_testo: m.testo ?? '', p_portata: m.portata ?? null,
+      p_operatore: operatore?.id ?? null, p_key: key,
+      p_reparti: prep.reparti.map((r) => ({ centro_id: r.centroId, stampante_id: r.stampanteId, payload: { ticket: r.ticket } })),
+    });
+    if (error) errore(error);
+    await this.caricaServizio();
+  }
+
+  async segnaMessaggioVisto(id: string) {
+    this._messaggi = this._messaggi.map((x) => (x.id === id ? { ...x, vistoAt: new Date().toISOString() } : x)); this.emit();
+    const { error } = await this.sb.from('messaggi_reparto').update({ visto_at: new Date().toISOString() }).eq('id', id);
+    if (error) errore(error);
+  }
+
+  // ------------------------------------------------------------------ clienti
+  async cercaClienti(testo: string) {
+    let q = this.sb.from('clienti').select('*').order('cognome', { nullsFirst: false }).order('nome').limit(50);
+    const t = testo.trim().replace(/[%,()]/g, ' ');
+    if (t) q = q.or(['nome', 'cognome', 'ragione_sociale', 'telefono', 'email', 'piva', 'codice_fiscale'].map((c) => `${c}.ilike.%${t}%`).join(','));
+    const { data, error } = await q;
+    if (error) errore(error);
+    return ((data ?? []) as Riga[]).map(this.mappaCliente);
+  }
+
+  async cliente(id: string) {
+    const { data, error } = await this.sb.from('clienti').select('*').eq('id', id).maybeSingle();
+    if (error) errore(error);
+    return data ? this.mappaCliente(data as Riga) : null;
+  }
+
+  async salvaCliente(c: ClienteNuovo) {
+    if (!c.nome.trim() && !c.ragioneSociale?.trim()) throw new ErroreDominio('Manca il nome');
+    const riga = {
+      gruppo_id: this.gruppoId, nome: c.nome.trim() || (c.ragioneSociale ?? '').trim(), cognome: c.cognome?.trim() || null,
+      telefono: c.telefono?.trim() || null, email: c.email?.trim() || null, compleanno: c.compleanno || null, preferenze: c.preferenze?.trim() || null,
+      allergeni: c.allergeni, note_allergie: c.noteAllergie?.trim() || null, sconto_pct: c.scontoPct || 0,
+      ragione_sociale: c.ragioneSociale?.trim() || null, piva: c.piva?.replace(/\s/g, '') || null, codice_fiscale: c.codiceFiscale?.replace(/\s/g, '').toUpperCase() || null,
+      codice_sdi: c.codiceSdi?.trim().toUpperCase() || null, pec: c.pec?.trim() || null, indirizzo_fiscale: c.indirizzoFiscale ?? null,
+      consenso_marketing: c.consensoMarketing, consenso_at: c.consensoMarketing ? new Date().toISOString() : null, updated_at: new Date().toISOString(),
+    };
+    const { data, error } = c.id
+      ? await this.sb.from('clienti').update(riga).eq('id', c.id).select().single()
+      : await this.sb.from('clienti').insert(riga).select().single();
+    if (error) errore(error);
+    return this.mappaCliente(data as Riga);
+  }
+
+  async impostaCliente(comandaId: string, clienteId: string | null) {
+    this.comandaAperta(comandaId);
+    const { error } = await this.sb.from('comande').update({ cliente_id: clienteId }).eq('id', comandaId);
+    if (error) errore(error);
+    await this.caricaServizio();
+  }
+
+  async storicoCliente(id: string): Promise<StoricoCliente> {
+    const { data: comande, error } = await this.sb.from('comande').select('id, aperta_at').eq('cliente_id', id).eq('stato', 'chiusa').order('aperta_at', { ascending: false }).limit(200);
+    if (error) errore(error);
+    const ids = ((comande ?? []) as Riga[]).map((c) => c.id);
+    const [doc, righe, fatt] = await Promise.all([
+      ids.length ? this.sb.from('documenti').select('totale_cents').in('comanda_id', ids).eq('stato', 'emesso') : Promise.resolve({ data: [] }),
+      ids.length ? this.sb.from('righe_comanda').select('descrizione, quantita').in('comanda_id', ids).neq('stato', 'stornata') : Promise.resolve({ data: [] }),
+      this.sb.from('fatture').select('*').eq('cliente_id', id).order('created_at', { ascending: false }),
+    ]);
+    const piatti = new Map<string, number>();
+    for (const r of (righe.data ?? []) as Riga[]) piatti.set(r.descrizione, (piatti.get(r.descrizione) ?? 0) + Number(r.quantita));
+    return {
+      visite: ids.length, spesaCents: ((doc.data ?? []) as Riga[]).reduce((t, d) => t + d.totale_cents, 0),
+      ultimaVisita: (comande as Riga[] | null)?.[0]?.aperta_at,
+      piatti: [...piatti].map(([descrizione, quantita]) => ({ descrizione, quantita })).sort((a, b) => b.quantita - a.quantita).slice(0, 8),
+      fatture: ((fatt.data ?? []) as Riga[]).map(this.mappaFattura),
+    };
+  }
+
+  // ------------------------------------------------------------------ fatture
+  async salvaDatiFiscali(d: DatiFiscali) {
+    const { ragioneSociale, piva, codiceFiscale, ...resto } = d;
+    const { error } = await this.sb.from('locali').update({
+      ragione_sociale: ragioneSociale.trim(), piva: piva.replace(/\s/g, ''), codice_fiscale: codiceFiscale?.trim().toUpperCase() || null,
+      dati_fiscali: resto, updated_at: new Date().toISOString(),
+    }).eq('id', this.localeId);
+    if (error) errore(error);
+    await this.ricaricaSetup();
+  }
+
+  async emettiFattura(f: NuovaFattura, key: string, operatore?: Operatore) {
+    const { data, error } = await this.sb.rpc('emetti_fattura', {
+      p_locale: this.localeId, p_cliente: f.clienteId, p_documento: f.documentoId ?? null, p_comanda: f.comandaId ?? null, p_data: f.data,
+      p_imponibile: f.calcolo.imponibileCents, p_iva: f.calcolo.ivaCents, p_totale: f.calcolo.totaleCents,
+      p_dati: { intestatario: f.intestatario, progressivo: f.progressivo, linee: f.calcolo.linee, riepilogo: f.calcolo.riepilogo },
+      p_xml: f.xml, p_key: key, p_operatore: operatore?.id ?? null,
+    });
+    if (error) errore(error);
+    return this.mappaFattura(data as Riga);
+  }
+
+  async fatture(giorni: number) {
+    const da = new Date(Date.now() - giorni * 24 * 3600_000).toISOString();
+    const { data, error } = await this.sb.from('fatture').select('*').gte('created_at', da).order('created_at', { ascending: false });
+    if (error) errore(error);
+    return ((data ?? []) as Riga[]).map(this.mappaFattura);
+  }
+
+  async impostaStatoFattura(id: string, stato: StatoFattura) {
+    const { error } = await this.sb.from('fatture').update({ stato, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) errore(error);
+  }
+
+  async stampaNonFiscale(ticket: Ticket, key: string) {
+    const st = this._setup.stampanti.find((x) => x.perPreconto) ?? this._setup.stampanti.find((x) => x.tipo === 'comande_escpos');
+    if (!st) throw new ErroreDominio('Nessuna stampante per le stampe non fiscali');
+    const { error } = await this.sb.rpc('accoda_lavoro', { p_locale: this.localeId, p_stampante: st.id, p_tipo: 'non_fiscale', p_payload: { ticket }, p_key: key });
+    if (error) errore(error);
   }
 
   async prendiLavori(max = 10) {
