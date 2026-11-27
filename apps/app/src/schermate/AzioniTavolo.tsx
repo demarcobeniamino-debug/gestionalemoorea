@@ -1,7 +1,7 @@
 // Azioni sul tavolo dalla comanda: sposta su un altro tavolo, unisci un altro tavolo, sposta alcuni piatti, proforma o elimina il conto.
 import { useState, type ReactNode } from 'react';
 import { ArrowsLeftRight, ArrowsMerge, ForkKnife, HandHeart, Trash } from '@phosphor-icons/react';
-import { calcolaConto, euro, importoRiga, type Comanda } from '@gr/core';
+import { calcolaConto, euro, importoRiga, nomeConto, type Comanda } from '@gr/core';
 import { useApp, useAzione, useDati } from '../dati/contesto';
 import { EliminaConto, Proforma } from './ChiudiSenzaIncasso';
 import { Foglio, Pulsante } from '../ui/primitivi';
@@ -19,18 +19,33 @@ export function AzioniTavolo({ comanda, aperto, onChiudi, onSpostata }: {
   const chiudi = () => { setVista('menu'); setScelte([]); onChiudi(); };
   const numero = (tavoloId: string | null) => setup.tavoli.find((t) => t.id === tavoloId)?.numero ?? '?';
   const altri = aperte.filter((c) => c.id !== comanda.id && c.tavoloId);
+  const occupati = aperte.flatMap((c) => [c.tavoloId, ...(c.tavoliUniti ?? [])]).filter((x): x is string => !!x);
+  const alBanco = !comanda.tavoloId;
+  const nome = nomeConto(setup, comanda);
   const spostabili = righe.filter((r) => r.stato !== 'stornata');
 
-  const titolo = { menu: `Tavolo ${numero(comanda.tavoloId)}`, sposta: 'Sposta su un tavolo libero', unisci: 'Unisci un altro tavolo a questo', piatti: 'Quali piatti spostare?', 'piatti-dove': 'Su quale tavolo?', annulla: `Eliminare il conto del tavolo ${numero(comanda.tavoloId)}?`, proforma: `Proforma del tavolo ${numero(comanda.tavoloId)}` }[vista];
+  const titolo = { menu: nome, sposta: 'Sposta su un tavolo libero', unisci: `Unisci tavoli a ${nome}`, piatti: 'Quali piatti spostare?', 'piatti-dove': 'Su quale tavolo?', annulla: `Eliminare il conto · ${nome}?`, proforma: `Proforma · ${nome}` }[vista];
   const conScontrino = db.documenti(comanda.id).some((d) => d.tipo === 'documento_commerciale' && ['emesso', 'in_emissione', 'da_verificare'].includes(d.stato));
 
   return (
     <Foglio aperto={aperto} onChiudi={chiudi} titolo={titolo}>
       {vista === 'menu' && (
         <div className="flex flex-col gap-2">
-          <Voce icona={<ArrowsLeftRight size={22} weight="bold" aria-hidden />} titolo="Sposta tavolo" testo="Il conto passa su un tavolo libero, con tutto quello che è stato ordinato." onClick={() => setVista('sposta')} />
-          <Voce icona={<ArrowsMerge size={22} weight="bold" aria-hidden />} titolo="Unisci tavoli" testo="Porta qui piatti e coperti di un altro tavolo aperto: un solo conto." onClick={() => setVista('unisci')} disabled={!altri.length} />
-          <Voce icona={<ForkKnife size={22} weight="bold" aria-hidden />} titolo="Sposta piatti" testo="Alcuni piatti vanno sul conto di un altro tavolo (es. chi si sposta al bar)." onClick={() => setVista('piatti')} disabled={!spostabili.length || !altri.length} />
+          {!alBanco && <>
+            {!!comanda.tavoliUniti?.length && (
+              <div className="flex flex-wrap items-center gap-2 rounded-md bg-bg p-3">
+                <span className="text-sm font-semibold text-text-muted">Uniti a questo conto:</span>
+                {comanda.tavoliUniti.map((id) => (
+                  <button key={id} type="button" onClick={() => void esegui(() => db.separaTavolo(comanda.id, id), `Tavolo ${numero(id)} separato, è libero`)}
+                    className="premibile flex h-10 items-center gap-2 rounded-pill border border-border bg-surface-2 px-3 text-sm font-semibold"
+                    aria-label={`Separa il tavolo ${numero(id)}`}>Tavolo {numero(id)} <span className="text-text-muted">· separa</span></button>
+                ))}
+              </div>
+            )}
+            <Voce icona={<ArrowsMerge size={22} weight="bold" aria-hidden />} titolo="Unisci tavoli" testo="Gruppo grande: aggiungi tavoli liberi a questo conto, oppure porta qui un altro tavolo già aperto." onClick={() => { setScelte([]); setVista('unisci'); }} />
+            <Voce icona={<ArrowsLeftRight size={22} weight="bold" aria-hidden />} titolo="Sposta tavolo" testo="Il conto passa su un tavolo libero, con tutto quello che è stato ordinato." onClick={() => setVista('sposta')} />
+            <Voce icona={<ForkKnife size={22} weight="bold" aria-hidden />} titolo="Sposta piatti" testo="Alcuni piatti vanno sul conto di un altro tavolo (es. chi si sposta al bar)." onClick={() => setVista('piatti')} disabled={!spostabili.length || !altri.length} />
+          </>}
           <Voce icona={<HandHeart size={22} weight="bold" aria-hidden />} titolo="Proforma"
             testo={conScontrino ? 'C’è già uno scontrino su questo conto.' : 'Famiglia, amici, staff: non incassi, ma i prodotti escono dal magazzino.'}
             onClick={() => setVista('proforma')} disabled={conScontrino || !spostabili.length} />
@@ -44,15 +59,34 @@ export function AzioniTavolo({ comanda, aperto, onChiudi, onSpostata }: {
       {vista === 'annulla' && <EliminaConto comandaId={comanda.id} inviate={righe.filter((r) => !['da_inviare', 'in_attesa_marcia', 'stornata'].includes(r.stato)).length} onFatto={chiudi} />}
 
       {vista === 'sposta' && (
-        <SceltaTavolo escludi={aperte.map((c) => c.tavoloId).filter((x): x is string => !!x)} onScegli={(tavoloId) => void esegui(async () => {
+        <SceltaTavolo escludi={occupati} onScegli={(tavoloId) => void esegui(async () => {
           await db.spostaComanda(comanda.id, tavoloId); chiudi();
         }, `Spostato sul tavolo ${numero(tavoloId)}`)} />
       )}
 
       {vista === 'unisci' && (
-        <ListaAperti comande={altri} numero={numero} conto={(c) => db.righe(c.id)} onScegli={(c) => void esegui(async () => {
-          await db.unisciComande(comanda.id, c.id); chiudi();
-        }, `Tavolo ${numero(c.tavoloId)} unito`)} />
+        <div className="flex flex-col gap-5">
+          <section>
+            <h3 className="mb-2 text-sm font-semibold text-text-muted">Tavoli liberi da aggiungere</h3>
+            <SceltaTavolo escludi={occupati} scelti={scelte} onScegli={(t) => setScelte(scelte.includes(t) ? scelte.filter((x) => x !== t) : [...scelte, t])} />
+            <Pulsante variante="primario" taglia="lg" className="mt-3 w-full" disabled={!scelte.length} caricamento={inCorso} onClick={() => void esegui(async () => {
+              await db.unisciTavoli(comanda.id, scelte); chiudi();
+            }, `Uniti: ${[comanda.tavoloId, ...(comanda.tavoliUniti ?? []), ...scelte].map(numero).join(' + ')}`)}>
+              {scelte.length ? `Unisci ${[comanda.tavoloId, ...(comanda.tavoliUniti ?? []), ...scelte].map(numero).join(' + ')}` : 'Scegli uno o più tavoli'}
+            </Pulsante>
+          </section>
+          {altri.length > 0 && (
+            <section>
+              <h3 className="mb-2 text-sm font-semibold text-text-muted">Oppure porta qui un tavolo già aperto (piatti e coperti)</h3>
+              <ListaAperti comande={altri} numero={numero} conto={(c) => db.righe(c.id)} onScegli={(c) => void esegui(async () => {
+                await db.unisciComande(comanda.id, c.id);
+                // Il tavolo portato qui resta occupato, unito a questo conto.
+                await db.unisciTavoli(comanda.id, [c.tavoloId, ...(c.tavoliUniti ?? [])].filter((x): x is string => !!x));
+                chiudi();
+              }, `Tavolo ${numero(c.tavoloId)} unito`)} />
+            </section>
+          )}
+        </div>
       )}
 
       {vista === 'piatti' && (
@@ -101,7 +135,7 @@ function Voce({ icona, titolo, testo, onClick, disabled, pericolo }: { icona: Re
   );
 }
 
-function SceltaTavolo({ escludi, onScegli }: { escludi: string[]; onScegli: (tavoloId: string) => void }) {
+function SceltaTavolo({ escludi, onScegli, scelti }: { escludi: string[]; onScegli: (tavoloId: string) => void; scelti?: string[] }) {
   const { setup } = useDati((d) => ({ setup: d.setup() }));
   return (
     <div className="flex flex-col gap-4">
@@ -113,10 +147,10 @@ function SceltaTavolo({ escludi, onScegli }: { escludi: string[]; onScegli: (tav
             <h3 className="mb-2 text-sm font-semibold text-text-muted">{s.nome}</h3>
             <div className="grid grid-cols-5 gap-2 sm:grid-cols-6">
               {liberi.map((t) => (
-                <button key={t.id} type="button" onClick={() => onScegli(t.id)} aria-label={`Tavolo ${t.numero}, ${t.posti} posti`}
-                  className="premibile flex h-14 flex-col items-center justify-center rounded-md border-2 border-tavolo-libero-bordo bg-tavolo-libero">
+                <button key={t.id} type="button" onClick={() => onScegli(t.id)} aria-label={`Tavolo ${t.numero}, ${t.posti} posti`} aria-pressed={scelti ? scelti.includes(t.id) : undefined}
+                  className={`premibile flex h-14 flex-col items-center justify-center rounded-md border-2 ${scelti?.includes(t.id) ? 'border-accent bg-accent text-on-accent' : 'border-tavolo-libero-bordo bg-tavolo-libero'}`}>
                   <span className="text-lg font-bold leading-none">{t.numero}</span>
-                  <span className="text-[11px] text-text-muted">{t.posti} p.</span>
+                  <span className={`text-[11px] ${scelti?.includes(t.id) ? '' : 'text-text-muted'}`}>{t.posti} p.</span>
                 </button>
               ))}
             </div>

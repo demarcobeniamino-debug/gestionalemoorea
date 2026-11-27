@@ -4,7 +4,7 @@
 // Le letture sono immediate (dalla cache); le scritture sono asincrone.
 
 import type { Allergene, Caparra, Cliente, Comanda, DatiFiscali, Documento, Fattura, Impostazioni, MessaggioReparto, MovimentoCassa, Prenotazione, PrintJob, RigaComanda, RigaVariante, Sospeso, StatoFattura, StoricoCliente, TipoMessaggio, TipoMovimentoCassa, TipoPagamento } from './types';
-import { controllaSceltaMenu, promoInVigore, TIPI_INCASSO_SOSPESO } from './servizio';
+import { comandaSulTavolo, controllaSceltaMenu, promoInVigore, TIPI_INCASSO_SOSPESO } from './servizio';
 import { xmlApriCassetto } from './epson';
 import { nomeCliente } from './types';
 import type { Setup } from './seed';
@@ -100,6 +100,10 @@ export interface DataLayer {
 
   /** Conto senza tavolo: al banco o da asporto, con un nome facoltativo. */
   apriBanco(canale: 'banco' | 'asporto', nome: string, operatore: Operatore): Promise<Comanda>;
+  /** Unisce tavoli liberi a un conto aperto (gruppo grande): un solo conto, tutti i tavoli occupati. */
+  unisciTavoli(comandaId: string, tavoloIds: string[]): Promise<void>;
+  /** Toglie un tavolo unito: torna libero. */
+  separaTavolo(comandaId: string, tavoloId: string): Promise<void>;
   /** Menu fisso: riga del menu (con il prezzo) e i piatti scelti (a prezzo zero, vanno in cucina). */
   aggiungiMenu(comandaId: string, articoloId: string, scelte: { articoloId: string; gruppo: number }[]): Promise<void>;
 
@@ -171,7 +175,7 @@ export class FakeDataLayer implements DataLayer {
   impostaSetup(s: Setup) { this.s = s; this.emit(); }
   comandeAperte() { return [...this._comande.values()].filter((c) => c.stato === 'aperta' || c.stato === 'preconto'); }
   comanda(id: string) { return this._comande.get(id); }
-  comandaDelTavolo(tavoloId: string) { return this.comandeAperte().find((c) => c.tavoloId === tavoloId); }
+  comandaDelTavolo(tavoloId: string) { return comandaSulTavolo(this.comandeAperte(), tavoloId); }
   righe(comandaId: string) { return [...this._righe.values()].filter((r) => r.comandaId === comandaId).sort((a, b) => a.createdAt.localeCompare(b.createdAt)); }
   documenti(comandaId: string) { return [...this._documenti.values()].filter((d) => d.comandaId === comandaId); }
   lavori() { return [...this._lavori.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt)); }
@@ -411,6 +415,17 @@ export class FakeDataLayer implements DataLayer {
       apertaAt: this.now().toISOString(), allergeniTavolo: [], version: 1, canale, etichetta: nome.trim() || undefined,
     };
     this._comande.set(c.id, c); this.emit(); return c;
+  }
+  async unisciTavoli(comandaId: string, tavoloIds: string[]) {
+    const c = this.comandaAperta(comandaId);
+    const nuovi = tavoloIds.filter((t) => t !== c.tavoloId && !c.tavoliUniti?.includes(t));
+    for (const t of nuovi) if (this.comandaDelTavolo(t)) throw new ErroreDominio('Uno dei tavoli è già occupato');
+    if (!c.tavoloId) throw new ErroreDominio('Solo un conto al tavolo può avere tavoli uniti');
+    c.tavoliUniti = [...(c.tavoliUniti ?? []), ...nuovi]; c.version++; this.emit();
+  }
+  async separaTavolo(comandaId: string, tavoloId: string) {
+    const c = this.comandaAperta(comandaId);
+    c.tavoliUniti = (c.tavoliUniti ?? []).filter((t) => t !== tavoloId); c.version++; this.emit();
   }
   async aggiungiMenu(comandaId: string, articoloId: string, scelte: { articoloId: string; gruppo: number }[]) {
     const c = this.comandaAperta(comandaId);

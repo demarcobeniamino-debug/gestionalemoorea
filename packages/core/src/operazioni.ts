@@ -22,7 +22,8 @@ export interface Incasso {
 const tavoloLabel = (s: Setup, c: Comanda) => {
   const t = c.tavoloId ? s.tavoli.find((x) => x.id === c.tavoloId) : undefined;
   if (!t) return { numero: `${c.canale === 'asporto' ? 'Asporto' : 'Banco'}${c.etichetta ? ' ' + c.etichetta : ''}`, sala: undefined };
-  return { numero: t.numero, sala: s.sale.find((x) => x.id === t.salaId)?.nome };
+  const uniti = (c.tavoliUniti ?? []).map((id) => s.tavoli.find((x) => x.id === id)?.numero).filter(Boolean);
+  return { numero: [t.numero, ...uniti].join('+'), sala: s.sale.find((x) => x.id === t.salaId)?.nome };
 };
 
 export interface InvioPreparato {

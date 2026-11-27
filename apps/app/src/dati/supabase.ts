@@ -7,7 +7,7 @@ import {
   type Allergene, type Comanda, type DataLayer, type Documento, type EsitoLavoro, type Incasso, type NuovaRiga,
   type Operatore, type PrintJob, type RigaComanda, type Setup, setupDaTabelle, type Prenotazione,
   type Cliente, type ClienteNuovo, type DatiFiscali, type Fattura, type MessaggioReparto, type NuovaFattura, type NuovoMessaggio,
-  type StatoFattura, type StoricoCliente, type Ticket, type ChiusuraFiscale, preparaAnnullaConto, preparaProforma, preparaMessaggio, rigaUguale,
+  type StatoFattura, type StoricoCliente, type Ticket, type ChiusuraFiscale, preparaAnnullaConto, preparaProforma, comandaSulTavolo, preparaMessaggio, rigaUguale,
   type Caparra, type Impostazioni, type MovimentoCassa, type Sospeso, type TipoMovimentoCassa, type TipoPagamento, righeMenu, xmlApriCassetto,
 } from '@gr/core';
 
@@ -42,6 +42,8 @@ const MESSAGGI: Record<string, string> = {
   FATTURA_GIA_EMESSA: 'Questo scontrino ha già la sua fattura.',
   CAPARRA_NON_DISPONIBILE: 'Questa caparra è già stata usata o restituita.',
   CONTO_CON_SCONTRINO: 'Su questo conto c’è già uno scontrino: annullalo prima dalla Cassa.',
+  TAVOLO_OCCUPATO: 'Uno dei tavoli è già occupato o unito a un altro conto.',
+  SOLO_AL_TAVOLO: 'Solo un conto al tavolo può avere tavoli uniti.',
   CONTO_VUOTO: 'Il conto è vuoto: usa “Elimina conto”.',
   righe_comanda_libera_check: 'Scrivi cosa aggiungere.',
 };
@@ -101,6 +103,7 @@ export class SupabaseDataLayer implements DataLayer {
     stato: c.stato, apertaAt: c.aperta_at, chiusaAt: c.chiusa_at ?? undefined, allergeniTavolo: c.allergeni_tavolo ?? [], version: c.version,
     prenotazioneId: c.prenotazione_id ?? undefined, clienteId: c.cliente_id ?? undefined,
     canale: c.canale, etichetta: c.tavolo_id ? undefined : c.note ?? undefined,
+    tavoliUniti: c.tavoli_uniti?.length ? c.tavoli_uniti : undefined,
     proforma: c.proforma ? { motivo: c.proforma.motivo, nome: c.proforma.nome ?? undefined, totaleCents: c.proforma.totale_cents ?? 0, operatore: c.proforma.operatore ?? undefined } : undefined,
   });
 
@@ -229,7 +232,7 @@ export class SupabaseDataLayer implements DataLayer {
   setup() { return this._setup; }
   comandeAperte() { return this._comande.filter((c) => c.stato === 'aperta' || c.stato === 'preconto'); }
   comanda(id: string) { return this._comande.find((c) => c.id === id); }
-  comandaDelTavolo(tavoloId: string) { return this.comandeAperte().find((c) => c.tavoloId === tavoloId); }
+  comandaDelTavolo(tavoloId: string) { return comandaSulTavolo(this.comandeAperte(), tavoloId); }
   righe(comandaId: string) { return this._righe.filter((r) => r.comandaId === comandaId); }
   documenti(comandaId: string) { return this._documenti.filter((d) => d.comandaId === comandaId); }
   lavori() { return this._lavori; }
@@ -404,6 +407,18 @@ export class SupabaseDataLayer implements DataLayer {
     const r2 = error ? { error } : await this.sb.from('righe_comanda').insert(righe.slice(1).map(this.rigaDb));
     if (r2.error) { await this.caricaServizio(); errore(r2.error); }
     if (c.stato === 'preconto') await this.sb.from('comande').update({ stato: 'aperta' }).eq('id', comandaId);
+  }
+
+  async unisciTavoli(comandaId: string, tavoloIds: string[]) {
+    const { error } = await this.sb.rpc('unisci_tavoli', { p_comanda: comandaId, p_tavoli: tavoloIds });
+    if (error) errore(error);
+    await this.caricaServizio();
+  }
+
+  async separaTavolo(comandaId: string, tavoloId: string) {
+    const { error } = await this.sb.rpc('separa_tavolo', { p_comanda: comandaId, p_tavolo: tavoloId });
+    if (error) errore(error);
+    await this.caricaServizio();
   }
 
   async apriBanco(canale: 'banco' | 'asporto', nome: string, operatore: Operatore) {

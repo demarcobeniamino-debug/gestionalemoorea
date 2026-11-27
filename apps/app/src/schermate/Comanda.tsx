@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { ArrowsLeftRight, BellRinging, ChatCircleText, Check, Lightning, Minus, Pause, PencilSimpleLine, Plus, Prohibit, Star, UserCircle, Warning } from '@phosphor-icons/react';
 import {
+  nomeConto,
   ALLERGENI_ETICHETTA, calcolaConto, euro, importoRiga, nomeCliente, nomePortata,
   type Allergene, type Articolo, type Cliente, type RigaComanda, type RigaVariante, type VoceLibera,
 } from '@gr/core';
@@ -60,7 +61,8 @@ export function ComandaSchermata() {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const lungo = useRef(false);
 
-  const tavolo = setup.tavoli.find((t) => t.id === comanda?.tavoloId);
+  const alBanco = !!comanda && !comanda.tavoloId;
+  const titolo = comanda ? nomeConto(setup, comanda) : '';
   useEffect(() => {
     if (!comanda?.clienteId) { setCliente(null); return; }
     let v = true; db.cliente(comanda.clienteId).then((c) => v && setCliente(c)).catch(() => undefined); return () => { v = false; };
@@ -98,6 +100,14 @@ export function ComandaSchermata() {
       toast({ testo: `Inviata a ${dove || 'produzione'}`, tipo: 'ok' });
       setRiepilogoMobile(false);
       void vibra();
+    });
+  };
+
+  /** Banco e asporto: un tocco solo. Se c'è qualcosa da preparare parte in cucina/bar, poi si va a incassare. */
+  const incassaBanco = () => {
+    void esegui(async () => {
+      if (daInviare.length) await db.invia(comanda.id, nuovaChiave(), operatore ?? undefined);
+      nav(`/conto/${comanda.id}`);
     });
   };
 
@@ -184,8 +194,12 @@ export function ComandaSchermata() {
       <div className="flex gap-2 px-4 pb-4">
         <Pulsante className="flex-1" disabled={righe.length === 0}
           onClick={() => void esegui(() => db.preconto(comanda.id, nuovaChiave()), 'Preconto in stampa')}>Preconto</Pulsante>
-        <Pulsante className="flex-1" disabled={righe.length === 0 || daInviare.length > 0} onClick={() => nav(`/conto/${comanda.id}`)}
-          title={daInviare.length ? 'Invia prima le righe in attesa' : undefined}>Conto</Pulsante>
+        {alBanco ? (
+          <Pulsante className="flex-1" disabled={righe.length === 0} onClick={incassaBanco}>Incassa</Pulsante>
+        ) : (
+          <Pulsante className="flex-1" disabled={righe.length === 0 || daInviare.length > 0} onClick={() => nav(`/conto/${comanda.id}`)}
+            title={daInviare.length ? 'Invia prima le righe in attesa' : undefined}>Conto</Pulsante>
+        )}
         <Pulsante variante="conferma" className="flex-[1.6]" icona={Icona.stampa} caricamento={inCorso && daInviare.length > 0}
           disabled={daInviare.length === 0} onClick={invia}>
           Invia{daInviare.length ? ` (${daInviare.length})` : ''}
@@ -196,7 +210,7 @@ export function ComandaSchermata() {
 
   return (
     <div className="flex h-full flex-col bg-bg text-text">
-      <Testata indietro="/sala" titolo={`Tavolo ${tavolo?.numero ?? ''}`} sotto={`${comanda.coperti} coperti · ${comanda.operatore || operatore?.nome || ''}`}>
+      <Testata indietro="/sala" titolo={titolo} sotto={`${alBanco ? '' : `${comanda.coperti} coperti · `}${comanda.operatore || operatore?.nome || ''}`}>
         <button type="button" onClick={() => setClienteAperto(true)} aria-label={cliente ? `Cliente: ${nomeCliente(cliente)}` : 'Collega un cliente'}
           className={`premibile flex h-10 max-w-[12rem] flex-none items-center gap-1.5 rounded-md px-3 text-sm font-bold ${cliente ? 'bg-surface-2 text-accent ring-1 ring-accent' : 'border border-border bg-surface-2'}`}>
           <UserCircle size={18} weight={cliente ? 'fill' : 'bold'} aria-hidden /><span className="hidden truncate xl:inline">{cliente ? nomeCliente(cliente) : 'Cliente'}</span>
@@ -304,13 +318,17 @@ export function ComandaSchermata() {
         <button type="button" onClick={() => setRiepilogoMobile(true)} className="premibile flex-1 rounded-md bg-surface-2 text-[15px] font-semibold">
           Conto<span className="block text-[13px] text-text-muted tabular-nums">{euro(conto.totaleCents)}</span>
         </button>
-        <Pulsante variante="conferma" className="flex-[1.8]" disabled={!daInviare.length} caricamento={inCorso && daInviare.length > 0} onClick={invia}>Invia{daInviare.length ? ` (${daInviare.length})` : ''}</Pulsante>
+        {alBanco ? (
+          <Pulsante variante="conferma" className="flex-[1.8]" disabled={!righe.some((r) => r.stato !== 'stornata')} caricamento={inCorso} onClick={incassaBanco}>Incassa {euro(conto.totaleCents)}</Pulsante>
+        ) : (
+          <Pulsante variante="conferma" className="flex-[1.8]" disabled={!daInviare.length} caricamento={inCorso && daInviare.length > 0} onClick={invia}>Invia{daInviare.length ? ` (${daInviare.length})` : ''}</Pulsante>
+        )}
       </div>
       {riepilogoMobile && (
         <div className="fixed inset-0 z-40 flex flex-col bg-bg md:hidden">
           <div className="flex h-14 items-center gap-2 border-b border-border px-3">
             <button type="button" onClick={() => setRiepilogoMobile(false)} aria-label="Chiudi riepilogo" className="premibile grid h-10 w-10 place-items-center rounded-md bg-surface-2">{Icona.indietro}</button>
-            <h2 className="text-lg font-bold">Tavolo {tavolo?.numero}</h2>
+            <h2 className="text-lg font-bold">{titolo}</h2>
           </div>
           <div className="min-h-0 flex-1">{riepilogo}</div>
         </div>

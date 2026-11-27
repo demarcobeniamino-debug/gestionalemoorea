@@ -133,7 +133,8 @@ export function riepilogo(d: DatiPeriodo, s: Setup): Riepilogo {
       elenco: proforma.map((c) => ({ comandaId: c.id, motivo: c.proforma!.motivo, nome: c.proforma!.nome, totaleCents: c.proforma!.totaleCents, quando: c.chiusaAt ?? c.apertaAt }))
         .sort((a, b) => b.quando.localeCompare(a.quando)),
     },
-    eliminati: d.comande.filter((c) => c.stato === 'annullata').length,
+    // Gli unisci tavoli lasciano un conto "annullato" senza righe: non è un conto eliminato.
+    eliminati: d.comande.filter((c) => c.stato === 'annullata' && d.righe.some((r) => r.comandaId === c.id)).length,
     storni: { quantita: stornate.reduce((t, r) => t + r.quantita, 0), importoCents: stornate.reduce((t, r) => t + r.prezzoUnitarioCents * r.quantita, 0) },
   };
 }

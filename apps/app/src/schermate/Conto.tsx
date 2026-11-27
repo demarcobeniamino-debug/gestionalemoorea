@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Bank, CheckCircle, CreditCard, HandHeart, Money, Percent, Ticket, Trash, Warning } from '@phosphor-icons/react';
 import { EliminaConto, Proforma } from './ChiudiSenzaIncasso';
-import { calcolaConto, dividiAllaRomana, euro, importoRiga, nomeCliente, type Cliente, type Documento, type TipoPagamento } from '@gr/core';
+import { nomeConto, calcolaConto, dividiAllaRomana, euro, importoRiga, nomeCliente, type Cliente, type Documento, type TipoPagamento } from '@gr/core';
 import { nuovaChiave, useApp, useAzione, useDati } from '../dati/contesto';
 import { Testata } from '../ui/Testata';
 import { Foglio, Icona, Pulsante, Spinner } from '../ui/primitivi';
@@ -55,7 +55,7 @@ export function Conto() {
 
   useEffect(() => {
     if (comanda?.stato === 'chiusa' && !comanda.proforma) {
-      toast({ testo: 'Conto chiuso. Il tavolo è libero.', tipo: 'ok' });
+      toast({ testo: comanda.tavoloId ? 'Conto chiuso. Il tavolo è libero.' : 'Incassato.', tipo: 'ok' });
       nav('/sala', { replace: true });
     }
   }, [comanda?.stato]);
@@ -96,12 +96,11 @@ export function Conto() {
     return { testo: i === prossima ? 'Si paga ora' : 'Da pagare', tono: i === prossima ? 'attivo' : 'attesa' };
   };
 
-  const tavolo = setup.tavoli.find((t) => t.id === comanda.tavoloId);
   const tasti = ['7', '8', '9', '+50', '4', '5', '6', '+20', '1', '2', '3', '=', '0', '00', ',', 'del'];
 
   return (
     <div className="flex h-full flex-col bg-bg text-text">
-      <Testata indietro={`/comanda/${comanda.id}`} titolo={`Conto · Tavolo ${tavolo?.numero ?? ''}`} sotto={`${comanda.coperti} coperti`} />
+      <Testata indietro={`/comanda/${comanda.id}`} titolo={`Conto · ${nomeConto(setup, comanda)}`} sotto={comanda.tavoloId ? `${comanda.coperti} coperti` : undefined} />
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <section aria-label="Dividi il conto" className="flex min-w-0 flex-1 flex-col gap-5 overflow-y-auto p-4 md:p-6">
           <div role="radiogroup" aria-label="Come si paga" className="flex w-max gap-1 rounded-pill bg-surface p-1">

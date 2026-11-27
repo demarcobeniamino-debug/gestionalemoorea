@@ -42,11 +42,21 @@ export function controllaSceltaMenu(s: Setup, articoloId: string, scelte: { arti
 }
 
 /** Nome del conto per schermi e ticket: "Tavolo 7", "Banco · Marco", "Asporto · Giulia". */
-export function nomeConto(s: Setup, c: Pick<Comanda, 'tavoloId' | 'canale' | 'etichetta'>): string {
+export function nomeConto(s: Setup, c: Pick<Comanda, 'tavoloId' | 'canale' | 'etichetta' | 'tavoliUniti'>): string {
   const t = c.tavoloId ? s.tavoli.find((x) => x.id === c.tavoloId) : undefined;
-  if (t) return `Tavolo ${t.numero}`;
+  if (t) return `${c.tavoliUniti?.length ? 'Tavoli' : 'Tavolo'} ${numeriTavolo(s, c)}`;
   const base = c.canale === 'asporto' ? 'Asporto' : 'Banco';
   return c.etichetta ? `${base} · ${c.etichetta}` : base;
+}
+
+/** "3" oppure "3+4+5" se ci sono tavoli uniti. */
+export function numeriTavolo(s: Setup, c: Pick<Comanda, 'tavoloId' | 'tavoliUniti'>): string {
+  return [c.tavoloId, ...(c.tavoliUniti ?? [])].map((id) => s.tavoli.find((x) => x.id === id)?.numero).filter(Boolean).join('+');
+}
+
+/** La comanda aperta che occupa il tavolo: la sua, o quella a cui è unito. */
+export function comandaSulTavolo<C extends Pick<Comanda, 'tavoloId' | 'tavoliUniti'>>(aperte: C[], tavoloId: string): C | undefined {
+  return aperte.find((c) => c.tavoloId === tavoloId) ?? aperte.find((c) => c.tavoliUniti?.includes(tavoloId));
 }
 
 /** Metodi di pagamento attivi: quelli di base più quelli aggiunti in Gestione (Satispay, bonifico…). */

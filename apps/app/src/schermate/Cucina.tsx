@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BellRinging, ChatCircleText, CheckCircle, Lightning, Warning } from '@phosphor-icons/react';
-import { ALLERGENI_ETICHETTA, nomePortata } from '@gr/core';
+import { ALLERGENI_ETICHETTA, nomeConto, nomePortata } from '@gr/core';
 import { useApp, useAzione, useDati, useOra } from '../dati/contesto';
 import { Icona, IconaCentro } from '../ui/primitivi';
 
@@ -12,13 +12,13 @@ export function Cucina() {
   const { db } = useApp();
   const { esegui } = useAzione();
   const ora = useOra(10000);
-  const { centri, tavoli } = useDati((d) => ({ centri: d.setup().centri, tavoli: d.setup().tavoli }));
+  const { centri, setup } = useDati((d) => ({ centri: d.setup().centri, setup: d.setup() }));
   const [centroId, setCentroId] = useState(centri[0]?.id);
   const lista = useDati((d) => d.righeDaPreparare(centroId));
   // Messaggi non ancora visti per questo reparto (ultime 3 ore).
   const messaggi = useDati((d) => d.messaggi()).filter((m) => m.centroId === centroId && !m.vistoAt && ora.getTime() - new Date(m.createdAt).getTime() < 3 * 3600_000);
   const avvisoTavolo = (comandaId: string) => messaggi.find((m) => m.comandaId === comandaId && m.tipo !== 'messaggio');
-  const numeroTavolo = (comandaId: string | null) => { const c = comandaId ? db.comanda(comandaId) : undefined; return tavoli.find((t) => t.id === c?.tavoloId)?.numero; };
+  const numeroTavolo = (comandaId: string | null) => { const c = comandaId ? db.comanda(comandaId) : undefined; return c ? nomeConto(setup, c).replace(/^Tavol[oi] /, '') : undefined; };
   const minuti = (iso?: string) => (iso ? Math.max(0, Math.floor((ora.getTime() - new Date(iso).getTime()) / 60000)) : 0);
 
   return (
@@ -70,7 +70,7 @@ export function Cucina() {
       ) : (
         <div className="grid flex-1 auto-rows-min grid-cols-1 gap-3 overflow-y-auto p-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {lista.map(({ comanda, righe }) => {
-            const t = tavoli.find((x) => x.id === comanda.tavoloId);
+            const nome = nomeConto(setup, comanda);
             const m = minuti(righe[0].inviataAt);
             const ritardo = m >= RITARDO_MIN;
             const nuovo = m < 1;
@@ -78,12 +78,12 @@ export function Cucina() {
             const portate = [...new Set(righe.map((r) => r.portata))].sort((a, b) => a - b);
             const avviso = avvisoTavolo(comanda.id);
             return (
-              <article key={comanda.id} aria-label={`Tavolo ${t?.numero}, ${m} minuti${ritardo ? ', in ritardo' : ''}`}
+              <article key={comanda.id} aria-label={`${nome}, ${m} minuti${ritardo ? ', in ritardo' : ''}`}
                 className={`ticket-nuovo flex flex-col overflow-hidden rounded-lg bg-surface ${ritardo ? 'ring-[3px] ring-danger' : avviso ? 'ring-[3px] ring-warning' : nuovo ? 'ring-[3px] ring-accent' : 'ring-1 ring-border'}`}>
                 <button type="button" onClick={() => void esegui(() => db.segnaPronte(daFare.map((r) => r.id)))}
                   className={`premibile flex items-baseline justify-between px-4 py-3 text-left ${ritardo ? 'bg-danger text-on-danger' : ''}`}
-                  aria-label={`Segna tutto pronto per il tavolo ${t?.numero}`}>
-                  <b className="text-2xl tracking-tight">Tavolo {t?.numero}</b>
+                  aria-label={`Segna tutto pronto: ${nome}`}>
+                  <b className="truncate text-2xl tracking-tight">{nome}</b>
                   <span className={`text-xl font-bold tabular-nums ${nuovo && !ritardo ? 'text-accent' : ''}`}>{nuovo ? 'Nuovo' : `${m}′`}</span>
                 </button>
                 {avviso && (

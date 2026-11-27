@@ -71,6 +71,8 @@ export interface Comanda {
   /** Senza tavolo: banco o asporto, con un nome ("Banco", "Marco"). */
   canale?: 'tavolo' | 'banco' | 'asporto';
   etichetta?: string;
+  /** Altri tavoli uniti a questo (gruppo grande): risultano occupati e portano a questo conto. */
+  tavoliUniti?: string[];
   /** Chiuso come proforma: niente scontrino né incasso, i prodotti escono comunque dal magazzino. */
   proforma?: Proforma;
 }

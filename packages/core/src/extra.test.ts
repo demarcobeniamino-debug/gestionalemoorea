@@ -211,3 +211,30 @@ describe('Proforma', () => {
     await expect(db.chiudiProforma(c.id, { motivo: 'Amici' }, 'p3', OP)).rejects.toThrow(/scontrino/);
   });
 });
+
+describe('Tavoli uniti e banco', () => {
+  it('unisce tavoli liberi: occupati, un solo conto, comanda "3+4", poi si separano', async () => {
+    const { db } = nuovo();
+    const c = await db.apriTavolo('t3', 10, OP);
+    await db.unisciTavoli(c.id, ['t4', 't3']);
+    expect(db.comanda(c.id)?.tavoliUniti).toEqual(['t4']);
+    expect(db.comandaDelTavolo('t4')?.id).toBe(c.id);
+    await expect(db.apriTavolo('t4', 2, OP)).rejects.toThrow(/aperto/);
+    const altro = await db.apriTavolo('t6', 2, OP);
+    await expect(db.unisciTavoli(altro.id, ['t4'])).rejects.toThrow(/occupato/);
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Polpo Scottato') });
+    const [j] = await db.invia(c.id, 'k', OP);
+    expect(anteprima(j.ticket!, 42).map((x) => x.testo).join('\n')).toMatch(/3\+4/);
+    await db.separaTavolo(c.id, 't4');
+    expect(db.comandaDelTavolo('t4')).toBeUndefined();
+  });
+
+  it('banco: conto senza tavolo, si incassa e si chiude', async () => {
+    const { db } = nuovo();
+    const c = await db.apriBanco('banco', 'Marco', OP);
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Negroni') });
+    await db.invia(c.id, 'k', OP);
+    await db.incassa(c.id, { pagamenti: [{ tipo: 'carta', importoCents: db.righe(c.id)[0].prezzoUnitarioCents }] }, 'i');
+    expect(db.documenti(c.id)).toHaveLength(1);
+  });
+});

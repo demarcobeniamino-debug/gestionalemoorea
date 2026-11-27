@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CalendarCheck, ChatCircleText, Clock, ChartBar, GearSix, Receipt, Warning } from '@phosphor-icons/react';
+import { ArrowsMerge, BeerBottle, CalendarCheck, ChatCircleText, Clock, ChartBar, GearSix, Handbag, Receipt, Warning } from '@phosphor-icons/react';
 import { FoglioMessaggio } from './Messaggi';
-import { ALLERGENI_ETICHETTA, calcolaConto, daAccogliere, euro, type Comanda, type Prenotazione, type Tavolo } from '@gr/core';
+import { ALLERGENI_ETICHETTA, calcolaConto, comandaSulTavolo, daAccogliere, euro, nomeConto, numeriTavolo, type Comanda, type Prenotazione, type Tavolo } from '@gr/core';
 import { useApp, useAzione, useDati, useOra } from '../dati/contesto';
 import { Testata } from '../ui/Testata';
 import { puoGestire } from '../dati/ruoli';
@@ -61,10 +61,15 @@ export function Sala() {
   const [salaId, setSalaId] = useState(sale[0]?.id);
   const [daAprire, setDaAprire] = useState<Tavolo | null>(null);
   const [coperti, setCoperti] = useState(2);
+  /** Unisci tavoli prima di aprire: i tavoli liberi scelti (il primo è quello del conto). */
+  const [unendo, setUnendo] = useState<string[] | null>(null);
+  const [uniti, setUniti] = useState<string[]>([]);
+  const [banco, setBanco] = useState(false);
+  const alBanco = aperte.filter((c) => !c.tavoloId);
   const { ref: pianta, w } = useLarghezza<HTMLDivElement>();
 
   const info = (t: Tavolo): { stato: Stato; comanda?: Comanda; minuti?: number; totale?: number } => {
-    const c = aperte.find((x) => x.tavoloId === t.id);
+    const c = comandaSulTavolo(aperte, t.id);
     if (!c) return { stato: prenotazioneDel(t) ? 'prenotato' : 'libero' };
     const righe = db.righe(c.id);
     const minuti = Math.max(0, Math.floor((ora.getTime() - new Date(c.apertaAt).getTime()) / 60000));
@@ -87,6 +92,11 @@ export function Sala() {
 
   const tocca = (t: Tavolo) => {
     const i = info(t);
+    if (unendo) {
+      if (i.comanda) return;
+      return setUnendo(unendo.includes(t.id) ? unendo.filter((x) => x !== t.id) : [...unendo, t.id]);
+    }
+    setUniti([]);
     if (i.comanda) return nav(`/comanda/${i.comanda.id}`);
     const p = aspettaTavolo ?? prenotazioneDel(t);
     setAspettaTavolo(null);
@@ -99,7 +109,7 @@ export function Sala() {
   const accogli = (p: Prenotazione) => {
     setListaAperta(false);
     const t = tavoli.find((x) => x.id === p.tavoloId);
-    if (t && !aperte.some((c) => c.tavoloId === t.id)) {
+    if (t && !comandaSulTavolo(aperte, t.id)) {
       if (t.salaId !== salaId) setSalaId(t.salaId);
       setPren(p.id); setCoperti(p.coperti); setDaAprire(t);
     } else {
@@ -107,10 +117,31 @@ export function Sala() {
     }
   };
 
+  /** Tavoli scelti in modalità "unisci": si apre il primo e gli altri si uniscono. */
+  const apriUniti = () => {
+    if (!unendo?.length) return;
+    const [primo, ...resto] = unendo;
+    const t = tavoli.find((x) => x.id === primo)!;
+    setUniti(resto); setUnendo(null);
+    setPren(''); setCoperti(Math.min(40, unendo.reduce((n, id) => n + (tavoli.find((x) => x.id === id)?.posti ?? 0), 0)));
+    setDaAprire(t);
+  };
+
+  const apriBanco = (canale: 'banco' | 'asporto', nome: string) => {
+    if (!operatore) return;
+    void esegui(async () => {
+      const c = await db.apriBanco(canale, nome, operatore);
+      setBanco(false);
+      nav(`/comanda/${c.id}`);
+    });
+  };
+
   const apri = () => {
     if (!daAprire || !operatore) return;
     void esegui(async () => {
       const c = await db.apriTavolo(daAprire.id, coperti, operatore, pren || undefined);
+      if (uniti.length) await db.unisciTavoli(c.id, uniti);
+      setUniti([]);
       setDaAprire(null);
       nav(`/comanda/${c.id}`);
     });
@@ -138,6 +169,13 @@ export function Sala() {
               </span>
             ))}
             <span className="flex-1" />
+            <button type="button" onClick={() => setBanco(true)} className="premibile flex h-9 items-center gap-2 rounded-md bg-accent px-3 font-bold text-on-accent">
+              <BeerBottle size={18} weight="bold" aria-hidden="true" />Banco / Asporto{alBanco.length ? ` · ${alBanco.length}` : ''}
+            </button>
+            <button type="button" onClick={() => setUnendo(unendo ? null : [])} aria-pressed={!!unendo}
+              className={`premibile flex h-9 items-center gap-2 rounded-md px-3 ${unendo ? 'bg-text text-bg' : 'border border-border text-text'}`}>
+              <ArrowsMerge size={18} weight="bold" aria-hidden="true" />Unisci tavoli
+            </button>
             <button type="button" onClick={() => setListaAperta(true)} className="premibile flex h-9 items-center gap-2 rounded-md border border-border px-3 text-text lg:hidden">
               <CalendarCheck size={18} weight="bold" aria-hidden="true" />Prenotazioni {daSedere.length}
             </button>
@@ -151,6 +189,26 @@ export function Sala() {
             )}
           </div>
 
+          {unendo && (
+            <div role="status" className="mx-4 mb-2 flex flex-wrap items-center gap-3 rounded-md bg-text px-4 py-2.5 font-semibold text-bg">
+              <ArrowsMerge size={20} weight="bold" aria-hidden="true" />
+              <span className="flex-1">{unendo.length ? `Tavoli ${unendo.map((id) => tavoli.find((t) => t.id === id)?.numero).join(' + ')}` : 'Tocca i tavoli liberi da unire (anche di sale diverse)'}</span>
+              <button type="button" onClick={() => setUnendo(null)} className="premibile h-10 rounded-md px-3">Annulla</button>
+              <button type="button" disabled={unendo.length < 2} onClick={apriUniti} className="premibile h-10 rounded-md bg-accent px-4 font-bold text-on-accent disabled:opacity-40">Apri insieme</button>
+            </div>
+          )}
+          {alBanco.length > 0 && !unendo && (
+            <div className="mx-4 mb-2 flex gap-2 overflow-x-auto" aria-label="Conti al banco e asporto">
+              {alBanco.map((c) => (
+                <button key={c.id} type="button" onClick={() => nav(`/comanda/${c.id}`)}
+                  className="premibile flex h-11 flex-none items-center gap-2 rounded-pill bg-surface-2 px-4 text-sm font-semibold ring-1 ring-border">
+                  {c.canale === 'asporto' ? <Handbag size={16} weight="bold" aria-hidden /> : <BeerBottle size={16} weight="bold" aria-hidden />}
+                  {nomeConto(db.setup(), c)}
+                  <span className="tabular-nums text-text-muted">{euro(calcolaConto(db.righe(c.id), 0, 0).totaleCents)}</span>
+                </button>
+              ))}
+            </div>
+          )}
           {aspettaTavolo && (
             <div role="status" className="mx-4 mb-2 flex items-center gap-3 rounded-md bg-tavolo-prenotato px-4 py-2.5 font-semibold text-on-tavolo">
               <CalendarCheck size={20} weight="bold" aria-hidden="true" />
@@ -168,17 +226,22 @@ export function Sala() {
                   const tondo = t.forma === 'tondo' || t.forma === 'sgabello';
                   const piccolo = unita < 96;
                   const pt = i.stato === 'prenotato' ? prenotazioneDel(t) : undefined;
+                  const scelto = unendo?.includes(t.id);
+                  const unitoA = i.comanda && i.comanda.tavoloId !== t.id ? tavoli.find((x) => x.id === i.comanda!.tavoloId)?.numero : undefined;
                   const etichetta = i.stato === 'libero'
                     ? `Tavolo ${t.numero}, libero, ${t.posti} posti`
                     : pt ? `Tavolo ${t.numero}, prenotato alle ${ora2(pt.inizio)} per ${pt.nome}, ${pt.coperti} persone`
+                    : unitoA ? `Tavolo ${t.numero}, unito al tavolo ${unitoA}`
                     : `Tavolo ${t.numero}, ${NOME_STATO[i.stato].toLowerCase()}, ${i.comanda!.coperti} coperti, ${i.minuti} minuti, ${euro(i.totale!)}`;
                   return (
-                    <button key={t.id} type="button" onClick={() => tocca(t)} aria-label={etichetta}
-                      className={`premibile absolute flex flex-col items-center justify-center gap-0.5 tabular-nums ${tondo ? 'rounded-pill' : 'rounded-lg'} ${STILE[i.stato]}`}
+                    <button key={t.id} type="button" onClick={() => tocca(t)} aria-label={etichetta} aria-pressed={unendo ? !!scelto : undefined}
+                      className={`premibile absolute flex flex-col items-center justify-center gap-0.5 tabular-nums ${tondo ? 'rounded-pill' : 'rounded-lg'} ${scelto ? 'bg-accent text-on-accent ring-4 ring-accent/40' : STILE[i.stato]} ${unendo && i.comanda ? 'opacity-40' : ''}`}
                       style={{ left: t.x * unita, top: t.y * unita, width: t.larghezza * unita - 12, height: t.altezza * unita - 12 }}>
                       <b className={`${piccolo ? 'text-lg' : 'text-[26px]'} font-bold leading-none tracking-tight`}>{t.numero}</b>
-                      {i.stato === 'libero' ? (
-                        !piccolo && <span className="text-xs font-medium text-text-muted">{t.posti} posti</span>
+                      {unitoA ? (
+                        <span className="flex items-center gap-1 text-xs font-bold"><ArrowsMerge size={13} weight="bold" aria-hidden />con {unitoA}</span>
+                      ) : i.stato === 'libero' ? (
+                        !piccolo && <span className={`text-xs font-medium ${scelto ? '' : 'text-text-muted'}`}>{t.posti} posti</span>
                       ) : pt ? (
                         <>
                           <span className="flex items-center gap-1 text-xs font-bold"><CalendarCheck size={13} weight="bold" aria-hidden />{ora2(pt.inizio)}</span>
@@ -219,7 +282,7 @@ export function Sala() {
                 <li key={c.id}>
                   <button type="button" onClick={() => nav(`/comanda/${c.id}`)}
                     className="premibile flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left hover:bg-surface-2">
-                    <span className={`grid h-11 w-11 flex-none place-items-center rounded-md text-base font-bold ${STILE[i.stato]}`}>{t.numero}</span>
+                    <span className={`grid h-11 min-w-11 flex-none place-items-center rounded-md px-1.5 text-base font-bold ${STILE[i.stato]}`}>{numeriTavolo(db.setup(), c)}</span>
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-[15px] font-semibold">{c.coperti} coperti · {c.operatore || 'n.d.'}</span>
                       <span className="text-sm text-text-muted">{i.stato === 'conto' ? 'Conto chiesto' : i.stato === 'ritardo' ? 'Piatti in ritardo' : `Aperto da ${i.minuti} min`}</span>
@@ -233,7 +296,7 @@ export function Sala() {
         </aside>
       </div>
 
-      <Foglio aperto={!!daAprire} onChiudi={() => setDaAprire(null)} titolo={`Apri il tavolo ${daAprire?.numero ?? ''}`}>
+      <Foglio aperto={!!daAprire} onChiudi={() => { setDaAprire(null); setUniti([]); }} titolo={uniti.length ? `Apri i tavoli ${[daAprire?.numero, ...uniti.map((id) => tavoli.find((t) => t.id === id)?.numero)].join(' + ')}` : `Apri il tavolo ${daAprire?.numero ?? ''}`}>
         {(() => {
           const scelte = daSedere.filter((p) => p.id === pren || !p.tavoloId || p.tavoloId === daAprire?.id || !tavoli.some((t) => t.id === p.tavoloId));
           const p = prenotazioni.find((x) => x.id === pren);
@@ -278,6 +341,9 @@ export function Sala() {
           {pren ? `Apri per ${prenotazioni.find((x) => x.id === pren)?.nome ?? ''}` : 'Apri e prendi la comanda'}
         </Pulsante>
       </Foglio>
+
+      <FoglioBanco aperto={banco} onChiudi={() => setBanco(false)} aperti={alBanco} inCorso={inCorso} onApri={apriBanco}
+        onRiprendi={(c) => { setBanco(false); nav(`/comanda/${c.id}`); }} />
 
       <Foglio aperto={listaAperta} onChiudi={() => setListaAperta(false)} titolo="Prenotazioni di oggi">
         <ListaPrenotazioni prenotazioni={prenotazioni} tavoli={tavoli} ora={ora} onAccogli={accogli}
@@ -330,5 +396,49 @@ function ListaPrenotazioni({ prenotazioni, tavoli, ora, onAccogli, onNonArrivati
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Banco e asporto: un conto senza tavolo, in un tocco. Il nome è facoltativo (per richiamarlo dopo). */
+function FoglioBanco({ aperto, onChiudi, aperti, inCorso, onApri, onRiprendi }: {
+  aperto: boolean; onChiudi: () => void; aperti: Comanda[]; inCorso: boolean;
+  onApri: (canale: 'banco' | 'asporto', nome: string) => void; onRiprendi: (c: Comanda) => void;
+}) {
+  const { db } = useApp();
+  const [nome, setNome] = useState('');
+  useEffect(() => { if (aperto) setNome(''); }, [aperto]);
+  return (
+    <Foglio aperto={aperto} onChiudi={onChiudi} titolo="Banco e asporto">
+      <div className="grid grid-cols-2 gap-3">
+        <button type="button" disabled={inCorso} onClick={() => onApri('banco', nome)}
+          className="premibile flex h-28 flex-col items-center justify-center gap-2 rounded-lg bg-accent text-lg font-bold text-on-accent disabled:opacity-50">
+          <BeerBottle size={32} weight="bold" aria-hidden />Banco
+        </button>
+        <button type="button" disabled={inCorso} onClick={() => onApri('asporto', nome)}
+          className="premibile flex h-28 flex-col items-center justify-center gap-2 rounded-lg bg-surface-2 text-lg font-bold ring-1 ring-border disabled:opacity-50">
+          <Handbag size={32} weight="bold" aria-hidden />Asporto
+        </button>
+      </div>
+      <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome (facoltativo, es. Marco)" aria-label="Nome del cliente"
+        className="mt-3 h-touch w-full rounded-md border border-border-input bg-bg px-3 text-base text-text outline-none placeholder:text-text-muted focus:border-focus" />
+      <p className="mt-2 text-sm text-text-muted">Niente tavolo né coperti: scegli i prodotti e tocca <strong className="text-text">Incassa</strong>. Quello che va preparato parte da solo in cucina o al bar.</p>
+      {aperti.length > 0 && (
+        <section className="mt-5">
+          <h3 className="mb-2 text-sm font-semibold text-text-muted">Ancora da incassare</h3>
+          <ul className="flex flex-col gap-1.5">
+            {aperti.map((c) => (
+              <li key={c.id}>
+                <button type="button" onClick={() => onRiprendi(c)} className="premibile flex w-full items-center gap-3 rounded-md bg-bg px-3 py-2.5 text-left">
+                  {c.canale === 'asporto' ? <Handbag size={20} weight="bold" aria-hidden /> : <BeerBottle size={20} weight="bold" aria-hidden />}
+                  <span className="flex-1 font-semibold">{nomeConto(db.setup(), c)}</span>
+                  <span className="text-sm text-text-muted">{new Date(c.apertaAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="font-semibold tabular-nums">{euro(calcolaConto(db.righe(c.id), 0, 0).totaleCents)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </Foglio>
   );
 }
