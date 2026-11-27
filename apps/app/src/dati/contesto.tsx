@@ -1,9 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  CodaStampa, FakeDataLayer, MemoriaArchivio, magazzinoDemo, prenotazioniDemo, seedDemo, setupDaTabelle, tabelleDaSetup,
+  CassaOffline, CodaStampa, FakeDataLayer, MemoriaArchivio, magazzinoDemo, prenotazioniDemo, seedDemo, setupDaTabelle, tabelleDaSetup,
   type Archivio, type DataLayer, type Operatore, type StatoRt, type TrasportoSimulato,
 } from '@gr/core';
 import { version as VERSIONE } from '../../package.json';
+import { lineaOk, pulisciOffline, salvaIstantanea, salvaStatoOffline, sincronizza, statoOfflineSalvato, ultimaIstantanea, verificaPinOffline } from './offline';
+import type { Istantanea, StatoOffline } from '@gr/core';
 import { creaTrasporto, inTauri } from './trasporto';
 import { SupabaseDataLayer, supabase, supabaseConfigurato } from './supabase';
 import { SupabaseArchivio } from './archivio';
@@ -19,6 +21,8 @@ interface Ctx {
   stampaDaQui: boolean;
   /** Solo sulla cassa che stampa: rilegge subito lo stato del registratore. */
   leggiRt?: () => Promise<StatoRt | undefined>;
+  /** Cassa senza internet: lavora da sola e rimanda tutto quando torna la linea. */
+  offline?: { messaggio?: string };
   operatore: Operatore | null;
   setOperatore: (o: Operatore | null) => void;
   toast: (t: { testo: string; tipo?: 'ok' | 'errore' | 'info' }) => void;
@@ -36,7 +40,7 @@ const deveStampare = (m: Modalita) => m === 'demo' || inTauri() || localStorage.
 type Stato =
   | { fase: 'avvio' }
   | { fase: 'collega'; errore?: string }
-  | { fase: 'pronto'; db: DataLayer; archivio: Archivio; modalita: Modalita; simulato?: TrasportoSimulato; coda?: CodaStampa };
+  | { fase: 'pronto'; db: DataLayer; archivio: Archivio; modalita: Modalita; simulato?: TrasportoSimulato; coda?: CodaStampa; offline?: CassaOffline };
 
 /** Nome con cui la cassa si presenta agli altri dispositivi ("Cassa Windows", "Cassa Mac"). */
 const nomePonte = () => {
@@ -51,6 +55,7 @@ export function DatiProvider({ children, schermataCollega }: { children: ReactNo
   const [operatore, setOperatore] = useState<Operatore | null>(null);
   const [toasts, setToasts] = useState<Ctx['toasts']>([]);
   const fermaCoda = useRef<(() => void) | undefined>(undefined);
+  const [messaggioOffline, setMessaggioOffline] = useState<string | undefined>();
 
   const pronto = useCallback((db: DataLayer, archivio: Archivio, modalita: Modalita) => {
     fermaCoda.current?.();
@@ -64,7 +69,30 @@ export function DatiProvider({ children, schermataCollega }: { children: ReactNo
       const ponte = inTauri() || modalita === 'demo' ? { nome: modalita === 'demo' ? 'Demo' : nomePonte(), versione: VERSIONE, leggiRt: true } : undefined;
       fermaCoda.current = coda.avvia(modalita === 'demo' ? 500 : 1500, ponte);
     }
+    // Sulla cassa installata: la fotografia del servizio va sul disco a ogni cambiamento, per ripartire senza linea.
+    if (modalita === 'locale' && inTauri() && db instanceof SupabaseDataLayer) {
+      let t: ReturnType<typeof setTimeout> | undefined;
+      const salva = () => { clearTimeout(t); t = setTimeout(() => salvaIstantanea(db.istantanea()), 2000); };
+      salva();
+      const off = db.subscribe(salva);
+      const prima = fermaCoda.current;
+      fermaCoda.current = () => { prima?.(); off(); clearTimeout(t); };
+    }
     setStato({ fase: 'pronto', db, archivio, modalita, simulato, coda });
+  }, []);
+
+  /** Senza linea: la cassa riparte dalla fotografia (o dallo stato offline salvato) e stampa da sé. */
+  const vaiOffline = useCallback((base: Istantanea, salvato?: StatoOffline, archivio?: Archivio) => {
+    fermaCoda.current?.();
+    const off = new CassaOffline(base, verificaPinOffline);
+    if (salvato) off.ripristina(salvato);
+    const coda = new CodaStampa(off, creaTrasporto().trasporto);
+    const ferma = coda.avvia(1500);
+    const smetti = off.subscribe(() => salvaStatoOffline(base, off.stato()));
+    salvaStatoOffline(base, off.stato());
+    fermaCoda.current = () => { ferma(); smetti(); };
+    setMessaggioOffline(undefined);
+    setStato({ fase: 'pronto', db: off, archivio: archivio ?? new MemoriaArchivio(tabelleDaSetup(base.setup), () => undefined), modalita: 'locale', coda, offline: off });
   }, []);
 
   const avviaDemo = useCallback(() => {
@@ -79,14 +107,29 @@ export function DatiProvider({ children, schermataCollega }: { children: ReactNo
   }, [pronto]);
 
   const avviaLocale = useCallback(async () => {
+    localStorage.setItem(CHIAVE_MODALITA, 'locale');
+    const salvato = inTauri() ? statoOfflineSalvato() : null;
+    // Lavoro fatto senza linea e non ancora mandato (es. cassa riavviata): prima si sincronizza.
+    if (salvato) {
+      const off = new CassaOffline(salvato.base, verificaPinOffline);
+      off.ripristina(salvato.stato);
+      try {
+        if (!(await lineaOk())) throw new Error('linea assente');
+        await sincronizza(off);
+        pulisciOffline();
+      } catch {
+        return vaiOffline(salvato.base, salvato.stato);
+      }
+    }
     try {
-      localStorage.setItem(CHIAVE_MODALITA, 'locale');
       const db = await SupabaseDataLayer.avvia();
       pronto(db, new SupabaseArchivio(() => void db.ricaricaSetup()), 'locale');
     } catch (e) {
+      const base = inTauri() ? ultimaIstantanea() : null;
+      if (base && !(await lineaOk())) return vaiOffline(base);
       setStato({ fase: 'collega', errore: (e as Error).message });
     }
-  }, [pronto]);
+  }, [pronto, vaiOffline]);
 
   useEffect(() => {
     (async () => {
@@ -98,6 +141,33 @@ export function DatiProvider({ children, schermataCollega }: { children: ReactNo
     })();
     return () => fermaCoda.current?.();
   }, [avviaDemo, avviaLocale]);
+
+  // Cassa installata: ogni 10 secondi si controlla la linea. Due controlli falliti → si lavora da soli;
+  // due riusciti dopo un guasto → si rimanda tutto al database e si torna normali.
+  useEffect(() => {
+    if (stato.fase !== 'pronto' || stato.modalita !== 'locale' || !inTauri()) return;
+    let ko = 0, ok = 0, fermo = false, occupato = false;
+    const giro = async () => {
+      if (occupato || fermo) return;
+      occupato = true;
+      try {
+        const c = await lineaOk();
+        ko = c ? 0 : ko + 1; ok = c ? ok + 1 : 0;
+        if (!stato.offline && ko >= 2 && stato.db instanceof SupabaseDataLayer) {
+          fermo = true; vaiOffline(stato.db.istantanea(), undefined, stato.archivio);
+        } else if (stato.offline && ok >= 2) {
+          try {
+            const r = await sincronizza(stato.offline);
+            pulisciOffline(); fermo = true;
+            toast({ testo: r.comande || r.documenti ? `Linea tornata: rimandati ${r.comande} conti e ${r.documenti} scontrini` : 'Linea tornata', tipo: 'ok' });
+            await avviaLocale();
+          } catch (e) { setMessaggioOffline((e as Error).message); }
+        }
+      } finally { occupato = false; }
+    };
+    const t = setInterval(() => void giro(), 10_000);
+    return () => { fermo = true; clearInterval(t); };
+  }, [stato]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Prenotazioni da Table Flow: una lettura subito e poi ogni minuto (solo col database vero).
   useEffect(() => {
@@ -138,6 +208,7 @@ export function DatiProvider({ children, schermataCollega }: { children: ReactNo
     <C.Provider value={{
       db: stato.db, archivio: stato.archivio, modalita: stato.modalita, simulato: stato.simulato, stampaDaQui: deveStampare(stato.modalita),
       leggiRt: stato.coda ? () => stato.coda!.leggiRt() : undefined,
+      offline: stato.offline ? { messaggio: messaggioOffline } : undefined,
       operatore, setOperatore, toast, toasts, scollega,
     }}>{children}</C.Provider>
   );

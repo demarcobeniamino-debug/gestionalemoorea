@@ -7,7 +7,7 @@ import {
   type Allergene, type Comanda, type DataLayer, type Documento, type EsitoLavoro, type Incasso, type NuovaRiga,
   type Operatore, type PrintJob, type RigaComanda, type Setup, setupDaTabelle, type Prenotazione,
   type Cliente, type ClienteNuovo, type DatiFiscali, type Fattura, type MessaggioReparto, type NuovaFattura, type NuovoMessaggio,
-  type StatoFattura, type StoricoCliente, type Ticket, type PonteStampa, type StatoRt, type ChiusuraFiscale, preparaAnnullaConto, preparaProforma, preparaReso, preparaRistampa, comandaSulTavolo, preparaMessaggio, rigaUguale,
+  type StatoFattura, type StoricoCliente, type Ticket, type PonteStampa, type StatoRt, type ChiusuraFiscale, type Istantanea, preparaAnnullaConto, preparaProforma, preparaReso, preparaRistampa, comandaSulTavolo, preparaMessaggio, rigaUguale,
   type Caparra, type Impostazioni, type MovimentoCassa, type Sospeso, type TipoMovimentoCassa, type TipoPagamento, righeMenu, xmlApriCassetto,
 } from '@gr/core';
 
@@ -259,7 +259,20 @@ export class SupabaseDataLayer implements DataLayer {
   async login(pin: string): Promise<Operatore | null> {
     const { data, error } = await this.sb.rpc('operatore_accedi', { p_locale: this.localeId, p_pin: pin });
     if (error) errore(error);
-    return (data as Operatore[])[0] ?? null;
+    const o = (data as Operatore[])[0] ?? null;
+    if (o) void import('./offline').then((m) => m.ricordaPin(pin, o)).catch(() => undefined);
+    return o;
+  }
+
+  /** Fotografia del servizio per lavorare senza internet: listino, sale, conti aperti con righe e scontrini. */
+  istantanea(): Istantanea {
+    const aperte = new Set(this.comandeAperte().map((c) => c.id));
+    return {
+      quando: new Date().toISOString(), localeId: this.localeId, setup: this._setup,
+      comande: this._comande.filter((c) => aperte.has(c.id)),
+      righe: this._righe.filter((r) => aperte.has(r.comandaId)),
+      documenti: this._documenti.filter((d) => aperte.has(d.comandaId)),
+    };
   }
 
   prenotazioni() { return this._prenotazioni; }

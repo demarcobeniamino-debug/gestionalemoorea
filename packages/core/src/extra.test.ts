@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FakeDataLayer, CodaStampa, TrasportoSimulato, seedDemo, calcolaConto, calcolaFattura, xmlFattura, controllaIntestatario, controllaCedente, anteprima, riepilogo, ponteVivo, esportaCorrispettivi, giornoDiServizio, type Cliente } from './index';
+import { FakeDataLayer, CodaStampa, TrasportoSimulato, seedDemo, calcolaConto, calcolaFattura, xmlFattura, controllaIntestatario, controllaCedente, anteprima, riepilogo, ponteVivo, esportaCorrispettivi, giornoDiServizio, CassaOffline, datiDaSincronizzare, type Cliente } from './index';
 
 const OP = { id: 'op-aldo', nome: 'Aldo', ruolo: 'cameriere' };
 const nuovo = () => { const db = new FakeDataLayer(seedDemo()); return { db, coda: new CodaStampa(db, new TrasportoSimulato()) }; };
@@ -361,5 +361,41 @@ describe('Export per il commercialista', () => {
     expect(righe[1].split(';')[1]).toBe('1');
     expect(righe[1].split(';')[2]).toBe('0,00'); // reso totale: corrispettivi a zero
     expect(e.documenti).toMatch(/Reso;\d+-\d{4};-/);
+  });
+});
+
+describe('Cassa senza internet', () => {
+  it('lavora dall’istantanea, stampa e fa scontrini; al ritorno manda solo il nuovo, già emesso', async () => {
+    const setup = seedDemo();
+    const online = new FakeDataLayer(setup);
+    const aperta = await online.apriTavolo('t1', 2, OP);
+    await online.aggiungiRiga(aperta.id, { articoloId: setup.articoli.find((a) => a.nome === 'Negroni')!.id });
+    const base = { quando: new Date().toISOString(), localeId: 'L', setup, comande: online.comandeAperte(), righe: online.righe(aperta.id), documenti: [] };
+    const off = new CassaOffline(base, async (pin) => (pin === '1111' ? OP : null));
+    expect(await off.login('1111')).toEqual(OP);
+    await expect(off.salvaCaparra()).rejects.toThrow(/Senza internet/);
+    const coda = new CodaStampa(off, new TrasportoSimulato());
+    // Il tavolo aperto prima del guasto continua; se ne apre un altro.
+    await off.invia(aperta.id, 'k1', OP);
+    const nuovo = await off.apriTavolo('t2', 3, OP);
+    expect(nuovo.numero).toBe(aperta.numero + 1);
+    await off.aggiungiRiga(nuovo.id, { articoloId: art(off, 'Polpo Scottato') });
+    await off.invia(nuovo.id, 'k2', OP);
+    await coda.elabora();
+    const tot = calcolaConto(off.righe(aperta.id), 2, setup.locale.copertoCents).totaleCents;
+    await off.incassa(aperta.id, { pagamenti: [{ tipo: 'carta', importoCents: tot }] }, 'i1');
+    await coda.elabora();
+    await off.registraMovimento('fondo', 10000, '', 'm1', OP);
+    const d = datiDaSincronizzare(base, off.stato());
+    expect(d.comande.map((c) => [c.id, c.stato, c.nuova])).toEqual(expect.arrayContaining([[aperta.id, 'chiusa', false], [nuovo.id, 'aperta', true]]));
+    expect(d.righe.every((r) => r.stato === 'inviata' && !/\d{6}$/.test(r.created_at!))).toBe(true);
+    expect(d.documenti).toHaveLength(1);
+    expect(d.documenti[0]).toMatchObject({ stato: 'emesso', comanda_id: aperta.id, nuovo: true });
+    expect(d.documenti[0].rt_doc_numero).toBeGreaterThan(0);
+    expect(d.movimenti).toHaveLength(1);
+    // Il tavolo nuovo è ancora aperto: ripreso dopo un riavvio senza linea.
+    const ripreso = new CassaOffline(base, async () => null);
+    ripreso.ripristina(off.stato());
+    expect(ripreso.comandaDelTavolo('t2')?.id).toBe(nuovo.id);
   });
 });

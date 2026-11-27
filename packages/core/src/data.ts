@@ -161,17 +161,17 @@ const uid = () => (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(3
 
 export class FakeDataLayer implements DataLayer {
   private s: Setup;
-  private _comande = new Map<string, Comanda>();
-  private _righe = new Map<string, RigaComanda>();
-  private _documenti = new Map<string, Documento>();
-  private _lavori = new Map<string, PrintJob>();
+  protected _comande = new Map<string, Comanda>();
+  protected _righe = new Map<string, RigaComanda>();
+  protected _documenti = new Map<string, Documento>();
+  protected _lavori = new Map<string, PrintJob>();
   private _prenotazioni = new Map<string, Prenotazione>();
   private chiavi = new Map<string, unknown>();
   private listeners = new Set<() => void>();
-  private numero = 0;
+  protected numero = 0;
   private seq = 0;
 
-  constructor(setup: Setup, private now: () => Date = () => new Date()) { this.s = setup; }
+  constructor(setup: Setup, protected now: () => Date = () => new Date()) { this.s = setup; }
 
   private emit() { for (const l of this.listeners) l(); }
   subscribe(fn: () => void) { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; }
@@ -506,9 +506,9 @@ export class FakeDataLayer implements DataLayer {
   }
 
   // ---------------------------------------------------------------- cassa
-  private _sospesi: Sospeso[] = [];
-  private _caparre: Caparra[] = [];
-  private _movimenti: MovimentoCassa[] = [];
+  protected _sospesi: Sospeso[] = [];
+  protected _caparre: Caparra[] = [];
+  protected _movimenti: MovimentoCassa[] = [];
   async sospesi() { return [...this._sospesi].sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
   async incassaSospeso(id: string, tipo: TipoPagamento) {
     if (!TIPI_INCASSO_SOSPESO.includes(tipo)) throw new ErroreDominio('Metodo non valido');
@@ -623,7 +623,7 @@ export class FakeDataLayer implements DataLayer {
     });
   }
 
-  private _chiusure: { totali: object; quando: string; jobId: string }[] = [];
+  protected _chiusure: { totali: object; quando: string; jobId: string }[] = [];
   async chiusuraFiscale(totali: object, key: string) {
     this.idem(key, () => {
       const prep = preparaChiusura(this.s);

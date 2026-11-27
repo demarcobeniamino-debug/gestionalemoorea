@@ -1,7 +1,7 @@
 // Fascia d'avviso sotto la testata: nessuna cassa accesa (le comande non escono), stampe rimaste in coda,
 // problemi del registratore. Compare su ogni schermata, perché chi prende la comanda deve saperlo subito.
 import { Link } from 'react-router-dom';
-import { Clock, Plugs, Warning } from '@phosphor-icons/react';
+import { Clock, Plugs, Warning, WifiSlash } from '@phosphor-icons/react';
 import { avvisiRt, ponteVivo } from '@gr/core';
 import { useApp, useDati, useOra } from '../dati/contesto';
 import { puoGestire } from '../dati/ruoli';
@@ -9,11 +9,23 @@ import { puoGestire } from '../dati/ruoli';
 const ora = (iso: string) => new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
 export function AvvisoCassa() {
-  const { modalita, stampaDaQui, operatore } = useApp();
+  const { modalita, stampaDaQui, operatore, offline } = useApp();
   const adesso = useOra(10_000);
   const { ponti, sospesi } = useDati((d) => ({ ponti: d.ponti(), sospesi: d.lavori().filter((j) => j.stato === 'sospeso').length }));
   const vivi = ponti.filter((p) => ponteVivo(p, adesso.getTime()));
   const capo = puoGestire(operatore?.ruolo) || operatore?.ruolo === 'cassiere';
+
+  if (offline) {
+    return (
+      <div role="status" className="flex flex-none items-center gap-3 bg-warning px-4 py-2.5 text-sm font-semibold text-on-warning">
+        <WifiSlash size={20} weight="bold" aria-hidden className="flex-none" />
+        <span className="flex-1">
+          Senza internet: la cassa lavora da sola (comande, stampe, conti e scontrini). I telefoni restano fermi finché torna la linea; poi la cassa rimanda tutto da sola.
+          {offline.messaggio ? <span className="block font-normal">{offline.messaggio}</span> : null}
+        </span>
+      </div>
+    );
+  }
 
   if (modalita === 'locale' && !stampaDaQui && vivi.length === 0) {
     const ultimo = [...ponti].sort((a, b) => b.vistoAt.localeCompare(a.vistoAt))[0];
