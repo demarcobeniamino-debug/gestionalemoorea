@@ -82,3 +82,10 @@ Screenshot in `replica/clone-screens/`.
 - Cassa in quattro schede: Riepilogo · Invio scontrini (stato RT, contatori, ogni invio con esito; "Verifica" per gli scontrini rimasti in dubbio: "è uscito" con numero Z/documento, oppure "non è uscito" e si rifà dal conto) · Chiusure (Z degli ultimi 60 giorni con numero, incasso, esito) · Fatture (da inviare con scadenza a 12 giorni, inviate, scartate, totale del mese).
 - Corretto: con il PIN sbagliato l'annullo mostrava comunque il messaggio di riuscita.
 - Test: 46 unitari; e2e verdi (6 prove, nuova `prova-annulla`); annulla_comanda provato sul database in transazione annullata.
+
+## 2026-11-27 — Collaudo stampanti al locale (v0.7.2)
+- Collaudo con Benny sulle Matchpower: comande, marcia, sollecito, messaggio, preconto e prova stampa escono, veloci.
+- Corretto: il pallino delle stampanti restava rosso per un errore vecchio; ora conta l'ultima stampa (gli scontrini "da verificare" restano in evidenza). Messaggio d'errore leggibile al posto di "Cucina: undefined".
+- "Offerto dalla casa" non è più uno storno: il piatto resta e si serve, vale 0 € (omaggio), nessun ticket al reparto; serve il PIN del responsabile se lo fa un cameriere; si può rimettere a pagamento. Il foglio dice il reparto giusto ("Bar riceve lo storno").
+- Comande più leggibili: piatti in carattere doppio e grassetto, una riga vuota fra un piatto e l'altro, varianti e note in grassetto rientrate, portate come fascia nera ("PORTATA 1", "BEVANDE", "DESSERT"), interlinea più ariosa.
+- Importati da Passepartout Menu: 11 clienti (P.IVA, SDI, PEC, indirizzo) e lo storico delle chiusure giornaliere dal 13/02/2026. Lavoro in corso (non ancora visibile): banco/asporto, sospesi e camera, cassetto, caparre, metodi di pagamento, promozioni, menu fissi (DB 0012–0013 già applicati).

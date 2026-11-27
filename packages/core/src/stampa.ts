@@ -51,7 +51,9 @@ export class CodaStampa {
         await this.trasporto.inviaTcp(st.host, st.porta, dati, 5000);
         await this.db.esitoLavoro(j.id, { ok: true });
       } catch (e) {
-        await this.db.esitoLavoro(j.id, { ok: false, errore: `${st.nome}: ${(e as Error).message}` });
+        // Tauri restituisce l'errore come testo, il browser come Error: si accettano entrambi.
+        const msg = typeof e === 'string' ? e : (e as Error)?.message ?? String(e);
+        await this.db.esitoLavoro(j.id, { ok: false, errore: `${st.nome} non risponde (${msg || 'nessun dettaglio'}). Controlla che sia accesa e sulla rete del locale.` });
       }
       return;
     }

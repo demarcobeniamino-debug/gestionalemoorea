@@ -5,6 +5,7 @@ import type { AliquotaIva, Articolo, Categoria, CentroProduzione, Sala, Stampant
 
 export interface Setup {
   locale: { id: string; nome: string; citta: string; copertoCents: number; aliquotaCopertoId: string; fiscali?: Partial<import('./types').DatiFiscali> };
+  impostazioni?: import('./types').Impostazioni;
   stampanti: Stampante[];
   centri: CentroProduzione[];
   aliquote: AliquotaIva[];

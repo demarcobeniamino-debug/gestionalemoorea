@@ -107,7 +107,7 @@ describe('servizio completo (fetta verticale)', () => {
     const cucina = anteprima(jobs.find((j) => j.stampanteId === 'st-cucina')!.ticket!, 48).map((r) => r.testo);
     expect(cucina).toContain('TAVOLO 7');
     expect(cucina.some((l) => l.includes('ALLERGIA FRUTTA A GUSCIO'))).toBe(true);
-    expect(cucina.some((l) => l.includes('* niente noci'))).toBe(true);
+    expect(cucina.some((l) => l.includes('> NIENTE NOCI'))).toBe(true);
     expect(cucina.some((l) => l.includes('Primitivo'))).toBe(false);   // il vino va al bar
     expect(cucina.some((l) => l.includes('contiene'))).toBe(false);    // nessun piatto con frutta a guscio: niente rumore
 

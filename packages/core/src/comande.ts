@@ -5,6 +5,9 @@ import { ALLERGENI_ETICHETTA } from './types';
 import { nomePortata, importoRiga } from './conto';
 import { euro } from './money';
 
+/** Intestazione della portata sul ticket: parole semplici, senza simboli che le stampanti non hanno. */
+const titoloPortata = (p: number) => (p === 0 ? 'BEVANDE' : p === 9 ? 'DESSERT' : `PORTATA ${p}`);
+
 const ora = (iso: string) => {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -39,21 +42,26 @@ export function ticketComanda(d: DatiTicketComanda): Ticket {
   }
   r.push({ k: 'separatore' });
 
+  // Leggibilità in servizio: piatti in carattere doppio (largo e alto) e grassetto, una riga vuota fra un piatto
+  // e l'altro, varianti e note in grassetto rientrate, portata come fascia nera.
   const portate = [...new Set(d.righe.map((x) => x.portata))].sort((a, b) => a - b);
   for (const p of portate) {
-    r.push({ k: 'testo', testo: `--- ${nomePortata(p).toUpperCase()} ---`, doppiaAltezza: true, grassetto: true });
+    r.push({ k: 'vuota' });
+    r.push({ k: 'testo', testo: ` ${titoloPortata(p)} `, inverso: true, grassetto: true, doppiaAltezza: true, allinea: 'centro' });
     for (const riga of d.righe.filter((x) => x.portata === p)) {
+      r.push({ k: 'vuota' });
       const q = Number.isInteger(riga.quantita) ? String(riga.quantita) : riga.quantita.toFixed(3).replace('.', ',');
-      r.push({ k: 'testo', testo: `${q} x ${riga.descrizione}`, doppiaAltezza: true, grassetto: true });
-      for (const v of riga.varianti) r.push({ k: 'testo', testo: `${v.nome.startsWith('+') || v.nome.startsWith('-') ? '' : '- '}${v.nome}`, rientro: 4 });
-      if (riga.posto) r.push({ k: 'testo', testo: `posto ${riga.posto}`, rientro: 4 });
-      if (riga.note) r.push({ k: 'testo', testo: `* ${riga.note}`, rientro: 4, grassetto: true });
+      r.push({ k: 'testo', testo: `${q} x ${riga.descrizione}`, grande: true, grassetto: true });
+      for (const v of riga.varianti.filter((x) => !x.promo)) r.push({ k: 'testo', testo: `> ${v.nome.replace(/^[-+]\s*/, (m) => m.trim() === '+' ? '+ ' : '')}`, rientro: 2, grassetto: true, doppiaAltezza: true });
+      if (riga.posto) r.push({ k: 'testo', testo: `> posto ${riga.posto}`, rientro: 2, grassetto: true, doppiaAltezza: true });
+      if (riga.note) r.push({ k: 'testo', testo: `> ${riga.note.toUpperCase()}`, rientro: 2, grassetto: true, doppiaAltezza: true });
       // Solo se il piatto contiene un allergene dichiarato al tavolo: allora in negativo, impossibile da non vedere.
       const critici = riga.allergeni.filter((a) => d.comanda.allergeniTavolo.some((x) => x.allergene === a));
-      if (critici.length) r.push({ k: 'testo', testo: `!! CONTIENE ${critici.map((a) => ALLERGENI_ETICHETTA[a as Allergene].toUpperCase()).join(', ')} !!`, inverso: true, grassetto: true, rientro: 4 });
-      if (d.tipo === 'storno' && riga.motivoStorno) r.push({ k: 'testo', testo: `motivo: ${riga.motivoStorno}`, rientro: 4 });
+      if (critici.length) r.push({ k: 'testo', testo: `!! CONTIENE ${critici.map((a) => ALLERGENI_ETICHETTA[a as Allergene].toUpperCase()).join(', ')} !!`, inverso: true, grassetto: true, rientro: 2 });
+      if (d.tipo === 'storno' && riga.motivoStorno) r.push({ k: 'testo', testo: `motivo: ${riga.motivoStorno}`, rientro: 2, grassetto: true });
     }
   }
+  r.push({ k: 'vuota' });
   if (d.inAttesa?.length) {
     r.push({ k: 'separatore' });
     r.push({ k: 'testo', testo: `In attesa di marcia: ${d.inAttesa.map(nomePortata).join(', ')}` });
@@ -72,12 +80,12 @@ export function ticketPreconto(d: DatiPreconto): Ticket {
   const r: RigaTicket[] = [];
   for (const l of d.intestazione) r.push({ k: 'testo', testo: l, allinea: 'centro', grassetto: true });
   r.push({ k: 'separatore' });
-  r.push({ k: 'coppia', sx: `PRECONTO  Tavolo ${d.tavolo}`, dx: ora(d.quando), grassetto: true });
+  r.push({ k: 'coppia', sx: `PRECONTO  ${/^\d/.test(d.tavolo) ? 'Tavolo ' : ''}${d.tavolo}`, dx: ora(d.quando), grassetto: true });
   r.push({ k: 'coppia', sx: `${d.coperti} coperti`, dx: `Op. ${d.operatore}` });
   r.push({ k: 'separatore' });
   // Raggruppa righe uguali (stesso articolo, varianti, prezzo).
   const gruppi = new Map<string, { descr: string; q: number; imp: number }>();
-  for (const x of d.righe.filter((x) => x.stato !== 'stornata')) {
+  for (const x of d.righe.filter((x) => x.stato !== 'stornata' && !x.parentId)) {
     const chiave = x.descrizione + JSON.stringify(x.varianti) + x.prezzoUnitarioCents + x.omaggio;
     const g = gruppi.get(chiave) ?? { descr: x.descrizione + (x.omaggio ? ' (omaggio)' : ''), q: 0, imp: 0 };
     g.q += x.quantita; g.imp += importoRiga(x);
@@ -114,14 +122,14 @@ export function ticketMessaggio(d: DatiTicketMessaggio): Ticket {
   r.push({ k: 'coppia', sx: d.centro.toUpperCase(), dx: ora(d.quando), grassetto: true });
   r.push({ k: 'testo', testo: `*** ${titolo} ***`, inverso: true, grassetto: true, allinea: 'centro', doppiaAltezza: true });
   if (d.tavolo) r.push({ k: 'testo', testo: /^\d/.test(d.tavolo) ? `TAVOLO ${d.tavolo}` : d.tavolo.toUpperCase(), grande: true, grassetto: true });
-  if (d.portata !== undefined) r.push({ k: 'testo', testo: nomePortata(d.portata).toUpperCase(), doppiaAltezza: true, grassetto: true });
+  if (d.portata !== undefined) r.push({ k: 'testo', testo: titoloPortata(d.portata), doppiaAltezza: true, grassetto: true });
   if (d.testo?.trim()) { r.push({ k: 'separatore' }); r.push({ k: 'testo', testo: d.testo.trim(), doppiaAltezza: true, grassetto: true }); }
   const rr = (d.righe ?? []).filter((x) => x.stato !== 'stornata');
   if (rr.length) {
     r.push({ k: 'separatore' });
     for (const x of rr) {
-      r.push({ k: 'testo', testo: `${x.quantita} x ${x.descrizione}`, grassetto: true });
-      for (const v of x.varianti) r.push({ k: 'testo', testo: `- ${v.nome}`, rientro: 4 });
+      r.push({ k: 'testo', testo: `${x.quantita} x ${x.descrizione}`, grande: true, grassetto: true });
+      for (const v of x.varianti.filter((y) => !y.promo)) r.push({ k: 'testo', testo: `- ${v.nome}`, rientro: 4 });
     }
   }
   r.push({ k: 'separatore' });

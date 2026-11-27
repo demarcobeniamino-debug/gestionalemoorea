@@ -3,7 +3,9 @@
 //  - SupabaseDataLayer (nell'app): database vero, con cache locale aggiornata in tempo reale.
 // Le letture sono immediate (dalla cache); le scritture sono asincrone.
 
-import type { Allergene, Cliente, Comanda, DatiFiscali, Documento, Fattura, MessaggioReparto, Prenotazione, PrintJob, RigaComanda, RigaVariante, StatoFattura, StoricoCliente, TipoMessaggio } from './types';
+import type { Allergene, Caparra, Cliente, Comanda, DatiFiscali, Documento, Fattura, Impostazioni, MessaggioReparto, MovimentoCassa, Prenotazione, PrintJob, RigaComanda, RigaVariante, Sospeso, StatoFattura, StoricoCliente, TipoMessaggio, TipoMovimentoCassa, TipoPagamento } from './types';
+import { controllaSceltaMenu, promoInVigore, TIPI_INCASSO_SOSPESO } from './servizio';
+import { xmlApriCassetto } from './epson';
 import { nomeCliente } from './types';
 import type { Setup } from './seed';
 import { ErroreDominio, preparaAnnullaConto, preparaAnnullo, preparaChiusura, preparaIncasso, preparaInvio, preparaMessaggio, preparaPreconto, preparaStorno, type Incasso } from './operazioni';
@@ -70,6 +72,8 @@ export interface DataLayer {
   impostaAllergeni(comandaId: string, a: { allergene: Allergene; posto?: number }[]): Promise<void>;
   invia(comandaId: string, idempotencyKey: string, operatore?: Operatore, portata?: number): Promise<PrintJob[]>;
   storna(rigaId: string, motivo: string, idempotencyKey: string, operatore?: Operatore): Promise<void>;
+  /** Offerto dalla casa: il piatto resta (cucina e bar non ricevono niente), sul conto vale 0. */
+  offri(rigaId: string, omaggio: boolean, operatore?: Operatore): Promise<void>;
   segnaPronte(rigaIds: string[]): Promise<void>;
   preconto(comandaId: string, idempotencyKey: string, persone?: number): Promise<void>;
   incassa(comandaId: string, incasso: Incasso, idempotencyKey: string, operatore?: Operatore): Promise<Documento>;
@@ -91,6 +95,23 @@ export interface DataLayer {
   chiusuraFiscale(totali: object, idempotencyKey: string, operatore?: Operatore): Promise<void>;
   /** Conti, righe e scontrini degli ultimi n giorni di servizio (1 = oggi). */
   datiPeriodo(giorni: number): Promise<DatiPeriodo>;
+
+  /** Conto senza tavolo: al banco o da asporto, con un nome facoltativo. */
+  apriBanco(canale: 'banco' | 'asporto', nome: string, operatore: Operatore): Promise<Comanda>;
+  /** Menu fisso: riga del menu (con il prezzo) e i piatti scelti (a prezzo zero, vanno in cucina). */
+  aggiungiMenu(comandaId: string, articoloId: string, scelte: { articoloId: string; gruppo: number }[]): Promise<void>;
+
+  /** Conti sospesi e addebiti in camera (aperti e incassati negli ultimi 60 giorni). */
+  sospesi(): Promise<Sospeso[]>;
+  incassaSospeso(id: string, tipo: TipoPagamento, operatore?: Operatore): Promise<void>;
+  caparre(): Promise<Caparra[]>;
+  salvaCaparra(c: Omit<Caparra, 'id' | 'stato' | 'createdAt'>, operatore?: Operatore): Promise<Caparra>;
+  restituisciCaparra(id: string): Promise<void>;
+  /** Movimenti del cassetto della giornata di servizio. */
+  movimentiCassa(): Promise<MovimentoCassa[]>;
+  registraMovimento(tipo: TipoMovimentoCassa, importoCents: number, causale: string, idempotencyKey: string, operatore?: Operatore): Promise<void>;
+  apriCassetto(idempotencyKey: string): Promise<void>;
+  salvaImpostazioni(i: Impostazioni): Promise<void>;
 
   /** Messaggi ai reparti delle ultime ore (i più recenti per primi). */
   messaggi(): MessaggioReparto[];
@@ -243,6 +264,15 @@ export class FakeDataLayer implements DataLayer {
     });
   }
 
+  async offri(rigaId: string, omaggio: boolean) {
+    const r = this._righe.get(rigaId);
+    if (!r) throw new ErroreDominio('Riga inesistente');
+    if (r.stato === 'stornata') throw new ErroreDominio('La riga è stornata');
+    if (this.documenti(r.comandaId).some((d) => ['emesso', 'in_emissione', 'da_verificare'].includes(d.stato))) throw new ErroreDominio('Il conto è già stato pagato in parte');
+    r.omaggio = omaggio; const c = this._comande.get(r.comandaId); if (c) c.version++;
+    this.emit();
+  }
+
   async storna(rigaId: string, motivo: string, key: string) {
     this.idem(key, () => {
       const r = this._righe.get(rigaId);
@@ -306,8 +336,17 @@ export class FakeDataLayer implements DataLayer {
       d.errore = e.errore;
       if (e.ok) {
         d.rtZNumero = e.zNumero; d.rtDocNumero = e.docNumero; d.rtData = e.data;
-        if (d.tipo === 'annullo') { const o = d.origineId ? this._documenti.get(d.origineId) : undefined; if (o) o.stato = 'annullato'; }
-        else this.chiudiSePagata(d.comandaId);
+        if (d.tipo === 'annullo') {
+          const o = d.origineId ? this._documenti.get(d.origineId) : undefined;
+          if (o) {
+            o.stato = 'annullato';
+            this._sospesi = this._sospesi.map((x) => (x.documentoId === o.id && x.stato === 'aperto' ? { ...x, stato: 'annullato' } : x));
+            this._caparre = this._caparre.map((x) => (x.documentoId === o.id ? { ...x, stato: 'aperta', documentoId: undefined } : x));
+          }
+        } else {
+          this.registraDaDocumento(d);
+          this.chiudiSePagata(d.comandaId);
+        }
       } else if (!e.incerto) {
         this.chiavi.delete(d.idempotencyKey);
       }
@@ -362,6 +401,58 @@ export class FakeDataLayer implements DataLayer {
       return this.nuovoLavoro({ tipo: 'annullo', stampanteId: prep.stampanteId, idempotencyKey: key, documentoId: doc.id, xml: prep.xml });
     });
   }
+
+  // ---------------------------------------------------------------- banco, menu fissi
+  async apriBanco(canale: 'banco' | 'asporto', nome: string, operatore: Operatore): Promise<Comanda> {
+    const c: Comanda = {
+      id: uid(), numero: ++this.numero, tavoloId: null, coperti: 0, operatore: operatore.nome, stato: 'aperta',
+      apertaAt: this.now().toISOString(), allergeniTavolo: [], version: 1, canale, etichetta: nome.trim() || undefined,
+    };
+    this._comande.set(c.id, c); this.emit(); return c;
+  }
+  async aggiungiMenu(comandaId: string, articoloId: string, scelte: { articoloId: string; gruppo: number }[]) {
+    const c = this.comandaAperta(comandaId);
+    for (const r of righeMenu(this.s, comandaId, articoloId, scelte, uid, this.stamp())) this._righe.set(r.id, r);
+    if (c.stato === 'preconto') c.stato = 'aperta';
+    c.version++; this.emit();
+  }
+
+  // ---------------------------------------------------------------- cassa
+  private _sospesi: Sospeso[] = [];
+  private _caparre: Caparra[] = [];
+  private _movimenti: MovimentoCassa[] = [];
+  async sospesi() { return [...this._sospesi].sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
+  async incassaSospeso(id: string, tipo: TipoPagamento) {
+    if (!TIPI_INCASSO_SOSPESO.includes(tipo)) throw new ErroreDominio('Metodo non valido');
+    this._sospesi = this._sospesi.map((x) => (x.id === id && x.stato === 'aperto' ? { ...x, stato: 'incassato', incassatoAt: this.now().toISOString(), incassatoTipo: tipo } : x));
+    this.emit();
+  }
+  async caparre() { return [...this._caparre].sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
+  async salvaCaparra(c: Omit<Caparra, 'id' | 'stato' | 'createdAt'>) {
+    if (!c.nome.trim()) throw new ErroreDominio('Manca il nome');
+    if (!(c.importoCents > 0)) throw new ErroreDominio('Importo non valido');
+    const v: Caparra = { ...c, id: uid(), stato: 'aperta', createdAt: this.now().toISOString() };
+    this._caparre = [v, ...this._caparre]; this.emit(); return v;
+  }
+  async restituisciCaparra(id: string) {
+    this._caparre = this._caparre.map((x) => (x.id === id && x.stato === 'aperta' ? { ...x, stato: 'restituita' } : x)); this.emit();
+  }
+  async movimentiCassa() { return [...this._movimenti]; }
+  async registraMovimento(tipo: TipoMovimentoCassa, importoCents: number, causale: string, key: string, op?: Operatore) {
+    this.idem(key, () => {
+      if (!(importoCents >= 0)) throw new ErroreDominio('Importo non valido');
+      this._movimenti = [...this._movimenti, { id: uid(), tipo, importoCents, causale: causale.trim() || undefined, operatore: op?.nome ?? '', createdAt: this.now().toISOString() }];
+      return true;
+    });
+  }
+  async apriCassetto(key: string) {
+    this.idem(key, () => {
+      const rt = this.s.stampanti.find((x) => x.tipo === 'rt_epson_xml');
+      if (!rt) throw new ErroreDominio('Nessun registratore telematico configurato');
+      return this.nuovoLavoro({ tipo: 'non_fiscale', stampanteId: rt.id, idempotencyKey: key, xml: xmlApriCassetto({ host: rt.host }) });
+    });
+  }
+  async salvaImpostazioni(i: Impostazioni) { this.s = { ...this.s, impostazioni: i }; this.emit(); }
 
   // ---------------------------------------------------------------- messaggi
   private _messaggi: MessaggioReparto[] = [];
@@ -485,6 +576,19 @@ export class FakeDataLayer implements DataLayer {
     };
   }
 
+  /** Scontrino emesso: nascono i sospesi/addebiti in camera e le caparre usate risultano chiuse. */
+  private registraDaDocumento(d: Documento) {
+    const c = this._comande.get(d.comandaId);
+    for (const p of d.pagamenti) {
+      if (p.tipo === 'sospeso' || p.tipo === 'camera') {
+        this._sospesi.push({ id: uid(), documentoId: d.id, comandaId: d.comandaId, clienteId: c?.clienteId ?? null, tipo: p.tipo, descrizione: p.descrizione, importoCents: p.importoCents, stato: 'aperto', createdAt: this.now().toISOString() });
+      } else if (p.descrizione?.startsWith('caparra:')) {
+        const id = p.descrizione.slice(8);
+        this._caparre = this._caparre.map((x) => (x.id === id ? { ...x, stato: 'usata', documentoId: d.id } : x));
+      }
+    }
+  }
+
   private chiudiSePagata(comandaId: string) {
     const c = this._comande.get(comandaId)!;
     const conto = calcolaConto(this.righe(comandaId), c.coperti, this.s.locale.copertoCents);
@@ -503,7 +607,7 @@ export class FakeDataLayer implements DataLayer {
 /** Riga uguale ancora da inviare (stesso piatto, portata, nessuna variante/nota/posto): si aumenta la quantità. */
 export function rigaUguale(righe: RigaComanda[], r: NuovaRiga): RigaComanda | undefined {
   if (!r.articoloId || r.varianti?.length || r.note || r.posto) return undefined;
-  return righe.find((x) => x.stato === 'da_inviare' && x.articoloId === r.articoloId && !x.varianti.length && !x.note && !x.posto
+  return righe.find((x) => x.stato === 'da_inviare' && x.articoloId === r.articoloId && !x.parentId && x.varianti.every((v) => v.promo) && !x.note && !x.posto
     && (r.portata === undefined || x.portata === r.portata));
 }
 
@@ -525,11 +629,26 @@ export function nuovaRiga(s: Setup, comandaId: string, r: NuovaRiga, id: string,
   if (!art) throw new ErroreDominio('Articolo inesistente');
   if (art.esaurito) throw new ErroreDominio(`${art.nome} è esaurito`);
   const cat = s.categorie.find((x) => x.id === art.categoriaId)!;
+  // Happy hour e promozioni a orario: lo sconto è una variante "promo" (visibile sul conto, non in cucina).
+  const pr = promoInVigore(s, art, new Date(createdAt.slice(0, 24)));
+  const varianti = [...(r.varianti ?? []), ...(pr ? [{ nome: pr.promo.nome, deltaCents: -pr.scontoCents, promo: true }] : [])];
   return {
     id, comandaId, articoloId: art.id, descrizione: art.nomeBreve ?? art.nome,
-    quantita: r.quantita ?? 1, prezzoUnitarioCents: art.prezzoCents, varianti: r.varianti ?? [], note: r.note,
+    quantita: r.quantita ?? 1, prezzoUnitarioCents: art.prezzoCents, varianti, note: r.note,
     portata: r.portata ?? cat.portataPredefinita, centroProduzioneId: art.centroProduzioneId ?? cat.centroProduzioneId,
     aliquotaIvaId: art.aliquotaIvaId, allergeni: [...art.allergeni], posto: r.posto, omaggio: false,
     stato: 'da_inviare', createdAt,
   };
+}
+
+/** Righe di un menu fisso: la riga del menu (prezzo, IVA) e i piatti scelti a prezzo zero, legati alla prima. */
+export function righeMenu(s: Setup, comandaId: string, articoloId: string, scelte: { articoloId: string; gruppo: number }[], nuovoId: () => string, quando: string): RigaComanda[] {
+  const m = controllaSceltaMenu(s, articoloId, scelte);
+  const padre = nuovaRiga(s, comandaId, { articoloId, portata: m.gruppi[0]?.portata ?? 1 }, nuovoId(), quando);
+  padre.centroProduzioneId = null; // la riga del menu non va in cucina: ci vanno i piatti scelti
+  const figli = scelte.map((x, i) => {
+    const r = nuovaRiga(s, comandaId, { articoloId: x.articoloId, portata: m.gruppi[x.gruppo].portata }, nuovoId(), quando.slice(0, 24) + String(i + 1).padStart(3, '0'));
+    return { ...r, prezzoUnitarioCents: 0, varianti: [], parentId: padre.id };
+  });
+  return [padre, ...figli];
 }

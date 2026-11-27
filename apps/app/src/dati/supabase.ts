@@ -8,6 +8,7 @@ import {
   type Operatore, type PrintJob, type RigaComanda, type Setup, setupDaTabelle, type Prenotazione,
   type Cliente, type ClienteNuovo, type DatiFiscali, type Fattura, type MessaggioReparto, type NuovaFattura, type NuovoMessaggio,
   type StatoFattura, type StoricoCliente, type Ticket, type ChiusuraFiscale, preparaAnnullaConto, preparaMessaggio, rigaUguale,
+  type Caparra, type Impostazioni, type MovimentoCassa, type Sospeso, type TipoMovimentoCassa, type TipoPagamento, righeMenu, xmlApriCassetto,
 } from '@gr/core';
 
 const URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -39,6 +40,7 @@ const MESSAGGI: Record<string, string> = {
   NOME_MANCANTE: 'Manca il nome.',
   TESTO_MANCANTE: 'Scrivi il messaggio.',
   FATTURA_GIA_EMESSA: 'Questo scontrino ha già la sua fattura.',
+  CAPARRA_NON_DISPONIBILE: 'Questa caparra è già stata usata o restituita.',
   CONTO_CON_SCONTRINO: 'Su questo conto c’è già uno scontrino: annullalo prima dalla Cassa.',
   righe_comanda_libera_check: 'Scrivi cosa aggiungere.',
 };
@@ -97,6 +99,7 @@ export class SupabaseDataLayer implements DataLayer {
     id: c.id, numero: c.numero, tavoloId: c.tavolo_id, coperti: c.coperti, operatore: this.nomeOperatore(c.operatore_id),
     stato: c.stato, apertaAt: c.aperta_at, chiusaAt: c.chiusa_at ?? undefined, allergeniTavolo: c.allergeni_tavolo ?? [], version: c.version,
     prenotazioneId: c.prenotazione_id ?? undefined, clienteId: c.cliente_id ?? undefined,
+    canale: c.canale, etichetta: c.tavolo_id ? undefined : c.note ?? undefined,
   });
 
   private mappaMessaggio = (m: Riga): MessaggioReparto => ({
@@ -123,6 +126,7 @@ export class SupabaseDataLayer implements DataLayer {
     prezzoUnitarioCents: r.prezzo_unitario_cents, varianti: r.varianti ?? [], note: r.note ?? undefined, portata: r.portata,
     centroProduzioneId: r.centro_produzione_id, aliquotaIvaId: r.aliquota_iva_id, allergeni: r.allergeni ?? [], posto: r.posto ?? undefined,
     omaggio: r.omaggio, stato: r.stato, motivoStorno: r.motivo_storno ?? undefined, inviataAt: r.inviata_at ?? undefined, createdAt: r.created_at,
+    parentId: r.parent_riga_id ?? undefined,
   });
 
   private mappaDocumento = (d: Riga): Documento => ({
@@ -130,7 +134,7 @@ export class SupabaseDataLayer implements DataLayer {
     origineId: d.documento_origine_id ?? undefined,
     righe: (d.righe_documento ?? []).map((x: Riga) => ({ descrizione: x.descrizione, quantita: Number(x.quantita), prezzoUnitarioCents: x.prezzo_unitario_cents, repartoRt: x.reparto_rt })),
     scontoCents: d.sconto_cents, totaleCents: d.totale_cents,
-    pagamenti: (d.pagamenti ?? []).map((p: Riga) => ({ tipo: p.tipo, importoCents: p.importo_cents })),
+    pagamenti: (d.pagamenti ?? []).map((p: Riga) => ({ tipo: p.tipo, importoCents: p.importo_cents, descrizione: p.descrizione ?? undefined })),
     quota: d.quota_di ? { indice: d.quota_indice, di: d.quota_di } : undefined,
     rtZNumero: d.rt_z_numero ?? undefined, rtDocNumero: d.rt_doc_numero ?? undefined, errore: d.errore ?? undefined,
     rtData: d.rt_emesso_at ? new Date(d.rt_emesso_at).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : undefined,
@@ -363,15 +367,95 @@ export class SupabaseDataLayer implements DataLayer {
     const riga = nuovaRiga(this._setup, comandaId, r, crypto.randomUUID(), new Date().toISOString());
     // Aggiornamento ottimista: la riga compare subito, il database conferma subito dopo.
     this._righe = [...this._righe, riga]; this.emit();
-    const { error } = await this.sb.from('righe_comanda').insert({
-      id: riga.id, locale_id: this.localeId, comanda_id: comandaId, articolo_id: riga.articoloId, descrizione: riga.descrizione,
-      quantita: riga.quantita, prezzo_unitario_cents: riga.prezzoUnitarioCents, varianti: riga.varianti, note: riga.note ?? null,
-      portata: riga.portata, centro_produzione_id: riga.centroProduzioneId, aliquota_iva_id: riga.aliquotaIvaId,
-      allergeni: riga.allergeni, posto: riga.posto ?? null,
-    });
+    const { error } = await this.sb.from('righe_comanda').insert(this.rigaDb(riga));
     if (error) { this._righe = this._righe.filter((x) => x.id !== riga.id); this.emit(); errore(error); }
     if (c.stato === 'preconto') await this.sb.from('comande').update({ stato: 'aperta' }).eq('id', comandaId);
     return riga;
+  }
+
+  private rigaDb = (riga: RigaComanda) => ({
+    id: riga.id, locale_id: this.localeId, comanda_id: riga.comandaId, articolo_id: riga.articoloId, descrizione: riga.descrizione,
+    quantita: riga.quantita, prezzo_unitario_cents: riga.prezzoUnitarioCents, varianti: riga.varianti, note: riga.note ?? null,
+    portata: riga.portata, centro_produzione_id: riga.centroProduzioneId, aliquota_iva_id: riga.aliquotaIvaId,
+    allergeni: riga.allergeni, posto: riga.posto ?? null, parent_riga_id: riga.parentId ?? null,
+  });
+
+  async aggiungiMenu(comandaId: string, articoloId: string, scelte: { articoloId: string; gruppo: number }[]) {
+    const c = this.comandaAperta(comandaId);
+    const righe = righeMenu(this._setup, comandaId, articoloId, scelte, () => crypto.randomUUID(), new Date().toISOString());
+    this._righe = [...this._righe, ...righe]; this.emit();
+    // Prima la riga del menu, poi i piatti (che la puntano).
+    const { error } = await this.sb.from('righe_comanda').insert(this.rigaDb(righe[0]));
+    const r2 = error ? { error } : await this.sb.from('righe_comanda').insert(righe.slice(1).map(this.rigaDb));
+    if (r2.error) { await this.caricaServizio(); errore(r2.error); }
+    if (c.stato === 'preconto') await this.sb.from('comande').update({ stato: 'aperta' }).eq('id', comandaId);
+  }
+
+  async apriBanco(canale: 'banco' | 'asporto', nome: string, operatore: Operatore) {
+    const { data, error } = await this.sb.rpc('apri_banco', { p_locale: this.localeId, p_canale: canale, p_nome: nome, p_operatore: operatore.id });
+    if (error) errore(error);
+    await this.caricaServizio();
+    return this.comanda((data as Riga).id)!;
+  }
+
+  // ------------------------------------------------------------------ sospesi, caparre, cassetto
+  private mappaSospeso = (x: Riga): Sospeso => ({
+    id: x.id, documentoId: x.documento_id, comandaId: x.comanda_id, clienteId: x.cliente_id, tipo: x.tipo, descrizione: x.descrizione ?? undefined,
+    importoCents: x.importo_cents, stato: x.stato, createdAt: x.created_at, incassatoAt: x.incassato_at ?? undefined, incassatoTipo: x.incassato_tipo ?? undefined,
+  });
+  async sospesi() {
+    const da = new Date(Date.now() - 60 * 864e5).toISOString();
+    const { data, error } = await this.sb.from('sospesi').select('*').or(`stato.eq.aperto,created_at.gte.${da}`).order('created_at', { ascending: false });
+    if (error) errore(error);
+    return ((data ?? []) as Riga[]).map(this.mappaSospeso);
+  }
+  async incassaSospeso(id: string, tipo: TipoPagamento, operatore?: Operatore) {
+    const { error } = await this.sb.rpc('incassa_sospeso', { p_sospeso: id, p_tipo: tipo, p_operatore: operatore?.id ?? null });
+    if (error) errore(error);
+  }
+  private mappaCaparra = (x: Riga): Caparra => ({
+    id: x.id, nome: x.nome, clienteId: x.cliente_id, importoCents: x.importo_cents, metodo: x.metodo, nota: x.nota ?? undefined,
+    stato: x.stato, documentoId: x.documento_id ?? undefined, createdAt: x.created_at,
+  });
+  async caparre() {
+    const da = new Date(Date.now() - 60 * 864e5).toISOString();
+    const { data, error } = await this.sb.from('caparre').select('*').or(`stato.eq.aperta,created_at.gte.${da}`).order('created_at', { ascending: false });
+    if (error) errore(error);
+    return ((data ?? []) as Riga[]).map(this.mappaCaparra);
+  }
+  async salvaCaparra(c: Omit<Caparra, 'id' | 'stato' | 'createdAt'>, operatore?: Operatore) {
+    if (!c.nome.trim()) throw new ErroreDominio('Manca il nome');
+    const { data, error } = await this.sb.from('caparre').insert({
+      locale_id: this.localeId, cliente_id: c.clienteId, nome: c.nome.trim(), importo_cents: c.importoCents, metodo: c.metodo,
+      nota: c.nota?.trim() || null, operatore_id: operatore?.id ?? null,
+    }).select().single();
+    if (error) errore(error);
+    return this.mappaCaparra(data as Riga);
+  }
+  async restituisciCaparra(id: string) {
+    const { error } = await this.sb.from('caparre').update({ stato: 'restituita', updated_at: new Date().toISOString() }).eq('id', id).eq('stato', 'aperta');
+    if (error) errore(error);
+  }
+  async movimentiCassa(): Promise<MovimentoCassa[]> {
+    const { data: oggi } = await this.sb.rpc('giorno_servizio', { p_locale: this.localeId });
+    const { data, error } = await this.sb.from('movimenti_cassa').select('*').eq('giorno_servizio', oggi as string).order('created_at');
+    if (error) errore(error);
+    return ((data ?? []) as Riga[]).map((m) => ({ id: m.id, tipo: m.tipo, importoCents: m.importo_cents, causale: m.causale ?? undefined, operatore: this.nomeOperatore(m.operatore_id), createdAt: m.created_at }));
+  }
+  async registraMovimento(tipo: TipoMovimentoCassa, importoCents: number, causale: string, key: string, operatore?: Operatore) {
+    const { error } = await this.sb.rpc('registra_movimento_cassa', { p_locale: this.localeId, p_tipo: tipo, p_importo: importoCents, p_causale: causale, p_operatore: operatore?.id ?? null, p_key: key });
+    if (error) errore(error);
+  }
+  async apriCassetto(key: string) {
+    const rt = this._setup.stampanti.find((x) => x.tipo === 'rt_epson_xml');
+    if (!rt) throw new ErroreDominio('Nessun registratore telematico configurato');
+    const { error } = await this.sb.rpc('accoda_lavoro', { p_locale: this.localeId, p_stampante: rt.id, p_tipo: 'non_fiscale', p_payload: { xml: xmlApriCassetto({ host: rt.host }) }, p_key: key });
+    if (error) errore(error);
+  }
+  async salvaImpostazioni(i: Impostazioni) {
+    const { error } = await this.sb.from('locali').update({ impostazioni: i, updated_at: new Date().toISOString() }).eq('id', this.localeId);
+    if (error) errore(error);
+    await this.ricaricaSetup();
   }
 
   async cambiaQuantita(rigaId: string, quantita: number) {
@@ -419,6 +503,15 @@ export class SupabaseDataLayer implements DataLayer {
     });
     if (error) errore(error);
     await this.caricaServizio();
+  }
+
+  async offri(rigaId: string, omaggio: boolean) {
+    const r = this._righe.find((x) => x.id === rigaId);
+    if (!r) throw new ErroreDominio('Riga inesistente');
+    if (this.documenti(r.comandaId).some((d) => ['emesso', 'in_emissione', 'da_verificare'].includes(d.stato))) throw new ErroreDominio('Il conto è già stato pagato in parte');
+    this._righe = this._righe.map((x) => (x.id === rigaId ? { ...x, omaggio } : x)); this.emit();
+    const { error } = await this.sb.from('righe_comanda').update({ omaggio, updated_at: new Date().toISOString() }).eq('id', rigaId).neq('stato', 'stornata');
+    if (error) { await this.caricaServizio(); errore(error); }
   }
 
   async segnaPronte(rigaIds: string[]) {

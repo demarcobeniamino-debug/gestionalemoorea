@@ -68,12 +68,15 @@ export interface Comanda {
   prenotazioneId?: string;
   /** Cliente dell'anagrafica collegato al conto (per storico, allergie e fattura). */
   clienteId?: string;
+  /** Senza tavolo: banco o asporto, con un nome ("Banco", "Marco"). */
+  canale?: 'tavolo' | 'banco' | 'asporto';
+  etichetta?: string;
 }
 
 export type StatoRiga =
   | 'da_inviare' | 'in_attesa_marcia' | 'inviata' | 'in_preparazione' | 'pronta' | 'servita' | 'stornata';
 
-export interface RigaVariante { nome: string; deltaCents: Cents; }
+export interface RigaVariante { nome: string; deltaCents: Cents; /** Sconto automatico di una promozione (happy hour): non va in cucina. */ promo?: boolean }
 
 export interface RigaComanda {
   id: string; comandaId: string;
@@ -83,17 +86,23 @@ export interface RigaComanda {
   portata: number; centroProduzioneId: string | null; aliquotaIvaId: string;
   allergeni: Allergene[]; posto?: number; omaggio: boolean; stato: StatoRiga;
   motivoStorno?: string; inviataAt?: string; createdAt: string;
+  /** Piatto scelto dentro un menu fisso: prezzo 0, il prezzo è sulla riga del menu. */
+  parentId?: string;
 }
 
-export type TipoPagamento = 'contanti' | 'carta' | 'buono_pasto' | 'prepagata' | 'sospeso' | 'camera';
+export type TipoPagamento = 'contanti' | 'carta' | 'buono_pasto' | 'prepagata' | 'sospeso' | 'camera' | 'bonifico';
 export type TipoPagamentoRt = 'contanti' | 'elettronico' | 'ticket' | 'non_riscosso';
 
 export const PAGAMENTO_RT: Record<TipoPagamento, TipoPagamentoRt> = {
   contanti: 'contanti', carta: 'elettronico', buono_pasto: 'ticket',
-  prepagata: 'elettronico', sospeso: 'non_riscosso', camera: 'non_riscosso',
+  prepagata: 'elettronico', sospeso: 'non_riscosso', camera: 'non_riscosso', bonifico: 'elettronico',
 };
 
-export interface Pagamento { tipo: TipoPagamento; importoCents: Cents; }
+export interface Pagamento {
+  tipo: TipoPagamento; importoCents: Cents;
+  /** Nome del metodo (Satispay, emittente del buono), camera o cliente del sospeso, oppure "caparra:<id>". */
+  descrizione?: string;
+}
 
 export type StatoDocumento = 'bozza' | 'in_emissione' | 'emesso' | 'errore' | 'da_verificare' | 'annullato';
 
@@ -187,4 +196,43 @@ export interface DatiFiscali {
   regime: string; via: string; civico?: string; cap: string; comune: string; provincia: string;
   rea?: { ufficio: string; numero: string };
   telefono?: string; email?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Cassa: sospesi, caparre, movimenti
+export interface Sospeso {
+  id: string; documentoId: string; comandaId: string | null; clienteId: string | null;
+  tipo: 'sospeso' | 'camera'; descrizione?: string; importoCents: Cents;
+  stato: 'aperto' | 'incassato' | 'annullato'; createdAt: string; incassatoAt?: string; incassatoTipo?: TipoPagamento;
+}
+
+export interface Caparra {
+  id: string; nome: string; clienteId: string | null; importoCents: Cents;
+  metodo: 'contanti' | 'carta' | 'bonifico' | 'prepagata'; nota?: string;
+  stato: 'aperta' | 'usata' | 'restituita'; documentoId?: string; createdAt: string;
+}
+
+export type TipoMovimentoCassa = 'fondo' | 'versamento' | 'prelievo' | 'conteggio';
+export interface MovimentoCassa { id: string; tipo: TipoMovimentoCassa; importoCents: Cents; causale?: string; operatore: string; createdAt: string }
+
+// ---------------------------------------------------------------------------
+// Impostazioni del locale (metodi di pagamento, promozioni, menu fissi, abbinamenti)
+export interface MetodoPagamento { id: string; nome: string; tipo: Exclude<TipoPagamento, 'sospeso' | 'camera'>; attivo: boolean }
+export interface BuonoPasto { id: string; nome: string; valoreCents?: Cents }
+export interface Promozione {
+  id: string; nome: string; attiva: boolean;
+  /** Sconto in percentuale, oppure prezzo fisso. */
+  percentuale?: number; prezzoCents?: Cents;
+  categorieIds: string[]; articoliIds: string[];
+  /** 0 = domenica … 6 = sabato; vuoto = tutti i giorni. */
+  giorni: number[]; dalle: string; alle: string;
+}
+export interface GruppoMenu { nome: string; articoliIds: string[]; scelte: number; portata: number }
+export interface MenuFisso { gruppi: GruppoMenu[] }
+export interface Impostazioni {
+  metodi?: MetodoPagamento[];
+  buoniPasto?: BuonoPasto[];
+  promozioni?: Promozione[];
+  menuFissi?: Record<string, MenuFisso>;
+  abbinamenti?: Record<string, string[]>;
 }

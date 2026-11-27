@@ -70,7 +70,8 @@ export function xmlDocumentoCommerciale(d: DocumentoRt, o: OpzioniEpson): string
   const ordinati = [...d.pagamenti].sort((a, b) => (a.tipo === 'contanti' ? 1 : 0) - (b.tipo === 'contanti' ? 1 : 0));
   for (const p of ordinati) {
     const m = mezzoPagamento(p);
-    l.push(`<printRecTotal operator="${op}" description="${m.descrizione}" payment="${imp(p.importoCents, dec)}" paymentType="${m.paymentType}" index="${m.index}" justification="1" />`);
+    const descr = p.descrizione?.startsWith('caparra:') ? 'CAPARRA' : p.descrizione ? descrizioneRt(p.descrizione.toUpperCase()).slice(0, 20) : m.descrizione;
+    l.push(`<printRecTotal operator="${op}" description="${esc(descr)}" payment="${imp(p.importoCents, dec)}" paymentType="${m.paymentType}" index="${m.index}" justification="1" />`);
   }
   l.push(`<endFiscalReceipt operator="${op}" />`, '</printerFiscalReceipt>');
   return busta(l.join('\n'));
@@ -131,3 +132,7 @@ export function xmlStampaNonFiscale(righe: string[]): string {
   const r = righe.map((t) => `<printNormal operator="1" font="1" data="${esc(descrizioneRt(t))}" />`).join('\n');
   return busta(`<printerNonFiscal>\n<beginNonFiscal operator="1" />\n${r}\n<endNonFiscal operator="1" />\n</printerNonFiscal>`);
 }
+
+/** Apertura del cassetto collegato all'RT (comando non fiscale). COLLAUDO: confermare sul firmware. */
+export const xmlApriCassetto = (o: OpzioniEpson) =>
+  busta(`<printerCommand>\n<openDrawer operator="${esc(o.operatore ?? '1')}" />\n</printerCommand>`);

@@ -68,7 +68,10 @@ export function StatoStampanti({ compatto = false }: { compatto?: boolean }) {
   const { stampanti, lavori } = useDati((db) => ({ stampanti: db.setup().stampanti, lavori: db.lavori() }));
   const stato = (id: string) => {
     const miei = lavori.filter((j) => j.stampanteId === id);
-    const errore = miei.find((j) => j.stato === 'errore' || j.stato === 'da_verificare');
+    // Conta com'è andata l'ultima stampa: un errore di stamattina, seguito da stampe riuscite, non è più un problema.
+    // Uno scontrino "da verificare" invece resta in evidenza finché qualcuno non lo controlla.
+    const ultima = [...miei].filter((j) => j.stato === 'stampato' || j.stato === 'errore').sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    const errore = miei.find((j) => j.stato === 'da_verificare') ?? (ultima?.stato === 'errore' ? ultima : undefined);
     const inCoda = miei.filter((j) => j.stato === 'in_coda' || j.stato === 'preso').length;
     return errore ? { cls: 'bg-danger', testo: errore.stato === 'da_verificare' ? 'da verificare' : 'errore' } : inCoda ? { cls: 'bg-warning', testo: `${inCoda} in coda` } : { cls: 'bg-success', testo: '' };
   };

@@ -46,7 +46,8 @@ export function righeDocumento(
     return a.repartoRt;
   };
   const out: RigaDocumento[] = righe
-    .filter((r) => r.stato !== 'stornata' && !r.omaggio)
+    // I piatti scelti dentro un menu fisso non vanno sullo scontrino: c'è la riga del menu.
+    .filter((r) => r.stato !== 'stornata' && !r.omaggio && !r.parentId)
     .map((r) => ({
       descrizione: r.descrizione,
       quantita: r.quantita,

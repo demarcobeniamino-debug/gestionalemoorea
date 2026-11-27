@@ -13,7 +13,7 @@ import { Segmenti } from '../ui/campi';
 import { puoGestire } from '../dati/ruoli';
 
 const PAGAMENTI: Record<TipoPagamento, string> = {
-  contanti: 'Contanti', carta: 'Carta', buono_pasto: 'Buoni pasto', prepagata: 'Prepagata', sospeso: 'Sospeso', camera: 'Addebito camera',
+  contanti: 'Contanti', carta: 'Carta', buono_pasto: 'Buoni pasto', prepagata: 'Prepagata', sospeso: 'Sospeso', camera: 'Addebito camera', bonifico: 'Bonifico',
 };
 const PERIODI = [{ valore: '1', testo: 'Oggi' }, { valore: '7', testo: '7 giorni' }, { valore: '30', testo: '30 giorni' }];
 /** Asse fisso delle ore di servizio (11 → 2 di notte), più eventuali ore fuori orario con incassi. */

@@ -157,3 +157,20 @@ describe('Annulla conto', () => {
     expect(db.comanda(c.id)?.stato).toBe('chiusa');
   });
 });
+
+describe('Offerto dalla casa', () => {
+  it('il piatto resta, vale 0, nessun ticket al reparto; si può rimettere a pagamento', async () => {
+    const { db } = nuovo();
+    const c = await db.apriTavolo('t3', 2, OP);
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Negroni') });
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Polpo Scottato') });
+    await db.invia(c.id, 'k', OP);
+    const prima = db.lavori().length;
+    const negroni = db.righe(c.id).find((r) => r.descrizione === 'Negroni')!;
+    await db.offri(negroni.id, true, OP);
+    expect(db.lavori()).toHaveLength(prima);
+    expect(calcolaConto(db.righe(c.id), 2, 200).totaleCents).toBe(2000 + 400);
+    await db.offri(negroni.id, false, OP);
+    expect(calcolaConto(db.righe(c.id), 2, 200).totaleCents).toBe(2000 + 400 + negroni.prezzoUnitarioCents);
+  });
+});

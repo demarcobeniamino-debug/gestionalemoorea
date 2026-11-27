@@ -10,6 +10,9 @@ import { Testata } from '../ui/Testata';
 import { Foglio, Icona, Pulsante, useConferma } from '../ui/primitivi';
 import { vibra } from '../dati/piattaforma';
 import { AzioniTavolo } from './AzioniTavolo';
+import { puoGestire } from '../dati/ruoli';
+import { TastierinoPin, verificaResponsabile } from '../ui/PinResponsabile';
+import { Gift } from '@phosphor-icons/react';
 import { FoglioVoceLibera } from './VoceLibera';
 import { FoglioMessaggio } from './Messaggi';
 import { FoglioClienteTavolo } from './Clienti';
@@ -160,6 +163,7 @@ export function ComandaSchermata() {
                         {r.varianti.map((v) => <span key={v.nome} className="block pl-5 text-[13px] text-text-muted">{v.nome}{v.deltaCents ? ` ${euro(v.deltaCents, false)}` : ''}</span>)}
                         {r.posto && <span className="block pl-5 text-[13px] text-text-muted">posto {r.posto}</span>}
                         {r.note && <span className="block pl-5 text-[13px] italic text-text-muted">{r.note}</span>}
+                        {r.omaggio && <span className="flex items-center gap-1 pl-5 text-[12px] font-semibold text-success"><Gift size={12} weight="fill" aria-hidden />offerto dalla casa</span>}
                         {st && <span className={`flex items-center gap-1 pl-5 text-[12px] font-semibold ${r.stato === 'pronta' ? 'text-success' : r.stato === 'stornata' ? 'text-danger' : 'text-text-muted'}`}>{st.icona}{st.testo}{r.motivoStorno ? `: ${r.motivoStorno}` : ''}</span>}
                       </button>
                     </li>
@@ -314,18 +318,7 @@ export function ComandaSchermata() {
 
       <FoglioVarianti articolo={varianti} onChiudi={() => setVarianti(null)} onConferma={(a, extra) => { aggiungi(a, extra); setVarianti(null); }} />
 
-      <Foglio aperto={!!storno} onChiudi={() => setStorno(null)} titolo={`Storna ${storno?.descrizione ?? ''}`}>
-        <p className="mb-4 text-base text-text-muted">La cucina riceve un ticket di storno. Perché?</p>
-        <div className="grid grid-cols-2 gap-2">
-          {['Errore del cameriere', 'Il cliente ha cambiato idea', 'Piatto non riuscito', 'Offerto dalla casa'].map((m) => (
-            <Pulsante key={m} className="h-auto min-h-touch-comodo whitespace-normal py-2" onClick={() => {
-              const r = storno!; setStorno(null);
-              conferma.chiedi(`“${r.descrizione}” viene tolto dal conto e la cucina riceve lo storno. Motivo: ${m.toLowerCase()}.`,
-                () => void esegui(() => db.storna(r.id, m, nuovaChiave(), operatore ?? undefined), 'Storno inviato'), 'Storna');
-            }}>{m}</Pulsante>
-          ))}
-        </div>
-      </Foglio>
+      <FoglioRigaInviata riga={storno} onChiudi={() => setStorno(null)} conferma={conferma.chiedi} />
 
       <AzioniTavolo comanda={comanda} aperto={azioniAperte} onChiudi={() => setAzioniAperte(false)} />
       <FoglioVoceLibera aperto={liberaAperta} portataIniziale={portata} descrizioneIniziale={cerca.trim()} onChiudi={() => setLiberaAperta(false)} onAggiungi={aggiungiLibera} />
@@ -442,6 +435,60 @@ function FoglioAllergeni({ aperto, valore, onChiudi, onSalva }: {
       </div>
       <Pulsante variante="primario" className="w-full" disabled={!sel.length}
         onClick={() => { onSalva([...valore, ...sel.map((allergene) => ({ allergene, posto }))]); setSel([]); setPosto(undefined); onChiudi(); }}>Aggiungi allergie</Pulsante>
+    </Foglio>
+  );
+}
+
+const MOTIVI_STORNO = ['Errore del cameriere', 'Il cliente ha cambiato idea', 'Piatto non riuscito', 'Piatto finito'];
+
+/** Riga già inviata: offrirla (resta, vale 0, nessun ticket) oppure toglierla (storno al suo reparto). */
+function FoglioRigaInviata({ riga, onChiudi, conferma }: { riga: RigaComanda | null; onChiudi: () => void; conferma: (testo: string, ok: () => void, azione?: string) => void }) {
+  const { db, operatore } = useApp();
+  const { esegui } = useAzione();
+  const setup = useDati((d) => d.setup());
+  const [pin, setPin] = useState('');
+  const [chiediPin, setChiediPin] = useState(false);
+  const [errore, setErrore] = useState<string | null>(null);
+  const reparto = setup.centri.find((c) => c.id === riga?.centroProduzioneId)?.nome;
+  const chiudi = () => { setPin(''); setChiediPin(false); setErrore(null); onChiudi(); };
+
+  const offri = async () => {
+    if (!riga) return;
+    let chi = operatore ?? undefined;
+    if (!puoGestire(operatore?.ruolo)) {
+      if (!chiediPin) return setChiediPin(true);
+      const r = await verificaResponsabile(db, pin).catch(() => null);
+      if (!r) { setPin(''); return setErrore('Serve il PIN di un responsabile'); }
+      chi = r;
+    }
+    const ok = await esegui(() => db.offri(riga.id, !riga.omaggio, chi), riga.omaggio ? `${riga.descrizione}: di nuovo a pagamento` : `${riga.descrizione} offerto dalla casa`);
+    if (ok) chiudi();
+  };
+
+  return (
+    <Foglio aperto={!!riga} onChiudi={chiudi} titolo={riga?.descrizione ?? ''}>
+      <section className="mb-6">
+        <h3 className="mb-1 text-base font-bold">{riga?.omaggio ? 'Offerto dalla casa' : 'Offrire?'}</h3>
+        <p className="mb-3 text-sm text-text-muted">{riga?.omaggio ? 'Il piatto è sul conto a 0 €. Puoi rimetterlo a pagamento.' : `Il piatto resta e si serve: sul conto vale 0 €. ${reparto ? `${reparto} non riceve niente.` : ''}`}</p>
+        {chiediPin && !riga?.omaggio && <div className="mb-3"><TastierinoPin pin={pin} onCambia={(p) => { setPin(p); setErrore(null); }} /></div>}
+        {errore && <p role="alert" className="mb-2 text-sm font-semibold text-danger">{errore}</p>}
+        <Pulsante variante={riga?.omaggio ? 'secondario' : 'conferma'} className="w-full" icona={<Gift size={20} weight="bold" aria-hidden />} onClick={() => void offri()}>
+          {riga?.omaggio ? 'Rimetti a pagamento' : chiediPin ? 'Conferma con il PIN' : 'Offerto dalla casa'}
+        </Pulsante>
+      </section>
+      <section>
+        <h3 className="mb-1 text-base font-bold">Togliere dal conto?</h3>
+        <p className="mb-3 text-sm text-text-muted">{reparto ? `${reparto} riceve un ticket di storno.` : 'Nessun reparto da avvisare.'} Perché?</p>
+        <div className="grid grid-cols-2 gap-2">
+          {MOTIVI_STORNO.map((m) => (
+            <Pulsante key={m} className="h-auto min-h-touch-comodo whitespace-normal py-2" onClick={() => {
+              const r = riga!; chiudi();
+              conferma(`“${r.descrizione}” viene tolto dal conto${reparto ? ` e ${reparto.toLowerCase()} riceve lo storno` : ''}. Motivo: ${m.toLowerCase()}.`,
+                () => void esegui(() => db.storna(r.id, m, nuovaChiave(), operatore ?? undefined), 'Storno inviato'), 'Storna');
+            }}>{m}</Pulsante>
+          ))}
+        </div>
+      </section>
     </Foglio>
   );
 }

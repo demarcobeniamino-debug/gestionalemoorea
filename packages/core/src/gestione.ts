@@ -5,7 +5,7 @@ import type { Allergene, FormaTavolo, TipoStampante } from './types';
 import type { Setup } from './seed';
 
 // ------------------------------------------------------------------ righe
-export interface LocaleRiga { id: string; nome: string; indirizzo: string; coperto_cents: number; ragione_sociale?: string | null; piva?: string | null; codice_fiscale?: string | null; dati_fiscali?: Record<string, unknown> | null; gruppo_id?: string }
+export interface LocaleRiga { id: string; nome: string; indirizzo: string; coperto_cents: number; ragione_sociale?: string | null; piva?: string | null; codice_fiscale?: string | null; dati_fiscali?: Record<string, unknown> | null; gruppo_id?: string; impostazioni?: Record<string, unknown> | null }
 export interface ListinoRiga { id: string; locale_id: string; nome: string; predefinito: boolean }
 export interface AliquotaRiga { id: string; locale_id: string; descrizione: string; percentuale: number; reparto_rt: number }
 export interface StampanteRiga {
@@ -163,6 +163,7 @@ export function setupDaTabelle(t: Omit<Tabelle, 'fornitori' | 'mag_articoli' | '
   return {
     locale: { id: t.locale.id, nome: t.locale.nome, citta: t.locale.indirizzo.split(',').pop()!.trim(), copertoCents: t.locale.coperto_cents, aliquotaCopertoId: iva10?.id,
       fiscali: { ...(t.locale.dati_fiscali ?? {}), ragioneSociale: t.locale.ragione_sociale ?? undefined, piva: t.locale.piva ?? undefined, codiceFiscale: t.locale.codice_fiscale ?? undefined } },
+    impostazioni: (t.locale.impostazioni ?? {}) as import('./types').Impostazioni,
     stampanti: t.stampanti.filter((s) => s.attiva).map((s) => ({ id: s.id, nome: s.nome, tipo: s.tipo, host: s.host, porta: s.porta, colonne: s.colonne, perPreconto: s.per_preconto, matricolaRt: s.matricola_rt ?? undefined, codePage: s.codepage ?? 19, modello: s.modello ?? undefined })),
     centri: t.centri_produzione.map((c) => ({ id: c.id, nome: c.nome, stampanteId: c.stampante_id })),
     aliquote: t.aliquote_iva.map((a) => ({ id: a.id, descrizione: a.descrizione, percentuale: Number(a.percentuale), repartoRt: a.reparto_rt })),

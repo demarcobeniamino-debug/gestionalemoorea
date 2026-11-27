@@ -20,8 +20,9 @@ export interface Incasso {
 }
 
 const tavoloLabel = (s: Setup, c: Comanda) => {
-  const t = s.tavoli.find((x) => x.id === c.tavoloId);
-  return { numero: t?.numero ?? '?', sala: s.sale.find((x) => x.id === t?.salaId)?.nome };
+  const t = c.tavoloId ? s.tavoli.find((x) => x.id === c.tavoloId) : undefined;
+  if (!t) return { numero: `${c.canale === 'asporto' ? 'Asporto' : 'Banco'}${c.etichetta ? ' ' + c.etichetta : ''}`, sala: undefined };
+  return { numero: t.numero, sala: s.sale.find((x) => x.id === t.salaId)?.nome };
 };
 
 export interface InvioPreparato {
