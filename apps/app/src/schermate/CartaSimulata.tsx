@@ -57,7 +57,7 @@ export function CartaSimulata() {
 }
 
 function Foglietto({ job, nome, colonne }: { job: PrintJob; nome: string; colonne: number }) {
-  const stato = { in_coda: 'in coda', preso: 'in stampa', stampato: 'stampato', errore: 'errore', da_verificare: 'da verificare' }[job.stato];
+  const stato = { in_coda: 'in coda', preso: 'in stampa', stampato: 'stampato', errore: 'errore', da_verificare: 'da verificare', sospeso: 'sospeso', annullato: 'scartato' }[job.stato];
   return (
     <figure className="m-0">
       <figcaption className="mb-1 flex justify-between text-xs font-semibold text-text-muted">

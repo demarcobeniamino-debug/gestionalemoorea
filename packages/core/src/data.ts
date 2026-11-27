@@ -3,9 +3,10 @@
 //  - SupabaseDataLayer (nell'app): database vero, con cache locale aggiornata in tempo reale.
 // Le letture sono immediate (dalla cache); le scritture sono asincrone.
 
-import type { Allergene, Caparra, Cliente, Comanda, DatiFiscali, Documento, Fattura, Impostazioni, MessaggioReparto, MovimentoCassa, Prenotazione, PrintJob, RigaComanda, RigaVariante, Sospeso, StatoFattura, StoricoCliente, TipoMessaggio, TipoMovimentoCassa, TipoPagamento } from './types';
+import type { Allergene, Caparra, Cliente, Comanda, DatiFiscali, Documento, Fattura, Impostazioni, MessaggioReparto, MovimentoCassa, Prenotazione, PrintJob, StatoLavoro, RigaComanda, RigaVariante, Sospeso, StatoFattura, StoricoCliente, TipoMessaggio, TipoMovimentoCassa, TipoPagamento, PonteStampa } from './types';
+import { MINUTI_SOSPENSIONE } from './types';
 import { comandaSulTavolo, controllaSceltaMenu, promoInVigore, TIPI_INCASSO_SOSPESO } from './servizio';
-import { xmlApriCassetto } from './epson';
+import { xmlApriCassetto, type StatoRt } from './epson';
 import { nomeCliente } from './types';
 import type { Setup } from './seed';
 import { ErroreDominio, preparaAnnullaConto, preparaAnnullo, preparaProforma, preparaChiusura, preparaIncasso, preparaInvio, preparaMessaggio, preparaPreconto, preparaStorno, type Incasso } from './operazioni';
@@ -37,7 +38,7 @@ export type ClienteNuovo = Omit<Cliente, 'id'> & { id?: string };
 export interface ChiusuraFiscale {
   giorno: string; zNumero?: number; totali: Record<string, unknown>; createdAt: string;
   /** Stato del lavoro di stampa dello Z sull'RT. */
-  stato: 'in_coda' | 'preso' | 'stampato' | 'errore' | 'da_verificare' | 'sconosciuto';
+  stato: StatoLavoro | 'sconosciuto';
   errore?: string;
 }
 
@@ -141,6 +142,12 @@ export interface DataLayer {
 
   /** Solo l'app di cassa: prende i lavori da stampare (nessun altro dispositivo li riceve). */
   prendiLavori(max?: number): Promise<PrintJob[]>;
+  /** Casse che stampano (vive o no): servono per l'avviso "nessuna cassa accesa". */
+  ponti(): PonteStampa[];
+  /** Battito della cassa che stampa, con lo stato del registratore se appena letto. */
+  battito(nome: string, versione: string, statoRt?: StatoRt): Promise<void>;
+  /** Lavoro rimasto in coda a cassa spenta: stampalo adesso o scartalo. */
+  decidiLavoro(jobId: string, stampa: boolean): Promise<void>;
   esitoLavoro(jobId: string, esito: EsitoLavoro): Promise<void>;
 
   subscribe(fn: () => void): () => void;
@@ -321,7 +328,36 @@ export class FakeDataLayer implements DataLayer {
     });
   }
 
+  private _ponti: PonteStampa[] = [];
+  ponti() { return this._ponti; }
+  async battito(nome: string, versione: string, statoRt?: StatoRt) {
+    const ora = this.now().toISOString();
+    const p = this._ponti.find((x) => x.nome === nome);
+    const nuovo: PonteStampa = { nome, versione, vistoAt: ora, statoRt: statoRt ?? p?.statoRt, statoRtAt: statoRt ? ora : p?.statoRtAt };
+    this._ponti = [...this._ponti.filter((x) => x.nome !== nome), nuovo];
+    this.emit();
+  }
+  async decidiLavoro(jobId: string, stampa: boolean) {
+    const j = this._lavori.get(jobId);
+    if (!j || j.stato !== 'sospeso') return;
+    if (stampa) { j.stato = 'in_coda'; j.errore = undefined; (j as { confermatoAt?: string }).confermatoAt = this.now().toISOString(); }
+    else {
+      j.stato = 'annullato'; j.errore = 'Scartato dalla cassa (era rimasto in coda)';
+      const d = j.documentoId ? this._documenti.get(j.documentoId) : undefined;
+      if (d && d.stato === 'in_emissione') { d.stato = 'errore'; d.errore = 'Non emesso: scartato perché era rimasto in coda a cassa spenta'; }
+    }
+    this.emit();
+  }
+
   async prendiLavori(max = 10) {
+    // Come il database: dopo 10 minuti mai partiti, i lavori aspettano una decisione.
+    const limite = this.now().getTime() - MINUTI_SOSPENSIONE * 60_000;
+    for (const j of this.lavori()) {
+      const da = new Date(((j as { confermatoAt?: string }).confermatoAt ?? j.createdAt).replace(/(Z)\d+$/, '$1')).getTime();
+      if (da < limite && (j.stato === 'in_coda' || (j.stato === 'errore' && (j.tipo === 'comanda' || j.tipo === 'preconto') && j.tentativi < 3))) {
+        j.stato = 'sospeso'; j.errore = 'Rimasto in coda mentre nessuna cassa stampava: scegli se stamparlo o scartarlo';
+      }
+    }
     const presi = this.lavori()
       .filter((x) => x.stato === 'in_coda' || (x.stato === 'errore' && (x.tipo === 'comanda' || x.tipo === 'preconto') && x.tentativi < 3))
       .slice(0, max);

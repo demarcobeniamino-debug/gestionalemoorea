@@ -17,6 +17,8 @@ export interface Incasso {
   scontoCents?: number;
   /** Alla romana: quale quota si sta pagando. */
   quota?: { indice: number; di: number };
+  /** Codice lotteria degli scontrini del cliente. */
+  lotteria?: string;
 }
 
 const tavoloLabel = (s: Setup, c: Comanda) => {
@@ -110,7 +112,7 @@ export function preparaIncasso(s: Setup, c: Comanda, righe: RigaComanda[], inc: 
     sconto = 0;
   }
   const totale = totaleRighe(righeDoc) - sconto;
-  const xml = xmlDocumentoCommerciale({ righe: righeDoc, scontoCents: sconto, pagamenti: inc.pagamenti }, { host: rt.host });
+  const xml = xmlDocumentoCommerciale({ righe: righeDoc, scontoCents: sconto, pagamenti: inc.pagamenti, lotteria: inc.lotteria || undefined }, { host: rt.host });
   return {
     stampanteId: rt.id, righe: righeDoc, scontoCents: sconto, totaleCents: totale, xml,
     pagamenti: inc.pagamenti.map((p) => ({ ...p, tipoRt: PAGAMENTO_RT[p.tipo] })),

@@ -6,7 +6,7 @@
 import type { DataLayer } from './data';
 import type { PrintJob, Stampante } from './types';
 import { renderEscPos } from './ticket';
-import { leggiRispostaEpson, urlFpMate } from './epson';
+import { erroreEpsonIncerto, leggiRispostaEpson, leggiStato, spiegaErroreEpson, TIMEOUT_Z_MS, urlFpMate, xmlLeggiData, xmlStato, type StatoRt } from './epson';
 
 export interface Trasporto {
   /** Byte grezzi su TCP (ESC/POS). Errore = non è uscito niente. */
@@ -22,10 +22,45 @@ export class CodaStampa {
   private timer?: ReturnType<typeof setInterval>;
   constructor(private db: DataLayer, private trasporto: Trasporto) {}
 
-  avvia(intervalloMs = 500) {
+  /**
+   * Avvia la coda. Con `ponte` la cassa batte un colpo ogni 30 secondi (gli altri dispositivi sanno che le comande escono)
+   * e ogni 5 minuti legge lo stato del registratore (carta, Z da fare, invii all'Agenzia, orologio). Sono solo letture:
+   * non stampano nulla e passano dalla stessa fila dei lavori, quindi non si accavallano mai con uno scontrino.
+   */
+  avvia(intervalloMs = 500, ponte?: { nome: string; versione: string; leggiRt?: boolean }) {
     this.timer = setInterval(() => void this.elabora(), intervalloMs);
     const unsub = this.db.subscribe(() => void this.elabora());
-    return () => { clearInterval(this.timer); unsub(); };
+    let battito: ReturnType<typeof setInterval> | undefined;
+    if (ponte) {
+      let ultimaLettura = 0;
+      const batti = async () => {
+        let stato: StatoRt | undefined;
+        if (ponte.leggiRt && Date.now() - ultimaLettura > 5 * 60_000) {
+          ultimaLettura = Date.now();
+          stato = await this.leggiRt().catch((e) => ({ letto: new Date().toISOString(), errore: typeof e === 'string' ? e : (e as Error).message } as StatoRt));
+        }
+        await this.db.battito(ponte.nome, ponte.versione, stato).catch(() => undefined);
+      };
+      void batti();
+      battito = setInterval(() => void batti(), 30_000);
+    }
+    return () => { clearInterval(this.timer); clearInterval(battito); unsub(); };
+  }
+
+  /** Stato del registratore: base (carta, giornale), RT (invii, Z, certificati) e orologio. Aspetta che la fila sia libera. */
+  async leggiRt(): Promise<StatoRt | undefined> {
+    const rt = this.db.setup().stampanti.find((s) => s.tipo === 'rt_epson_xml');
+    if (!rt) return undefined;
+    while (this.occupato) await new Promise((r) => setTimeout(r, 200));
+    this.occupato = true;
+    try {
+      const url = urlFpMate({ host: rt.host, timeoutMs: 5000 });
+      let s: StatoRt = { letto: new Date().toISOString() };
+      s = leggiStato(await this.trasporto.postXml(url, xmlStato(0), 8000), s);
+      s = leggiStato(await this.trasporto.postXml(url, xmlStato(1), 8000), s);
+      s = leggiStato(await this.trasporto.postXml(url, xmlLeggiData(), 8000), s);
+      return s;
+    } finally { this.occupato = false; }
   }
 
   async elabora() {
@@ -59,10 +94,14 @@ export class CodaStampa {
     }
     // Fiscale
     try {
-      const corpo = await this.trasporto.postXml(urlFpMate({ host: st.host }), j.xml!, 15000);
+      const z = j.tipo === 'chiusura_fiscale';
+      const corpo = await this.trasporto.postXml(urlFpMate({ host: st.host, timeoutMs: z ? TIMEOUT_Z_MS - 5000 : 10000 }), j.xml!, z ? TIMEOUT_Z_MS : 15000);
       const r = leggiRispostaEpson(corpo);
       if (r.ok) await this.db.esitoLavoro(j.id, { ok: true, zNumero: r.zNumero, docNumero: r.numeroDocumento, data: r.data, matricola: st.matricolaRt });
-      else await this.db.esitoLavoro(j.id, { ok: false, errore: `Epson: codice ${r.codice || '?'} stato ${r.stato || '?'}` });
+      else if (erroreEpsonIncerto(r.codice)) {
+        // Il registratore non ha confermato: il documento potrebbe essere uscito. Mai ripetere da solo.
+        await this.db.esitoLavoro(j.id, { ok: false, incerto: true, errore: `${spiegaErroreEpson(r.codice, r.stato)} Controlla sulla carta se è uscito prima di riprovare.` });
+      } else await this.db.esitoLavoro(j.id, { ok: false, errore: spiegaErroreEpson(r.codice, r.stato) });
     } catch (e) {
       const incerto = e instanceof TrasportoIncerto;
       await this.db.esitoLavoro(j.id, {
@@ -89,8 +128,12 @@ export class TrasportoSimulato implements Trasporto {
     const host = new URL(url).host;
     if (this.guasti[host] === 'offline') throw new Error('non risponde');
     if (this.guasti[host] === 'incerto') throw new TrasportoIncerto('timeout');
-    this.carta.push({ host, quando: new Date(), xml });
     const oggi = new Date();
+    const risp = (c: Record<string, string | number>) => `<?xml version="1.0" encoding="utf-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"><soapenv:Body><response success="true" code="" status="2"><addInfo><elementList>${Object.keys(c).join(',')}</elementList>${Object.entries(c).map(([k, v]) => `<${k}>${v}</${k}>`).join('')}</addInfo></response></soapenv:Body></soapenv:Envelope>`;
+    if (xml.includes('statusType="0"')) return risp({ lastCommand: 74, cpuRel: '04.30', mfRel: '01', mfStatus: 'OK', fpStatus: '00110' });
+    if (xml.includes('statusType="1"')) return risp({ lastCommand: 138, rtType: 'M', rtMainStatus: '02', rtSubStatus: '08', rtDailyOpen: 1, rtNoWorkingPeriod: 0, rtFileToSend: 0, rtOldFileToSend: 0, rtFileRejected: 0, rtExpiryCD: '20290101', rtExpiryCA: '20290101', rtTrainingMode: 0, rtUpgradeResult: 0 });
+    if (xml.includes('<getDate')) return risp({ day: oggi.getDate(), month: oggi.getMonth() + 1, year: oggi.getFullYear(), hour: oggi.getHours(), minute: oggi.getMinutes() });
+    this.carta.push({ host, quando: new Date(), xml });
     const data = `${String(oggi.getDate()).padStart(2, '0')}/${String(oggi.getMonth() + 1).padStart(2, '0')}/${oggi.getFullYear()}`;
     return `<?xml version="1.0" encoding="utf-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"><soapenv:Body><response success="true" code="" status="2"><addInfo><elementList>lastCommand,printerStatus,fiscalReceiptNumber,fiscalReceiptAmount,fiscalReceiptDate,fiscalReceiptTime,zRepNumber</elementList><lastCommand>74</lastCommand><printerStatus>20110</printerStatus><fiscalReceiptNumber>${++this.doc}</fiscalReceiptNumber><fiscalReceiptAmount>0</fiscalReceiptAmount><fiscalReceiptDate>${data}</fiscalReceiptDate><fiscalReceiptTime>20:51</fiscalReceiptTime><zRepNumber>${this.z}</zRepNumber></addInfo></response></soapenv:Body></soapenv:Envelope>`;
   }

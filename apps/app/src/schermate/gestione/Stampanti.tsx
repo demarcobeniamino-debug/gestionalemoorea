@@ -11,6 +11,7 @@ import { cercaStampanti, cercaStampantiDemo, creaTrasporto, inTauri } from '../.
 import { Foglio, Pulsante, Spinner, useConferma } from '../../ui/primitivi';
 import { CampoNumero, Interruttore, Segmenti, Seleziona, Testo } from '../../ui/campi';
 import { Sezione, useSalva, useTabelle } from './Layout';
+import { CollaudoRt } from './CollaudoRt';
 
 const I = { size: 18, weight: 'bold' as const, 'aria-hidden': true };
 const CARTE = [{ valore: '48', testo: '80 mm' }, { valore: '42', testo: '76 mm' }, { valore: '32', testo: '58 mm' }];
@@ -51,6 +52,7 @@ export function Stampanti() {
   const [altraRete, setAltraRete] = useState(false);
   const [editor, setEditor] = useState<StampanteRiga | Partial<StampanteRiga> | null>(null);
   const [provando, setProvando] = useState<string | null>(null);
+  const [collaudo, setCollaudo] = useState<StampanteRiga | null>(null);
   const puoCercare = inTauri() || modalita === 'demo';
 
   const cerca = async () => {
@@ -103,6 +105,7 @@ export function Stampanti() {
                 <Pulsante taglia="md" variante="fantasma" className="-ml-2" disabled={!possibile || !s.attiva || provando === s.id}
                   caricamento={provando === s.id}
                   onClick={async () => { setProvando(s.id); await prova(s, 'normale', t); setProvando(null); }}>Stampa di prova</Pulsante>
+                {s.tipo === 'rt_epson_xml' && <Pulsante taglia="md" variante="fantasma" disabled={!s.attiva} onClick={() => setCollaudo(s)}>Collaudo RT</Pulsante>}
               </div>
             </li>
           );
@@ -143,6 +146,7 @@ export function Stampanti() {
         Se gli accenti escono sbagliati, apri la stampante e usa “Prova caratteri”.
       </div>
 
+      {collaudo && <CollaudoRt rt={collaudo} onChiudi={() => setCollaudo(null)} />}
       {editor && <EditorStampante key={(editor as StampanteRiga).id ?? 'nuova'} iniziale={editor} onChiudi={() => setEditor(null)} />}
     </Sezione>
   );

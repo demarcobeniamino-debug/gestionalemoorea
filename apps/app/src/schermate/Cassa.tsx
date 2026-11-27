@@ -1,7 +1,7 @@
 // Cassa e statistiche: incasso, coperti, chi vende cosa, scontrini del giorno, annullo e chiusura fiscale.
 // Solo per i responsabili.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowCounterClockwise, FileText, Receipt, Vault } from '@phosphor-icons/react';
 import { FoglioFattura } from './Fattura';
 import { InvioScontrini, SituazioneChiusure, SituazioneFatture, useInviiDaGuardare } from './CassaRegistro';
@@ -40,7 +40,8 @@ export function Cassa() {
   const [annulla, setAnnulla] = useState<Documento | null>(null);
   const [chiusura, setChiusura] = useState(false);
   const [fattura, setFattura] = useState<Documento | null>(null);
-  const [scheda, setScheda] = useState<'riepilogo' | 'invii' | 'chiusure' | 'fatture'>('riepilogo');
+  const [parametri] = useSearchParams();
+  const [scheda, setScheda] = useState<'riepilogo' | 'invii' | 'chiusure' | 'fatture'>(parametri.get('scheda') === 'invii' ? 'invii' : 'riepilogo');
   const daGuardare = useInviiDaGuardare();
 
   const carica = useCallback(async () => {

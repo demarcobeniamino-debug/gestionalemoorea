@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle, Clock, FileText, Printer, Receipt, Vault, Warning, XCircle } from '@phosphor-icons/react';
-import { euro, type ChiusuraFiscale, type DatiPeriodo, type Documento, type Fattura, type PrintJob, type StatoLavoro } from '@gr/core';
+import { avvisiRt, euro, nomeConto, ponteVivo, type ChiusuraFiscale, type DatiPeriodo, type Documento, type Fattura, type PrintJob, type StatoLavoro } from '@gr/core';
 import { useApp, useAzione, useDati } from '../dati/contesto';
 import { Foglio, Pulsante, Spinner } from '../ui/primitivi';
 
@@ -12,6 +12,8 @@ const STATO: Record<StatoLavoro | 'sconosciuto', { testo: string; classe: string
   stampato: { testo: 'Stampato', classe: 'bg-success text-on-success', icona: <CheckCircle size={14} weight="fill" aria-hidden /> },
   errore: { testo: 'Errore', classe: 'bg-danger text-on-danger', icona: <XCircle size={14} weight="fill" aria-hidden /> },
   da_verificare: { testo: 'Da verificare', classe: 'bg-warning text-on-warning', icona: <Warning size={14} weight="fill" aria-hidden /> },
+  sospeso: { testo: 'Sospeso', classe: 'bg-warning text-on-warning', icona: <Clock size={14} weight="fill" aria-hidden /> },
+  annullato: { testo: 'Scartato', classe: 'bg-surface-2 text-text-muted', icona: <XCircle size={14} weight="bold" aria-hidden /> },
   sconosciuto: { testo: 'Registrata', classe: 'bg-surface-2 text-text-muted', icona: null },
 };
 const NOME_LAVORO: Partial<Record<PrintJob['tipo'], string>> = { documento_commerciale: 'Scontrino', annullo: 'Annullo', chiusura_fiscale: 'Chiusura Z' };
@@ -39,6 +41,8 @@ export function InvioScontrini({ dati, nomeTavolo, responsabile }: { dati: DatiP
 
   return (
     <div className="flex flex-col gap-5">
+      <CodaSospesa />
+      <StatoRegistratore />
       <section className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-surface p-4">
         <Receipt size={32} weight="duotone" aria-hidden className="text-accent" />
         <div className="min-w-0 flex-1">
@@ -202,4 +206,99 @@ export function SituazioneFatture() {
       <Link to="/gestione/fatture" className="premibile self-start rounded-md bg-surface-2 px-4 py-3 text-sm font-semibold">Tutte le fatture, XML e dati fiscali →</Link>
     </div>
   );
+}
+
+const NOME_TIPO: Record<string, string> = { comanda: 'Comanda', preconto: 'Preconto', non_fiscale: 'Stampa', documento_commerciale: 'Scontrino', annullo: 'Annullo', reso: 'Reso', chiusura_fiscale: 'Chiusura Z' };
+
+/** Lavori rimasti in coda a cassa spenta: non escono da soli, si decide uno per uno (o tutti insieme). */
+function CodaSospesa() {
+  const { db } = useApp();
+  const { esegui, inCorso } = useAzione();
+  const { lavori, setup } = useDati((d) => ({ lavori: d.lavori().filter((j) => j.stato === 'sospeso'), setup: d.setup() }));
+  if (!lavori.length) return null;
+  const dove = (comandaId?: string) => { const c = comandaId ? db.comanda(comandaId) : undefined; return c ? nomeConto(setup, c) : ''; };
+  const tutti = (stampa: boolean) => void esegui(async () => { for (const j of lavori) await db.decidiLavoro(j.id, stampa); }, stampa ? 'Mandate in stampa' : 'Scartate');
+  return (
+    <section aria-label="Rimaste in coda" className="rounded-lg border-2 border-warning bg-surface p-4">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <Clock size={24} weight="bold" aria-hidden className="text-warning" />
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base font-bold">{lavori.length === 1 ? '1 stampa rimasta in coda' : `${lavori.length} stampe rimaste in coda`}</h3>
+          <p className="text-sm text-text-muted">Erano state mandate mentre nessuna cassa stampava. Non escono da sole: stampa solo quello che serve ancora.</p>
+        </div>
+        <Pulsante taglia="md" disabled={inCorso} onClick={() => tutti(false)}>Scarta tutte</Pulsante>
+        <Pulsante variante="primario" taglia="md" disabled={inCorso} onClick={() => tutti(true)}>Stampa tutte</Pulsante>
+      </div>
+      <ul className="divide-y divide-border">
+        {lavori.map((j) => (
+          <li key={j.id} className="flex flex-wrap items-center gap-3 py-2.5">
+            <span className="w-12 flex-none font-mono text-sm tabular-nums text-text-muted">{ora(j.createdAt)}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">{NOME_TIPO[j.tipo] ?? j.tipo}{j.comandaId ? ` · ${dove(j.comandaId)}` : j.ticket?.titolo ? ` · ${j.ticket.titolo}` : ''}</span>
+              <span className="block text-sm text-text-muted">{setup.stampanti.find((x) => x.id === j.stampanteId)?.nome}{j.documentoId ? ' · se lo scarti, il conto torna da incassare' : ''}</span>
+            </span>
+            <Pulsante taglia="md" disabled={inCorso} onClick={() => void esegui(() => db.decidiLavoro(j.id, false), 'Scartata')}>Scarta</Pulsante>
+            <Pulsante variante="primario" taglia="md" disabled={inCorso} onClick={() => void esegui(() => db.decidiLavoro(j.id, true), 'In stampa')}>Stampa</Pulsante>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+const NOME_GIORNALE: Record<string, string> = { ok: 'OK', quasi_pieno: 'quasi pieno', da_formattare: 'da formattare', precedente: 'di un altro periodo', altro_misuratore: 'di un altro registratore', pieno: 'pieno' };
+
+/** Stato del registratore letto dalla cassa (ogni 5 minuti, o subito con "Leggi adesso"). */
+function StatoRegistratore() {
+  const { db, leggiRt } = useApp();
+  const { esegui, inCorso } = useAzione();
+  const adesso = useOraLocale();
+  const ponti = useDati((d) => d.ponti());
+  const vivi = ponti.filter((p) => ponteVivo(p, adesso.getTime()));
+  const p = [...ponti].filter((x) => x.statoRt).sort((a, b) => (b.statoRtAt ?? '').localeCompare(a.statoRtAt ?? ''))[0];
+  const s = p?.statoRt;
+  const avvisi = s ? avvisiRt(s, adesso) : [];
+  const leggi = leggiRt ? () => void esegui(async () => {
+    const st = await leggiRt();
+    if (st) await db.battito(vivi[0]?.nome ?? 'Cassa', vivi[0]?.versione ?? '', st);
+  }, 'Stato del registratore aggiornato') : undefined;
+  return (
+    <section aria-label="Stato del registratore" className="rounded-lg border border-border bg-surface p-4">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <h3 className="flex-1 text-base font-bold">Stato del registratore</h3>
+        <span className="text-sm text-text-muted">
+          {vivi.length ? `Cassa accesa: ${vivi.map((x) => x.nome).join(', ')}` : 'Nessuna cassa accesa'}
+          {p?.statoRtAt ? ` · letto alle ${ora(p.statoRtAt)}` : ''}
+        </span>
+        {leggi && <Pulsante taglia="md" caricamento={inCorso} onClick={leggi}>Leggi adesso</Pulsante>}
+      </div>
+      {!s ? <p className="text-sm text-text-muted">Ancora nessuna lettura. La cassa lo legge da sola ogni 5 minuti quando è accesa.</p> : (
+        <>
+          {avvisi.length > 0 ? (
+            <ul className="mb-3 flex flex-col gap-1.5">
+              {avvisi.map((a) => (
+                <li key={a.testo} className={`flex items-start gap-2 rounded-md px-3 py-2 text-sm font-semibold ${a.livello === 'errore' ? 'bg-danger text-on-danger' : a.livello === 'attenzione' ? 'bg-warning text-on-warning' : 'bg-bg text-text'}`}>
+                  <Warning size={16} weight="fill" aria-hidden className="mt-0.5 flex-none" />{a.testo}
+                </li>
+              ))}
+            </ul>
+          ) : <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-success"><CheckCircle size={18} weight="fill" aria-hidden />Tutto in ordine.</p>}
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
+            <dt className="text-text-muted">Carta</dt><dd>{s.stampante === 'ok' ? 'OK' : s.stampante === 'carta_in_esaurimento' ? 'in esaurimento' : s.stampante === 'offline' ? 'finita / coperchio' : '–'}</dd>
+            <dt className="text-text-muted">Giornale elettronico</dt><dd>{s.giornale ? NOME_GIORNALE[s.giornale] : '–'}</dd>
+            <dt className="text-text-muted">Giornata</dt><dd>{s.giornataAperta === undefined ? '–' : s.giornataAperta ? 'aperta (scontrini dopo l’ultima Z)' : 'chiusa'}</dd>
+            <dt className="text-text-muted">Invii all’Agenzia</dt><dd>{s.fileDaInviare ?? '–'} in attesa · {s.fileRifiutati ?? '–'} rifiutati</dd>
+            <dt className="text-text-muted">Orologio RT</dt><dd>{s.orologio ? new Date(s.orologio).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '–'}</dd>
+            <dt className="text-text-muted">Firmware</dt><dd>{s.firmware ?? '–'}</dd>
+          </dl>
+        </>
+      )}
+    </section>
+  );
+}
+
+function useOraLocale() {
+  const [t, setT] = useState(() => new Date());
+  useEffect(() => { const i = setInterval(() => setT(new Date()), 15000); return () => clearInterval(i); }, []);
+  return t;
 }

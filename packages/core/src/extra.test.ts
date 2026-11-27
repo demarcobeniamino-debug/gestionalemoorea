@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FakeDataLayer, CodaStampa, TrasportoSimulato, seedDemo, calcolaConto, calcolaFattura, xmlFattura, controllaIntestatario, controllaCedente, anteprima, riepilogo, type Cliente } from './index';
+import { FakeDataLayer, CodaStampa, TrasportoSimulato, seedDemo, calcolaConto, calcolaFattura, xmlFattura, controllaIntestatario, controllaCedente, anteprima, riepilogo, ponteVivo, type Cliente } from './index';
 
 const OP = { id: 'op-aldo', nome: 'Aldo', ruolo: 'cameriere' };
 const nuovo = () => { const db = new FakeDataLayer(seedDemo()); return { db, coda: new CodaStampa(db, new TrasportoSimulato()) }; };
@@ -236,5 +236,34 @@ describe('Tavoli uniti e banco', () => {
     await db.invia(c.id, 'k', OP);
     await db.incassa(c.id, { pagamenti: [{ tipo: 'carta', importoCents: db.righe(c.id)[0].prezzoUnitarioCents }] }, 'i');
     expect(db.documenti(c.id)).toHaveLength(1);
+  });
+});
+
+describe('Cassa spenta', () => {
+  it('lavori mai partiti dopo 10 minuti si sospendono; stampa o scarta (lo scontrino scartato libera il conto)', async () => {
+    let t = new Date(2026, 10, 27, 20, 0);
+    const db = new FakeDataLayer(seedDemo(), () => t);
+    const c = await db.apriTavolo('t1', 2, OP);
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Polpo Scottato') });
+    const [j] = await db.invia(c.id, 'k', OP);
+    const doc = await db.incassa(c.id, { pagamenti: [{ tipo: 'carta', importoCents: 2000 + 2 * db.setup().locale.copertoCents }] }, 'i');
+    t = new Date(2026, 10, 27, 20, 30); // la cassa si riaccende mezz'ora dopo
+    expect(await db.prendiLavori()).toHaveLength(0);
+    expect(db.lavori().every((x) => x.stato === 'sospeso')).toBe(true);
+    await db.decidiLavoro(j.id, true);
+    expect((await db.prendiLavori()).map((x) => x.id)).toEqual([j.id]);
+    const fiscale = db.lavori().find((x) => x.documentoId === doc.id)!;
+    await db.decidiLavoro(fiscale.id, false);
+    expect(db.documenti(c.id)[0].stato).toBe('errore');
+  });
+
+  it('battito della cassa: vivo per 90 secondi, con lo stato del registratore', async () => {
+    const db = new FakeDataLayer(seedDemo());
+    const coda = new CodaStampa(db, new TrasportoSimulato());
+    const stato = await coda.leggiRt();
+    expect(stato).toMatchObject({ stampante: 'ok', giornataAperta: true, fileRifiutati: 0 });
+    await db.battito('Cassa', '0.8.0', stato);
+    expect(ponteVivo(db.ponti()[0])).toBe(true);
+    expect(ponteVivo(db.ponti()[0], Date.now() + 120_000)).toBe(false);
   });
 });

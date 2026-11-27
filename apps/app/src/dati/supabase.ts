@@ -7,7 +7,7 @@ import {
   type Allergene, type Comanda, type DataLayer, type Documento, type EsitoLavoro, type Incasso, type NuovaRiga,
   type Operatore, type PrintJob, type RigaComanda, type Setup, setupDaTabelle, type Prenotazione,
   type Cliente, type ClienteNuovo, type DatiFiscali, type Fattura, type MessaggioReparto, type NuovaFattura, type NuovoMessaggio,
-  type StatoFattura, type StoricoCliente, type Ticket, type ChiusuraFiscale, preparaAnnullaConto, preparaProforma, comandaSulTavolo, preparaMessaggio, rigaUguale,
+  type StatoFattura, type StoricoCliente, type Ticket, type PonteStampa, type StatoRt, type ChiusuraFiscale, preparaAnnullaConto, preparaProforma, comandaSulTavolo, preparaMessaggio, rigaUguale,
   type Caparra, type Impostazioni, type MovimentoCassa, type Sospeso, type TipoMovimentoCassa, type TipoPagamento, righeMenu, xmlApriCassetto,
 } from '@gr/core';
 
@@ -176,6 +176,8 @@ export class SupabaseDataLayer implements DataLayer {
     this._righe = ((righe.data ?? []) as Riga[]).map(this.mappaRiga).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     this._documenti = ((documenti.data ?? []) as Riga[]).map(this.mappaDocumento);
     this._lavori = ((lavori.data ?? []) as Riga[]).map(this.mappaLavoro);
+    const { data: ponti } = await this.sb.from('ponti_stampa').select('*');
+    this._ponti = ((ponti ?? []) as Riga[]).map((p) => ({ nome: p.nome, versione: p.versione ?? undefined, vistoAt: p.visto_at, statoRt: p.stato_rt ?? undefined, statoRtAt: p.stato_rt_at ?? undefined }));
     const { data: msg } = await this.sb.from('messaggi_reparto').select('*').gte('created_at', da).order('created_at', { ascending: false }).limit(200);
     this._messaggi = ((msg ?? []) as Riga[]).map(this.mappaMessaggio);
     // Prenotazioni della serata: da 8 ore fa a 18 ore avanti (copre pranzo, cena e il dopo mezzanotte).
@@ -200,7 +202,7 @@ export class SupabaseDataLayer implements DataLayer {
   private ascolta() {
     const filtro = `locale_id=eq.${this.localeId}`;
     const canale = this.sb.channel(`servizio-${this.localeId}`);
-    for (const t of ['comande', 'righe_comanda', 'documenti', 'print_jobs', 'prenotazioni', 'messaggi_reparto']) {
+    for (const t of ['comande', 'righe_comanda', 'documenti', 'print_jobs', 'prenotazioni', 'messaggi_reparto', 'ponti_stampa']) {
       canale.on('postgres_changes', { event: '*', schema: 'public', table: t, filter: filtro }, () => this.programmaRicarica());
     }
     // Listino, sale e stampanti cambiati dalla Gestione (anche da un altro dispositivo).
@@ -697,6 +699,18 @@ export class SupabaseDataLayer implements DataLayer {
     const { data, error } = await this.sb.rpc('prendi_lavori', { p_locale: this.localeId, p_max: max });
     if (error) errore(error);
     return ((data ?? []) as Riga[]).map(this.mappaLavoro);
+  }
+
+  private _ponti: PonteStampa[] = [];
+  ponti() { return this._ponti; }
+  async battito(nome: string, versione: string, statoRt?: StatoRt) {
+    const { error } = await this.sb.rpc('battito_ponte', { p_locale: this.localeId, p_nome: nome, p_versione: versione, p_stato_rt: statoRt ?? null });
+    if (error) errore(error);
+  }
+  async decidiLavoro(jobId: string, stampa: boolean) {
+    const { error } = await this.sb.rpc('decidi_lavoro', { p_job: jobId, p_stampa: stampa });
+    if (error) errore(error);
+    await this.caricaServizio();
   }
 
   async esitoLavoro(jobId: string, e: EsitoLavoro) {

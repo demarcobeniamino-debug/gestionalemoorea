@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   CodaStampa, FakeDataLayer, MemoriaArchivio, magazzinoDemo, prenotazioniDemo, seedDemo, setupDaTabelle, tabelleDaSetup,
-  type Archivio, type DataLayer, type Operatore, type TrasportoSimulato,
+  type Archivio, type DataLayer, type Operatore, type StatoRt, type TrasportoSimulato,
 } from '@gr/core';
+import { version as VERSIONE } from '../../package.json';
 import { creaTrasporto, inTauri } from './trasporto';
 import { SupabaseDataLayer, supabase, supabaseConfigurato } from './supabase';
 import { SupabaseArchivio } from './archivio';
@@ -16,6 +17,8 @@ interface Ctx {
   modalita: Modalita;
   simulato?: TrasportoSimulato;
   stampaDaQui: boolean;
+  /** Solo sulla cassa che stampa: rilegge subito lo stato del registratore. */
+  leggiRt?: () => Promise<StatoRt | undefined>;
   operatore: Operatore | null;
   setOperatore: (o: Operatore | null) => void;
   toast: (t: { testo: string; tipo?: 'ok' | 'errore' | 'info' }) => void;
@@ -33,7 +36,15 @@ const deveStampare = (m: Modalita) => m === 'demo' || inTauri() || localStorage.
 type Stato =
   | { fase: 'avvio' }
   | { fase: 'collega'; errore?: string }
-  | { fase: 'pronto'; db: DataLayer; archivio: Archivio; modalita: Modalita; simulato?: TrasportoSimulato };
+  | { fase: 'pronto'; db: DataLayer; archivio: Archivio; modalita: Modalita; simulato?: TrasportoSimulato; coda?: CodaStampa };
+
+/** Nome con cui la cassa si presenta agli altri dispositivi ("Cassa Windows", "Cassa Mac"). */
+const nomePonte = () => {
+  const salvato = localStorage.getItem('gr.nomeCassa');
+  if (salvato) return salvato;
+  const p = navigator.userAgent;
+  return /Windows/i.test(p) ? 'Cassa Windows' : /Mac/i.test(p) ? 'Cassa Mac' : 'Cassa';
+};
 
 export function DatiProvider({ children, schermataCollega }: { children: ReactNode; schermataCollega: (p: { onDemo: () => void; onCollegato: () => void; errore?: string }) => ReactNode }) {
   const [stato, setStato] = useState<Stato>({ fase: 'avvio' });
@@ -44,12 +55,16 @@ export function DatiProvider({ children, schermataCollega }: { children: ReactNo
   const pronto = useCallback((db: DataLayer, archivio: Archivio, modalita: Modalita) => {
     fermaCoda.current?.();
     let simulato: TrasportoSimulato | undefined;
+    let coda: CodaStampa | undefined;
     if (deveStampare(modalita)) {
       const t = creaTrasporto();
       simulato = t.simulato;
-      fermaCoda.current = new CodaStampa(db, t.trasporto).avvia(modalita === 'demo' ? 500 : 1500);
+      coda = new CodaStampa(db, t.trasporto);
+      // Il battito e la lettura del registratore solo dove si stampa davvero (o nella demo, simulati).
+      const ponte = inTauri() || modalita === 'demo' ? { nome: modalita === 'demo' ? 'Demo' : nomePonte(), versione: VERSIONE, leggiRt: true } : undefined;
+      fermaCoda.current = coda.avvia(modalita === 'demo' ? 500 : 1500, ponte);
     }
-    setStato({ fase: 'pronto', db, archivio, modalita, simulato });
+    setStato({ fase: 'pronto', db, archivio, modalita, simulato, coda });
   }, []);
 
   const avviaDemo = useCallback(() => {
@@ -122,6 +137,7 @@ export function DatiProvider({ children, schermataCollega }: { children: ReactNo
   return (
     <C.Provider value={{
       db: stato.db, archivio: stato.archivio, modalita: stato.modalita, simulato: stato.simulato, stampaDaQui: deveStampare(stato.modalita),
+      leggiRt: stato.coda ? () => stato.coda!.leggiRt() : undefined,
       operatore, setOperatore, toast, toasts, scollega,
     }}>{children}</C.Provider>
   );

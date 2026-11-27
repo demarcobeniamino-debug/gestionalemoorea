@@ -2,12 +2,14 @@ import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp, useOra } from '../dati/contesto';
 import { Icona, StatoStampanti } from './primitivi';
+import { AvvisoCassa } from './AvvisoCassa';
 
 export function Testata({ titolo, sotto, indietro, children }: { titolo: ReactNode; sotto?: ReactNode; indietro?: string; children?: ReactNode }) {
   const { operatore, setOperatore, modalita } = useApp();
   const ora = useOra();
   const nav = useNavigate();
   return (
+    <>
     <header className="flex h-14 flex-none items-center gap-3 border-b border-border bg-surface px-3 md:px-4">
       {indietro && (
         <Link to={indietro} aria-label="Indietro" className="premibile grid h-10 w-10 flex-none place-items-center rounded-md bg-surface-2">{Icona.indietro}</Link>
@@ -34,5 +36,7 @@ export function Testata({ titolo, sotto, indietro, children }: { titolo: ReactNo
         {ora.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
       </time>
     </header>
+    <AvvisoCassa />
+    </>
   );
 }

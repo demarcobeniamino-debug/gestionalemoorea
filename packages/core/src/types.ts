@@ -128,7 +128,14 @@ export interface Documento {
 }
 
 export type TipoLavoro = 'comanda' | 'preconto' | 'non_fiscale' | 'documento_commerciale' | 'annullo' | 'chiusura_fiscale';
-export type StatoLavoro = 'in_coda' | 'preso' | 'stampato' | 'errore' | 'da_verificare';
+export type StatoLavoro = 'in_coda' | 'preso' | 'stampato' | 'errore' | 'da_verificare' | 'annullato' | 'sospeso';
+
+/** La cassa che stampa batte un colpo ogni 30 secondi (con lo stato del registratore). */
+export interface PonteStampa { nome: string; versione?: string; vistoAt: string; statoRt?: import('./epson').StatoRt; statoRtAt?: string }
+/** Un ponte è vivo se si è fatto sentire negli ultimi 90 secondi. */
+export const ponteVivo = (p: PonteStampa, adesso = Date.now()) => adesso - new Date(p.vistoAt).getTime() < 90_000;
+/** Dopo quanto un lavoro mai partito smette di uscire da solo. */
+export const MINUTI_SOSPENSIONE = 10;
 
 export interface PrintJob {
   id: string; tipo: TipoLavoro; stampanteId: string; stato: StatoLavoro;
