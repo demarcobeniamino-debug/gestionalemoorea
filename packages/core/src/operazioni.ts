@@ -169,3 +169,27 @@ export function preparaMessaggio(s: Setup, m: {
     }),
   };
 }
+
+/** Annulla conto: niente scontrini emessi; ai reparti va lo storno dei piatti già inviati (uno per reparto). */
+export function preparaAnnullaConto(s: Setup, c: Comanda, righe: RigaComanda[], documenti: Documento[], motivo: string, quando: string, avvisaReparti = true) {
+  if (!motivo.trim()) throw new ErroreDominio('Serve il motivo');
+  if (c.stato === 'chiusa') throw new ErroreDominio('Il conto è già chiuso');
+  if (documenti.some((d) => d.tipo === 'documento_commerciale' && ['emesso', 'in_emissione', 'da_verificare'].includes(d.stato)))
+    throw new ErroreDominio('Su questo conto c’è già uno scontrino: annullalo prima dalla Cassa, poi annulla il conto');
+  const inviate = righe.filter((r) => !['da_inviare', 'in_attesa_marcia', 'stornata'].includes(r.stato));
+  const perCentro = new Map<string, RigaComanda[]>();
+  for (const r of inviate) if (r.centroProduzioneId) perCentro.set(r.centroProduzioneId, [...(perCentro.get(r.centroProduzioneId) ?? []), r]);
+  const { numero, sala } = tavoloLabel(s, c);
+  const lavori: { stampanteId: string; ticket: Ticket }[] = [];
+  if (avvisaReparti) {
+    for (const [centroId, rr] of perCentro) {
+      const centro = s.centri.find((x) => x.id === centroId);
+      if (!centro?.stampanteId) continue;
+      lavori.push({ stampanteId: centro.stampanteId, ticket: ticketComanda({
+        centro: centro.nome, comanda: c, tavolo: numero, sala, tipo: 'storno', quando,
+        righe: rr.map((r) => ({ ...r, stato: 'stornata' as const, motivoStorno: `CONTO ANNULLATO: ${motivo}` })),
+      }) });
+    }
+  }
+  return { lavori, inviate: inviate.length };
+}

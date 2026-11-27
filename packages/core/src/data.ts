@@ -6,7 +6,7 @@
 import type { Allergene, Cliente, Comanda, DatiFiscali, Documento, Fattura, MessaggioReparto, Prenotazione, PrintJob, RigaComanda, RigaVariante, StatoFattura, StoricoCliente, TipoMessaggio } from './types';
 import { nomeCliente } from './types';
 import type { Setup } from './seed';
-import { ErroreDominio, preparaAnnullo, preparaChiusura, preparaIncasso, preparaInvio, preparaMessaggio, preparaPreconto, preparaStorno, type Incasso } from './operazioni';
+import { ErroreDominio, preparaAnnullaConto, preparaAnnullo, preparaChiusura, preparaIncasso, preparaInvio, preparaMessaggio, preparaPreconto, preparaStorno, type Incasso } from './operazioni';
 import type { CalcoloFattura } from './fattura';
 import type { DatiPeriodo } from './report';
 import { calcolaConto } from './conto';
@@ -31,6 +31,13 @@ export interface NuovaFattura {
 }
 
 export type ClienteNuovo = Omit<Cliente, 'id'> & { id?: string };
+
+export interface ChiusuraFiscale {
+  giorno: string; zNumero?: number; totali: Record<string, unknown>; createdAt: string;
+  /** Stato del lavoro di stampa dello Z sull'RT. */
+  stato: 'in_coda' | 'preso' | 'stampato' | 'errore' | 'da_verificare' | 'sconosciuto';
+  errore?: string;
+}
 
 export interface Operatore { id: string; nome: string; ruolo: string }
 
@@ -76,6 +83,10 @@ export interface DataLayer {
   /** Sposta alcune righe su un altro conto aperto. */
   spostaRighe(rigaIds: string[], destinazioneId: string): Promise<void>;
   annullaDocumento(documentoId: string, idempotencyKey: string, operatore?: Operatore): Promise<void>;
+  /** Annulla un conto aperto senza scontrini (prove, tavolo aperto per errore). Il tavolo torna libero. */
+  annullaComanda(comandaId: string, motivo: string, idempotencyKey: string, operatore?: Operatore, avvisaReparti?: boolean): Promise<void>;
+  /** Chiusure fiscali fatte (più recenti per prime). */
+  chiusure(giorni: number): Promise<ChiusuraFiscale[]>;
   /** Chiusura fiscale (Z) con i totali della giornata. */
   chiusuraFiscale(totali: object, idempotencyKey: string, operatore?: Operatore): Promise<void>;
   /** Conti, righe e scontrini degli ultimi n giorni di servizio (1 = oggi). */
@@ -288,6 +299,7 @@ export class FakeDataLayer implements DataLayer {
     j.tentativi++;
     j.stato = e.ok ? 'stampato' : e.incerto ? 'da_verificare' : 'errore';
     j.errore = e.errore;
+    if (e.ok && e.zNumero !== undefined) (j as { z?: number }).z = e.zNumero;
     if (j.documentoId) {
       const d = this._documenti.get(j.documentoId)!;
       d.stato = e.ok ? 'emesso' : e.incerto ? 'da_verificare' : 'errore';
@@ -432,12 +444,33 @@ export class FakeDataLayer implements DataLayer {
     });
   }
 
-  chiusure: { totali: object; quando: string }[] = [];
+  private _chiusure: { totali: object; quando: string; jobId: string }[] = [];
   async chiusuraFiscale(totali: object, key: string) {
     this.idem(key, () => {
       const prep = preparaChiusura(this.s);
-      this.chiusure.push({ totali, quando: this.now().toISOString() });
-      return this.nuovoLavoro({ tipo: 'chiusura_fiscale', stampanteId: prep.stampanteId, idempotencyKey: key, xml: prep.xml });
+      const j = this.nuovoLavoro({ tipo: 'chiusura_fiscale', stampanteId: prep.stampanteId, idempotencyKey: key, xml: prep.xml });
+      this._chiusure.push({ totali, quando: this.now().toISOString(), jobId: j.id });
+      return j;
+    });
+  }
+  async chiusure(giorni: number): Promise<ChiusuraFiscale[]> {
+    const da = this.now().getTime() - giorni * 24 * 3600_000;
+    return this._chiusure.filter((c) => new Date(c.quando).getTime() >= da).reverse().map((c) => {
+      const j = this._lavori.get(c.jobId);
+      return { giorno: c.quando.slice(0, 10), totali: c.totali as Record<string, unknown>, createdAt: c.quando, stato: j?.stato ?? 'sconosciuto', errore: j?.errore, zNumero: (j as { z?: number } | undefined)?.z };
+    });
+  }
+
+  async annullaComanda(comandaId: string, motivo: string, key: string, _op?: Operatore, avvisa = true) {
+    this.idem(key, () => {
+      const c = this._comande.get(comandaId);
+      if (!c) throw new ErroreDominio('Comanda inesistente');
+      if (c.stato === 'annullata') return true;
+      const prep = preparaAnnullaConto(this.s, c, this.righe(comandaId), this.documenti(comandaId), motivo, this.now().toISOString(), avvisa);
+      for (const r of this.righe(comandaId)) if (r.stato !== 'stornata') { r.stato = 'stornata'; r.motivoStorno = motivo; }
+      c.stato = 'annullata'; c.chiusaAt = this.now().toISOString(); c.version++;
+      prep.lavori.forEach((l, i) => this.nuovoLavoro({ tipo: 'comanda', stampanteId: l.stampanteId, idempotencyKey: `${key}:${i + 1}`, comandaId, ticket: l.ticket }));
+      return true;
     });
   }
 

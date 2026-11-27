@@ -1,11 +1,15 @@
-// Azioni sul tavolo dalla comanda: sposta su un altro tavolo, unisci un altro tavolo, sposta alcuni piatti.
+// Azioni sul tavolo dalla comanda: sposta su un altro tavolo, unisci un altro tavolo, sposta alcuni piatti, annulla il conto.
 import { useState, type ReactNode } from 'react';
-import { ArrowsLeftRight, ArrowsMerge, ForkKnife } from '@phosphor-icons/react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowsLeftRight, ArrowsMerge, ForkKnife, Trash } from '@phosphor-icons/react';
 import { euro, importoRiga, type Comanda } from '@gr/core';
-import { useApp, useAzione, useDati } from '../dati/contesto';
+import { nuovaChiave, useApp, useAzione, useDati } from '../dati/contesto';
+import { puoGestire } from '../dati/ruoli';
+import { TastierinoPin, verificaResponsabile } from '../ui/PinResponsabile';
+import { Interruttore } from '../ui/campi';
 import { Foglio, Pulsante } from '../ui/primitivi';
 
-type Vista = 'menu' | 'sposta' | 'unisci' | 'piatti' | 'piatti-dove';
+type Vista = 'menu' | 'sposta' | 'unisci' | 'piatti' | 'piatti-dove' | 'annulla';
 
 export function AzioniTavolo({ comanda, aperto, onChiudi, onSpostata }: {
   comanda: Comanda; aperto: boolean; onChiudi: () => void; onSpostata?: (nuovaComandaId: string) => void;
@@ -20,7 +24,8 @@ export function AzioniTavolo({ comanda, aperto, onChiudi, onSpostata }: {
   const altri = aperte.filter((c) => c.id !== comanda.id && c.tavoloId);
   const spostabili = righe.filter((r) => r.stato !== 'stornata');
 
-  const titolo = { menu: `Tavolo ${numero(comanda.tavoloId)}`, sposta: 'Sposta su un tavolo libero', unisci: 'Unisci un altro tavolo a questo', piatti: 'Quali piatti spostare?', 'piatti-dove': 'Su quale tavolo?' }[vista];
+  const titolo = { menu: `Tavolo ${numero(comanda.tavoloId)}`, sposta: 'Sposta su un tavolo libero', unisci: 'Unisci un altro tavolo a questo', piatti: 'Quali piatti spostare?', 'piatti-dove': 'Su quale tavolo?', annulla: `Annullare il conto del tavolo ${numero(comanda.tavoloId)}?` }[vista];
+  const conScontrino = db.documenti(comanda.id).some((d) => d.tipo === 'documento_commerciale' && ['emesso', 'in_emissione', 'da_verificare'].includes(d.stato));
 
   return (
     <Foglio aperto={aperto} onChiudi={chiudi} titolo={titolo}>
@@ -29,8 +34,13 @@ export function AzioniTavolo({ comanda, aperto, onChiudi, onSpostata }: {
           <Voce icona={<ArrowsLeftRight size={22} weight="bold" aria-hidden />} titolo="Sposta tavolo" testo="Il conto passa su un tavolo libero, con tutto quello che è stato ordinato." onClick={() => setVista('sposta')} />
           <Voce icona={<ArrowsMerge size={22} weight="bold" aria-hidden />} titolo="Unisci tavoli" testo="Porta qui piatti e coperti di un altro tavolo aperto: un solo conto." onClick={() => setVista('unisci')} disabled={!altri.length} />
           <Voce icona={<ForkKnife size={22} weight="bold" aria-hidden />} titolo="Sposta piatti" testo="Alcuni piatti vanno sul conto di un altro tavolo (es. chi si sposta al bar)." onClick={() => setVista('piatti')} disabled={!spostabili.length || !altri.length} />
+          <Voce pericolo icona={<Trash size={22} weight="bold" aria-hidden />} titolo="Annulla conto"
+            testo={conScontrino ? 'C’è già uno scontrino: prima va annullato dalla Cassa.' : 'Chiude il conto senza incassare (prove, tavolo aperto per errore). Il tavolo torna libero.'}
+            onClick={() => setVista('annulla')} disabled={conScontrino} />
         </div>
       )}
+
+      {vista === 'annulla' && <AnnullaConto comandaId={comanda.id} inviate={righe.filter((r) => !['da_inviare', 'in_attesa_marcia', 'stornata'].includes(r.stato)).length} onFatto={chiudi} />}
 
       {vista === 'sposta' && (
         <SceltaTavolo escludi={aperte.map((c) => c.tavoloId).filter((x): x is string => !!x)} onScegli={(tavoloId) => void esegui(async () => {
@@ -77,11 +87,11 @@ export function AzioniTavolo({ comanda, aperto, onChiudi, onSpostata }: {
   );
 }
 
-function Voce({ icona, titolo, testo, onClick, disabled }: { icona: ReactNode; titolo: string; testo: string; onClick: () => void; disabled?: boolean }) {
+function Voce({ icona, titolo, testo, onClick, disabled, pericolo }: { icona: ReactNode; titolo: string; testo: string; onClick: () => void; disabled?: boolean; pericolo?: boolean }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled}
-      className="premibile flex items-start gap-3 rounded-md bg-bg p-3 text-left disabled:opacity-40">
-      <span className="grid h-11 w-11 flex-none place-items-center rounded-md bg-surface-2 text-accent">{icona}</span>
+      className={`premibile flex items-start gap-3 rounded-md bg-bg p-3 text-left disabled:opacity-40 ${pericolo ? 'mt-2' : ''}`}>
+      <span className={`grid h-11 w-11 flex-none place-items-center rounded-md ${pericolo ? 'bg-danger text-on-danger' : 'bg-surface-2 text-accent'}`}>{icona}</span>
       <span className="flex flex-col">
         <span className="text-base font-semibold">{titolo}</span>
         <span className="text-sm text-text-muted">{testo}</span>
@@ -138,5 +148,55 @@ function ListaAperti({ comande, numero, conto, onScegli }: {
         );
       })}
     </ul>
+  );
+}
+
+const MOTIVI = ['Prova', 'Aperto per errore', 'Clienti andati via', 'Offerto dalla casa'];
+
+function AnnullaConto({ comandaId, inviate, onFatto }: { comandaId: string; inviate: number; onFatto: () => void }) {
+  const { db, operatore } = useApp();
+  const { esegui, inCorso } = useAzione();
+  const nav = useNavigate();
+  const [motivo, setMotivo] = useState('Prova');
+  const [altro, setAltro] = useState('');
+  const [avvisa, setAvvisa] = useState(true);
+  const [pin, setPin] = useState('');
+  const [errore, setErrore] = useState<string | null>(null);
+  const serveResponsabile = !puoGestire(operatore?.ruolo);
+  const testo = motivo === 'Altro' ? altro.trim() : motivo;
+
+  const vai = async () => {
+    if (!testo) return setErrore('Scrivi il motivo');
+    let chi = operatore ?? undefined;
+    if (serveResponsabile) {
+      const r = await verificaResponsabile(db, pin).catch(() => null);
+      if (!r) { setPin(''); return setErrore('Serve il PIN di un responsabile'); }
+      chi = r;
+    }
+    const ok = await esegui(() => db.annullaComanda(comandaId, testo, nuovaChiave(), chi, avvisa), 'Conto annullato, il tavolo è libero');
+    if (ok) { onFatto(); nav('/sala', { replace: true }); }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-[15px] text-text-muted">Il conto si chiude senza scontrino e senza incasso. Resta nello storico come annullato, con il motivo e chi l’ha fatto.</p>
+      <div role="radiogroup" aria-label="Motivo" className="flex flex-wrap gap-2">
+        {[...MOTIVI, 'Altro'].map((m) => (
+          <button key={m} type="button" role="radio" aria-checked={motivo === m} onClick={() => { setMotivo(m); setErrore(null); }}
+            className={`premibile h-11 rounded-pill px-4 text-[15px] font-semibold ${motivo === m ? 'bg-danger text-on-danger' : 'border border-border bg-bg'}`}>{m}</button>
+        ))}
+      </div>
+      {motivo === 'Altro' && (
+        <input value={altro} onChange={(e) => setAltro(e.target.value)} placeholder="Scrivi il motivo" aria-label="Motivo" autoFocus
+          className="h-touch rounded-md border border-border-input bg-bg px-3 text-base text-text outline-none placeholder:text-text-muted focus:border-focus" />
+      )}
+      {inviate > 0 && (
+        <Interruttore etichetta="Avvisa cucina e bar" descrizione={`${inviate === 1 ? '1 piatto è già stato inviato' : `${inviate} piatti sono già stati inviati`}: ricevono uno storno “conto annullato”.`}
+          attivo={avvisa} onCambia={setAvvisa} />
+      )}
+      {serveResponsabile && <TastierinoPin pin={pin} onCambia={(p) => { setPin(p); setErrore(null); }} />}
+      {errore && <p role="alert" className="text-sm font-semibold text-danger">{errore}</p>}
+      <Pulsante variante="pericolo" taglia="lg" className="w-full" caricamento={inCorso} onClick={() => void vai()}>Annulla il conto</Pulsante>
+    </div>
   );
 }

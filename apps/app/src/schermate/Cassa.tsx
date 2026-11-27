@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowCounterClockwise, FileText, Receipt, Vault } from '@phosphor-icons/react';
 import { FoglioFattura } from './Fattura';
+import { InvioScontrini, SituazioneChiusure, SituazioneFatture, useInviiDaGuardare } from './CassaRegistro';
 import { euro, riepilogo, totaliChiusura, type DatiPeriodo, type Documento, type TipoPagamento } from '@gr/core';
 import { nuovaChiave, useApp, useAzione, useDati } from '../dati/contesto';
 import { Testata } from '../ui/Testata';
@@ -39,6 +40,8 @@ export function Cassa() {
   const [annulla, setAnnulla] = useState<Documento | null>(null);
   const [chiusura, setChiusura] = useState(false);
   const [fattura, setFattura] = useState<Documento | null>(null);
+  const [scheda, setScheda] = useState<'riepilogo' | 'invii' | 'chiusure' | 'fatture'>('riepilogo');
+  const daGuardare = useInviiDaGuardare();
 
   const carica = useCallback(async () => {
     try { setErrore(null); setDati(await db.datiPeriodo(giorni)); }
@@ -74,6 +77,18 @@ export function Cassa() {
       <Testata titolo="Cassa e statistiche" sotto={giorni === 1 ? 'Giornata di servizio in corso' : `Ultimi ${giorni} giorni`} indietro="/sala" />
       <main className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 md:p-6">
+          <div role="tablist" aria-label="Sezioni della cassa" className="flex gap-1 overflow-x-auto border-b border-border">
+            {([['riepilogo', 'Riepilogo'], ['invii', 'Invio scontrini'], ['chiusure', 'Chiusure'], ['fatture', 'Fatture']] as const).map(([k, t]) => (
+              <button key={k} type="button" role="tab" aria-selected={scheda === k} onClick={() => setScheda(k)}
+                className={`relative -mb-px flex h-12 flex-none items-center gap-2 border-b-2 px-4 text-[15px] font-bold transition-colors duration-fast ${scheda === k ? 'border-accent text-text' : 'border-transparent text-text-muted hover:text-text'}`}>
+                {t}{k === 'invii' && daGuardare > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-pill bg-danger px-1.5 text-xs text-on-danger" aria-label={`${daGuardare} da guardare`}>{daGuardare}</span>}
+              </button>
+            ))}
+          </div>
+          {scheda === 'invii' && <InvioScontrini dati={dati} nomeTavolo={nomeTavolo} responsabile={responsabile} />}
+          {scheda === 'chiusure' && <SituazioneChiusure />}
+          {scheda === 'fatture' && <SituazioneFatture />}
+          {scheda === 'riepilogo' && <>
           <div className="flex flex-wrap items-center gap-3">
             <div className="w-full max-w-sm"><Segmenti etichetta="Periodo" valore={String(giorni)} onCambia={(v) => setGiorni(Number(v))} opzioni={PERIODI} /></div>
             <span className="flex-1" />
@@ -168,6 +183,7 @@ export function Cassa() {
               )}
             </Pannello>
           </>)}
+          </>}
         </div>
       </main>
       {fattura && <FoglioFattura documento={fattura} tavolo={nomeTavolo(fattura.comandaId)}

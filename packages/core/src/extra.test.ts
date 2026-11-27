@@ -115,3 +115,45 @@ describe('Fatture', () => {
     expect((await db.storicoCliente(cl.id)).fatture).toHaveLength(2);
   });
 });
+
+describe('Annulla conto', () => {
+  it('conto di prova: righe stornate, storno ai reparti, tavolo libero; con scontrino emesso no', async () => {
+    const { db, coda } = nuovo();
+    const c = await db.apriTavolo('t7', 2, OP);
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Polpo Scottato') });
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Negroni') });
+    await db.invia(c.id, 'k1', OP);
+    await coda.elabora();
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Lasagna') });
+    await db.annullaComanda(c.id, 'Prova', 'a1', OP, true);
+    expect(db.comanda(c.id)?.stato).toBe('annullata');
+    expect(db.comandaDelTavolo('t7')).toBeUndefined();
+    expect(db.righe(c.id).every((r) => r.stato === 'stornata')).toBe(true);
+    const storni = db.lavori().filter((j) => j.idempotencyKey.startsWith('a1:'));
+    expect(storni).toHaveLength(2); // cucina e bar, non la lasagna mai inviata
+    expect(anteprima(storni[0].ticket!, 42).map((x) => x.testo).join('\n')).toMatch(/CONTO ANNULLATO: Prova/);
+
+    const d = await db.apriTavolo('t8', 2, OP);
+    await db.aggiungiRiga(d.id, { articoloId: art(db, 'Negroni') });
+    await db.invia(d.id, 'k2', OP);
+    await db.incassa(d.id, { pagamenti: [{ tipo: 'contanti', importoCents: 5000 }] }, 'i1');
+    await expect(db.annullaComanda(d.id, 'Prova', 'a2', OP)).rejects.toThrow(/scontrino/);
+  });
+
+  it('scontrino "da verificare" sbloccato a mano: uscito chiude il conto, non uscito permette di rifarlo', async () => {
+    const { db } = nuovo();
+    const c = await db.apriTavolo('t9', 0, OP);
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Negroni') });
+    await db.invia(c.id, 'k', OP);
+    const doc = await db.incassa(c.id, { pagamenti: [{ tipo: 'carta', importoCents: db.righe(c.id)[0].prezzoUnitarioCents }] }, 'i');
+    const job = db.lavori().find((j) => j.documentoId === doc.id)!;
+    await db.esitoLavoro(job.id, { ok: false, incerto: true, errore: 'nessuna risposta' });
+    expect(db.documenti(c.id)[0].stato).toBe('da_verificare');
+    await db.esitoLavoro(job.id, { ok: false, errore: 'Verificato a mano: non uscito' });
+    expect(db.documenti(c.id)[0].stato).toBe('errore');
+    const doc2 = await db.incassa(c.id, { pagamenti: [{ tipo: 'carta', importoCents: doc.totaleCents }] }, 'i2');
+    const job2 = db.lavori().find((j) => j.documentoId === doc2.id)!;
+    await db.esitoLavoro(job2.id, { ok: true, zNumero: 41, docNumero: 7 });
+    expect(db.comanda(c.id)?.stato).toBe('chiusa');
+  });
+});

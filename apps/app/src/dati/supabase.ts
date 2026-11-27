@@ -7,7 +7,7 @@ import {
   type Allergene, type Comanda, type DataLayer, type Documento, type EsitoLavoro, type Incasso, type NuovaRiga,
   type Operatore, type PrintJob, type RigaComanda, type Setup, setupDaTabelle, type Prenotazione,
   type Cliente, type ClienteNuovo, type DatiFiscali, type Fattura, type MessaggioReparto, type NuovaFattura, type NuovoMessaggio,
-  type StatoFattura, type StoricoCliente, type Ticket, preparaMessaggio, rigaUguale,
+  type StatoFattura, type StoricoCliente, type Ticket, type ChiusuraFiscale, preparaAnnullaConto, preparaMessaggio, rigaUguale,
 } from '@gr/core';
 
 const URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -39,6 +39,7 @@ const MESSAGGI: Record<string, string> = {
   NOME_MANCANTE: 'Manca il nome.',
   TESTO_MANCANTE: 'Scrivi il messaggio.',
   FATTURA_GIA_EMESSA: 'Questo scontrino ha già la sua fattura.',
+  CONTO_CON_SCONTRINO: 'Su questo conto c’è già uno scontrino: annullalo prima dalla Cassa.',
   righe_comanda_libera_check: 'Scrivi cosa aggiungere.',
 };
 function errore(e: { message?: string } | null): never {
@@ -281,6 +282,36 @@ export class SupabaseDataLayer implements DataLayer {
     const r = await this.sb.rpc('annulla_documento', { p_documento: documentoId, p_stampante: prep.stampanteId, p_key: key, p_operatore: operatore?.id ?? null, p_xml: prep.xml });
     if (r.error) errore(r.error);
     await this.caricaServizio();
+  }
+
+  async annullaComanda(comandaId: string, motivo: string, key: string, operatore?: Operatore, avvisa = true) {
+    const c = this.comanda(comandaId);
+    if (!c) throw new ErroreDominio('Comanda inesistente');
+    const prep = preparaAnnullaConto(this._setup, c, this.righe(comandaId), this.documenti(comandaId), motivo, new Date().toISOString(), avvisa);
+    const { error } = await this.sb.rpc('annulla_comanda', {
+      p_comanda: comandaId, p_motivo: motivo, p_operatore: operatore?.id ?? null, p_key: key,
+      p_lavori: prep.lavori.map((l) => ({ stampante_id: l.stampanteId, payload: { ticket: l.ticket } })),
+    });
+    if (error) errore(error);
+    await this.caricaServizio();
+  }
+
+  async chiusure(giorni: number): Promise<ChiusuraFiscale[]> {
+    const da = new Date(Date.now() - giorni * 24 * 3600_000).toISOString();
+    const [{ data, error }, { data: jobs }] = await Promise.all([
+      this.sb.from('chiusure').select('*').gte('created_at', da).order('created_at', { ascending: false }),
+      this.sb.from('print_jobs').select('stato, errore, created_at, esito').eq('tipo', 'chiusura_fiscale').gte('created_at', da).order('created_at', { ascending: false }),
+    ]);
+    if (error) errore(error);
+    const lavori = (jobs ?? []) as Riga[];
+    return ((data ?? []) as Riga[]).map((c) => {
+      // Il lavoro dello Z più recente dello stesso giorno di servizio.
+      const j = lavori.find((x) => x.created_at.slice(0, 10) >= c.giorno_servizio);
+      return {
+        giorno: c.giorno_servizio, zNumero: c.rt_z_numero ?? j?.esito?.z ?? undefined, totali: c.totali ?? {}, createdAt: c.created_at,
+        stato: j?.stato ?? 'sconosciuto', errore: j?.errore ?? undefined,
+      };
+    });
   }
 
   async chiusuraFiscale(totali: object, key: string, operatore?: Operatore) {

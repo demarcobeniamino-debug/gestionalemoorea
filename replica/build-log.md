@@ -76,3 +76,9 @@ Screenshot in `replica/clone-screens/`.
 - Design: testata della comanda che non taglia più il numero del tavolo, icone sole su telefono, barre di portata e quantità scorrevoli.
 - DB 0010 `clienti_fatture_messaggi`: `righe_comanda.articolo_id` facoltativo, `locali.dati_fiscali`, `messaggi_reparto` (+ Realtime), `invia_messaggio`, `fatture`, `emetti_fattura`.
 - Test: 44 unitari; e2e verdi `prova-flusso`, `prova-gestione`, `prova-prenotazioni`, `prova-servizio` e nuovo `prova-extra` (dati fiscali → ×3 → voce libera → cliente con allergia → marcia/sollecito → messaggio → monitor → incasso → fattura con XML verificato → schede).
+
+## 2026-11-27 — Annulla conto e registro di cassa (v0.7.1)
+- Annulla conto (Tavolo → Annulla conto): motivo (Prova, Aperto per errore, Clienti andati via, Offerto dalla casa, Altro), storno "conto annullato" a cucina e bar per i piatti già inviati (si può spegnere), PIN del responsabile se lo fa un cameriere. Non si può se c'è uno scontrino emesso o in stampa: prima si annulla quello dalla Cassa. Righe stornate e conto "annullato" restano nello storico; audit_log `annullo_conto`. DB 0011 `annulla_comanda`.
+- Cassa in quattro schede: Riepilogo · Invio scontrini (stato RT, contatori, ogni invio con esito; "Verifica" per gli scontrini rimasti in dubbio: "è uscito" con numero Z/documento, oppure "non è uscito" e si rifà dal conto) · Chiusure (Z degli ultimi 60 giorni con numero, incasso, esito) · Fatture (da inviare con scadenza a 12 giorni, inviate, scartate, totale del mese).
+- Corretto: con il PIN sbagliato l'annullo mostrava comunque il messaggio di riuscita.
+- Test: 46 unitari; e2e verdi (6 prove, nuova `prova-annulla`); annulla_comanda provato sul database in transazione annullata.
