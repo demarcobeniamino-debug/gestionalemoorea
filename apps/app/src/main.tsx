@@ -28,6 +28,9 @@ const Scorte = pigro(() => import('./schermate/gestione/Magazzino'), 'Scorte');
 const Movimenti = pigro(() => import('./schermate/gestione/Magazzino'), 'Movimenti');
 const Fornitori = pigro(() => import('./schermate/gestione/Magazzino'), 'Fornitori');
 const Stampanti = pigro(() => import('./schermate/gestione/Stampanti'), 'Stampanti');
+const PagamentiGestione = pigro(() => import('./schermate/gestione/Impostazioni'), 'Pagamenti');
+const PromozioniGestione = pigro(() => import('./schermate/gestione/Impostazioni'), 'Promozioni');
+const MenuFissiGestione = pigro(() => import('./schermate/gestione/Impostazioni'), 'MenuFissi');
 const Personale = pigro(() => import('./schermate/gestione/Personale'), 'Personale');
 const ClientiGestione = pigro(() => import('./schermate/gestione/Clienti'), 'ClientiGestione');
 const FattureGestione = pigro(() => import('./schermate/gestione/Fatture'), 'FattureGestione');
@@ -67,6 +70,9 @@ function App() {
           <Route path="fornitori" element={<Fornitori />} />
           <Route path="stampanti" element={<Stampanti />} />
           <Route path="personale" element={<Personale />} />
+          <Route path="pagamenti" element={<PagamentiGestione />} />
+          <Route path="promozioni" element={<PromozioniGestione />} />
+          <Route path="menu-fissi" element={<MenuFissiGestione />} />
           <Route path="clienti" element={<ClientiGestione />} />
           <Route path="fatture" element={<FattureGestione />} />
         </Route>

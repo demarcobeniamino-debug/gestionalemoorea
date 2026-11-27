@@ -45,9 +45,13 @@ function ticketCortesia(f: Fattura, ced: Partial<DatiFiscali>, cliente: Cliente)
   return { titolo: `Fattura ${f.numero}/${f.anno}`, righe: r, taglio: true };
 }
 
+/** Fattura su uno scontrino, o riepilogativa su più scontrini dello stesso cliente (es. fine mese). */
 export function FoglioFattura({ documento, clienteIdIniziale, tavolo, onChiudi }: {
-  documento: Documento; clienteIdIniziale?: string; tavolo?: string; onChiudi: () => void;
+  documento: Documento | Documento[]; clienteIdIniziale?: string; tavolo?: string; onChiudi: () => void;
 }) {
+  const docs = Array.isArray(documento) ? documento : [documento];
+  const righeDocs = useMemo(() => docs.flatMap((d) => d.righe), [documento]); // eslint-disable-line react-hooks/exhaustive-deps
+  const scontoDocs = docs.reduce((s, d) => s + d.scontoCents, 0);
   const { db, operatore } = useApp();
   const { esegui, inCorso } = useAzione();
   const setup = useDati((d) => d.setup());
@@ -59,11 +63,12 @@ export function FoglioFattura({ documento, clienteIdIniziale, tavolo, onChiudi }
   const { lista } = useCercaClienti(cerca, !cliente);
   useEffect(() => { if (clienteIdIniziale) db.cliente(clienteIdIniziale).then((c) => c && setCliente(c)).catch(() => undefined); }, [clienteIdIniziale, db]);
 
-  const calcolo = useMemo(() => calcolaFattura(documento.righe, documento.scontoCents, setup.aliquote), [documento, setup.aliquote]);
+  const calcolo = useMemo(() => calcolaFattura(righeDocs, scontoDocs, setup.aliquote), [righeDocs, scontoDocs, setup.aliquote]);
   const mancaCedente = controllaCedente(ced);
   const mancaCliente = cliente ? controllaIntestatario(cliente) : [];
-  const riferimento = documento.rtDocNumero ? `documento commerciale n. ${documento.rtZNumero}-${String(documento.rtDocNumero).padStart(4, '0')} del ${new Date(documento.createdAt).toLocaleDateString('it-IT')}` : undefined;
-  const pagamento = documento.pagamenti.every((p) => p.tipo === 'contanti') ? 'MP01' : 'MP08';
+  const numeri = docs.filter((d) => d.rtDocNumero).map((d) => `n. ${d.rtZNumero}-${String(d.rtDocNumero).padStart(4, '0')} del ${new Date(d.createdAt).toLocaleDateString('it-IT')}`);
+  const riferimento = numeri.length ? `${numeri.length > 1 ? 'documenti commerciali' : 'documento commerciale'} ${numeri.join(', ')}`.slice(0, 1000) : undefined;
+  const pagamento = docs.every((d) => d.pagamenti.every((p) => p.tipo === 'contanti')) ? 'MP01' : 'MP08';
 
   const emetti = () => void esegui(async () => {
     if (!cliente) throw new Error('Scegli il cliente');
@@ -71,7 +76,7 @@ export function FoglioFattura({ documento, clienteIdIniziale, tavolo, onChiudi }
     const dataIso = `${oggi.getFullYear()}-${String(oggi.getMonth() + 1).padStart(2, '0')}-${String(oggi.getDate()).padStart(2, '0')}`;
     const progressivo = progressivoInvio();
     const xml = xmlFattura({ cedente: ced as DatiFiscali, cliente, data: dataIso, calcolo, progressivo, riferimento, pagamento });
-    const f = await db.emettiFattura({ clienteId: cliente.id, documentoId: documento.id, comandaId: documento.comandaId || undefined, data: dataIso, calcolo, xml, progressivo, intestatario: nomeCliente(cliente) }, nuovaChiave(), operatore ?? undefined);
+    const f = await db.emettiFattura({ clienteId: cliente.id, documentoId: docs.length === 1 ? docs[0].id : undefined, comandaId: docs.length === 1 ? docs[0].comandaId || undefined : undefined, data: dataIso, calcolo, xml, progressivo, intestatario: nomeCliente(cliente) }, nuovaChiave(), operatore ?? undefined);
     setFattura(f);
   }, 'Fattura creata');
 

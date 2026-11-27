@@ -534,6 +534,16 @@ export class SupabaseDataLayer implements DataLayer {
       p_stampante: prep?.stampanteId ?? null, p_payload: prep ? { ticket: prep.ticket } : null,
     });
     if (error) errore(error);
+    // Menu fisso: con il menu si stornano anche i piatti scelti (ognuno avvisa il suo reparto).
+    const figli = this._righe.filter((x) => x.parentId === rigaId && x.stato !== 'stornata');
+    for (const [i, f] of figli.entries()) {
+      const pf = preparaStorno(this._setup, this.comandaAperta(f.comandaId), f, motivo, new Date().toISOString());
+      const { error: e2 } = await this.sb.rpc('storna_riga', {
+        p_riga: f.id, p_motivo: motivo, p_operatore: operatore?.id ?? null, p_key: `${key}:${i + 1}`,
+        p_stampante: pf?.stampanteId ?? null, p_payload: pf ? { ticket: pf.ticket } : null,
+      });
+      if (e2) errore(e2);
+    }
     await this.caricaServizio();
   }
 

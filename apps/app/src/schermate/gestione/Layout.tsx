@@ -2,7 +2,7 @@
 // Solo per i responsabili: i camerieri vedono un messaggio e tornano in sala.
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
-import { Armchair, Basket, ClockCounterClockwise, ForkKnife, ListPlus, Printer, Receipt, Swatches, Truck, UserList, Users } from '@phosphor-icons/react';
+import { Armchair, Basket, ClockCounterClockwise, ForkKnife, ListPlus, Printer, Receipt, Swatches, Truck, UserList, Users, BookOpenText, CreditCard, Percent } from '@phosphor-icons/react';
 import type { Tabelle } from '@gr/core';
 import { useApp, useAzione } from '../../dati/contesto';
 import { Testata } from '../../ui/Testata';
@@ -22,6 +22,9 @@ const VOCI: { a: string; testo: string; icona: ReactNode; gruppo: string }[] = [
   { a: 'fornitori', testo: 'Fornitori', icona: <Truck {...I} />, gruppo: 'Magazzino' },
   { a: 'clienti', testo: 'Clienti', icona: <UserList {...I} />, gruppo: 'Clienti' },
   { a: 'fatture', testo: 'Fatture', icona: <Receipt {...I} />, gruppo: 'Clienti' },
+  { a: 'pagamenti', testo: 'Pagamenti', icona: <CreditCard {...I} />, gruppo: 'Cassa' },
+  { a: 'promozioni', testo: 'Promozioni', icona: <Percent {...I} />, gruppo: 'Cassa' },
+  { a: 'menu-fissi', testo: 'Menu fissi', icona: <BookOpenText {...I} />, gruppo: 'Cassa' },
   { a: 'personale', testo: 'Personale', icona: <Users {...I} />, gruppo: 'Impostazioni' },
   { a: 'stampanti', testo: 'Stampanti', icona: <Printer {...I} />, gruppo: 'Impostazioni' },
 ];
@@ -70,7 +73,7 @@ export function GestioneLayout() {
       <Testata titolo="Gestione" sotto="Menu, sale, magazzino, clienti, fatture e impostazioni" indietro="/sala" />
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <nav aria-label="Sezioni della Gestione"
-          className="flex flex-none gap-1 overflow-x-auto border-b border-border bg-surface px-2 py-2 md:w-56 md:flex-col md:overflow-visible md:border-b-0 md:border-r md:px-3 md:py-4">
+          className="flex flex-none gap-1 overflow-x-auto border-b border-border bg-surface px-2 py-2 md:w-56 md:flex-col md:overflow-y-auto md:border-b-0 md:border-r md:px-3 md:pb-20 md:pt-4">
           {gruppi.map((g) => (
             <div key={g} className="contents md:mb-4 md:block">
               <p className="hidden px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-text-muted md:block">{g}</p>

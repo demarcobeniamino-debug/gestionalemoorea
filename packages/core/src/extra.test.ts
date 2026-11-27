@@ -267,3 +267,39 @@ describe('Cassa spenta', () => {
     expect(ponteVivo(db.ponti()[0], Date.now() + 120_000)).toBe(false);
   });
 });
+
+describe('Cassa completa', () => {
+  it('menu fisso: un prezzo sul conto, i piatti in cucina a zero; stornando il menu si stornano anche i piatti', async () => {
+    const { db } = nuovo();
+    const menu = art(db, 'Polpo Scottato'), a1 = art(db, 'Cozze Indiavolate'), a2 = art(db, 'Lasagna');
+    await db.salvaImpostazioni({ menuFissi: { [menu]: { gruppi: [{ nome: 'Antipasto', articoliIds: [a1], scelte: 1, portata: 1 }, { nome: 'Primo', articoliIds: [a2], scelte: 1, portata: 2 }] } } });
+    const c = await db.apriTavolo('t2', 0, OP);
+    await expect(db.aggiungiMenu(c.id, menu, [{ articoloId: a1, gruppo: 0 }])).rejects.toThrow(/Primo/);
+    await db.aggiungiMenu(c.id, menu, [{ articoloId: a1, gruppo: 0 }, { articoloId: a2, gruppo: 1 }]);
+    const righe = db.righe(c.id);
+    expect(righe).toHaveLength(3);
+    expect(calcolaConto(righe, 0, 0).totaleCents).toBe(db.setup().articoli.find((a) => a.id === menu)!.prezzoCents);
+    await db.invia(c.id, 'k', OP);
+    const padre = righe.find((r) => !r.parentId)!;
+    await db.storna(padre.id, 'Errore', 's');
+    expect(db.righe(c.id).every((r) => r.stato === 'stornata')).toBe(true);
+  });
+
+  it('sospeso e camera: scontrino non riscosso, poi si incassa; caparra usata nel conto', async () => {
+    const { db } = nuovo();
+    const c = await db.apriTavolo('t3', 0, OP);
+    await db.aggiungiRiga(c.id, { articoloId: art(db, 'Polpo Scottato') });
+    await db.invia(c.id, 'k', OP);
+    const cap = await db.salvaCaparra({ nome: 'Gruppo Esposito', clienteId: null, importoCents: 1000, metodo: 'carta' });
+    const tot = calcolaConto(db.righe(c.id), 0, 0).totaleCents;
+    const doc = await db.incassa(c.id, { pagamenti: [{ tipo: 'carta', importoCents: 1000, descrizione: `caparra:${cap.id}` }, { tipo: 'camera', importoCents: tot - 1000, descrizione: '12 Rossi' }] }, 'i');
+    const coda = new CodaStampa(db, new TrasportoSimulato());
+    await coda.elabora();
+    expect(db.documenti(c.id).find((d) => d.id === doc.id)?.stato).toBe('emesso');
+    expect((await db.caparre()).find((x) => x.id === cap.id)?.stato).toBe('usata');
+    const [s] = await db.sospesi();
+    expect(s).toMatchObject({ tipo: 'camera', descrizione: '12 Rossi', importoCents: tot - 1000, stato: 'aperto' });
+    await db.incassaSospeso(s.id, 'carta');
+    expect((await db.sospesi())[0].stato).toBe('incassato');
+  });
+});

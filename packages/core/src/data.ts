@@ -244,7 +244,7 @@ export class FakeDataLayer implements DataLayer {
     const r = this._righe.get(rigaId);
     if (!r) return;
     if (r.stato !== 'da_inviare' && r.stato !== 'in_attesa_marcia') throw new ErroreDominio('Riga già inviata: va stornata');
-    if (quantita <= 0) this._righe.delete(rigaId); else r.quantita = quantita;
+    if (quantita <= 0) { this._righe.delete(rigaId); for (const f of [...this._righe.values()]) if (f.parentId === rigaId) this._righe.delete(f.id); } else r.quantita = quantita;
     const c = this._comande.get(r.comandaId); if (c) c.version++;
     this.emit();
   }
@@ -253,7 +253,9 @@ export class FakeDataLayer implements DataLayer {
     const r = this._righe.get(rigaId);
     if (!r) return;
     if (r.stato !== 'da_inviare' && r.stato !== 'in_attesa_marcia') throw new ErroreDominio('Riga già inviata: va stornata');
-    this._righe.delete(rigaId); this.emit();
+    this._righe.delete(rigaId);
+    for (const f of [...this._righe.values()]) if (f.parentId === rigaId) this._righe.delete(f.id);
+    this.emit();
   }
 
   async impostaAllergeni(comandaId: string, a: { allergene: Allergene; posto?: number }[]) {
@@ -294,6 +296,12 @@ export class FakeDataLayer implements DataLayer {
       const prep = preparaStorno(this.s, c, r, motivo, this.now().toISOString());
       r.stato = 'stornata'; r.motivoStorno = motivo;
       if (prep) this.nuovoLavoro({ tipo: 'comanda', stampanteId: prep.stampanteId, idempotencyKey: key, comandaId: c.id, ticket: prep.ticket });
+      // Menu fisso: con il menu si stornano anche i piatti scelti.
+      this.righe(c.id).filter((f) => f.parentId === r.id && f.stato !== 'stornata').forEach((f, i) => {
+        const pf = preparaStorno(this.s, c, f, motivo, this.now().toISOString());
+        f.stato = 'stornata'; f.motivoStorno = motivo;
+        if (pf) this.nuovoLavoro({ tipo: 'comanda', stampanteId: pf.stampanteId, idempotencyKey: `${key}:${i + 1}`, comandaId: c.id, ticket: pf.ticket });
+      });
       return true;
     });
   }

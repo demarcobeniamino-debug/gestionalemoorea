@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { ArrowsLeftRight, BellRinging, ChatCircleText, Check, Lightning, Minus, Pause, PencilSimpleLine, Plus, Prohibit, Star, UserCircle, Warning } from '@phosphor-icons/react';
 import {
-  nomeConto,
+  nomeConto, menuFisso,
   ALLERGENI_ETICHETTA, calcolaConto, euro, importoRiga, nomeCliente, nomePortata,
   type Allergene, type Articolo, type Cliente, type RigaComanda, type RigaVariante, type VoceLibera,
 } from '@gr/core';
@@ -17,6 +17,7 @@ import { Gift } from '@phosphor-icons/react';
 import { FoglioVoceLibera } from './VoceLibera';
 import { FoglioMessaggio } from './Messaggi';
 import { FoglioClienteTavolo } from './Clienti';
+import { FoglioMenuFisso } from './MenuFisso';
 
 const PORTATE = [0, 1, 2, 3, 9];
 const RAPIDI = '__rapidi';
@@ -57,6 +58,10 @@ export function ComandaSchermata() {
   const [azioniAperte, setAzioniAperte] = useState(false);
   const [riepilogoMobile, setRiepilogoMobile] = useState(false);
   const [ultima, setUltima] = useState<string | null>(null);
+  const [menuAperto, setMenuAperto] = useState<Articolo | null>(null);
+  /** Abbinamenti consigliati per l'ultimo piatto aggiunto (si chiudono da soli o toccandone uno). */
+  const [consigli, setConsigli] = useState<{ per: string; articoli: Articolo[] } | null>(null);
+  useEffect(() => { if (!consigli) return; const t = setTimeout(() => setConsigli(null), 12000); return () => clearTimeout(t); }, [consigli]);
   const conferma = useConferma();
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const lungo = useRef(false);
@@ -82,6 +87,9 @@ export function ComandaSchermata() {
   const nelConto = (a: Articolo) => righe.filter((r) => r.articoloId === a.id && r.stato !== 'stornata').reduce((s, r) => s + r.quantita, 0);
 
   const aggiungi = (a: Articolo, extra: { varianti?: RigaVariante[]; note?: string; posto?: number } = {}) => {
+    if (menuFisso(setup, a.id)) { setMenuAperto(a); return; }
+    const abb = (setup.impostazioni?.abbinamenti?.[a.id] ?? []).map((id) => setup.articoli.find((x) => x.id === id)).filter((x): x is Articolo => !!x && !x.esaurito);
+    setConsigli(abb.length ? { per: a.nome, articoli: abb } : null);
     const quantita = molt; setMolt(1); contaUso(a.id);
     void esegui(async () => { const r = await db.aggiungiRiga(comanda.id, { articoloId: a.id, portata: portataEffettiva(a), quantita, ...extra }); setUltima(r.id); });
   };
@@ -245,7 +253,17 @@ export function ComandaSchermata() {
           })}
         </nav>
 
-        <main className="flex min-w-0 flex-1 flex-col">
+        <main className="relative flex min-w-0 flex-1 flex-col">
+          {consigli && (
+            <div role="status" className="absolute inset-x-3 bottom-3 z-10 flex flex-wrap items-center gap-2 rounded-lg bg-surface-2 p-3 shadow-card ring-1 ring-accent">
+              <span className="text-sm font-semibold text-text-muted">Con {consigli.per}:</span>
+              {consigli.articoli.slice(0, 4).map((a) => (
+                <button key={a.id} type="button" onClick={() => { setConsigli(null); aggiungi(a); }}
+                  className="premibile h-10 rounded-pill bg-accent px-4 text-sm font-bold text-on-accent">+ {a.nome} · {euro(a.prezzoCents)}</button>
+              ))}
+              <button type="button" onClick={() => setConsigli(null)} aria-label="Chiudi i consigli" className="premibile ml-auto h-10 rounded-md px-3 text-sm text-text-muted">No grazie</button>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2.5 md:px-4">
             <div className="-mx-3 flex min-w-0 max-w-full gap-2 overflow-x-auto px-3 md:mx-0 md:px-0">
             <div role="radiogroup" aria-label="Portata" className="flex flex-none gap-1 rounded-pill bg-surface p-1">
@@ -334,6 +352,7 @@ export function ComandaSchermata() {
         </div>
       )}
 
+      <FoglioMenuFisso articolo={menuAperto} comandaId={comanda.id} onChiudi={() => setMenuAperto(null)} />
       <FoglioVarianti articolo={varianti} onChiudi={() => setVarianti(null)} onConferma={(a, extra) => { aggiungi(a, extra); setVarianti(null); }} />
 
       <FoglioRigaInviata riga={storno} onChiudi={() => setStorno(null)} conferma={conferma.chiedi} />

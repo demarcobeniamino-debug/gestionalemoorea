@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowCounterClockwise, FileText, Receipt, Vault } from '@phosphor-icons/react';
 import { FoglioFattura } from './Fattura';
+import { Caparre, Cassetto, Sospesi } from './CassaExtra';
 import { InvioScontrini, SituazioneChiusure, SituazioneFatture, useInviiDaGuardare } from './CassaRegistro';
 import { euro, riepilogo, totaliChiusura, type DatiPeriodo, type Documento, type TipoPagamento } from '@gr/core';
 import { nuovaChiave, useApp, useAzione, useDati } from '../dati/contesto';
@@ -39,9 +40,11 @@ export function Cassa() {
   const [errore, setErrore] = useState<string | null>(null);
   const [annulla, setAnnulla] = useState<Documento | null>(null);
   const [chiusura, setChiusura] = useState(false);
-  const [fattura, setFattura] = useState<Documento | null>(null);
+  const [fattura, setFattura] = useState<Documento | Documento[] | null>(null);
+  /** Fattura riepilogativa: scontrini scelti. */
+  const [scelti, setScelti] = useState<string[] | null>(null);
   const [parametri] = useSearchParams();
-  const [scheda, setScheda] = useState<'riepilogo' | 'invii' | 'chiusure' | 'fatture'>(parametri.get('scheda') === 'invii' ? 'invii' : 'riepilogo');
+  const [scheda, setScheda] = useState<'riepilogo' | 'cassetto' | 'sospesi' | 'caparre' | 'invii' | 'chiusure' | 'fatture'>(parametri.get('scheda') === 'invii' ? 'invii' : 'riepilogo');
   const daGuardare = useInviiDaGuardare();
 
   const carica = useCallback(async () => {
@@ -79,7 +82,7 @@ export function Cassa() {
       <main className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 md:p-6">
           <div role="tablist" aria-label="Sezioni della cassa" className="flex gap-1 overflow-x-auto border-b border-border">
-            {([['riepilogo', 'Riepilogo'], ['invii', 'Invio scontrini'], ['chiusure', 'Chiusure'], ['fatture', 'Fatture']] as const).map(([k, t]) => (
+            {([['riepilogo', 'Riepilogo'], ['cassetto', 'Cassetto'], ['sospesi', 'Sospesi'], ['caparre', 'Caparre'], ['invii', 'Invio scontrini'], ['chiusure', 'Chiusure'], ['fatture', 'Fatture']] as const).map(([k, t]) => (
               <button key={k} type="button" role="tab" aria-selected={scheda === k} onClick={() => setScheda(k)}
                 className={`relative -mb-px flex h-12 flex-none items-center gap-2 border-b-2 px-4 text-[15px] font-bold transition-colors duration-fast ${scheda === k ? 'border-accent text-text' : 'border-transparent text-text-muted hover:text-text'}`}>
                 {t}{k === 'invii' && daGuardare > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-pill bg-danger px-1.5 text-xs text-on-danger" aria-label={`${daGuardare} da guardare`}>{daGuardare}</span>}
@@ -87,6 +90,9 @@ export function Cassa() {
             ))}
           </div>
           {scheda === 'invii' && <InvioScontrini dati={dati} nomeTavolo={nomeTavolo} responsabile={responsabile} />}
+          {scheda === 'cassetto' && <Cassetto contantiIncassati={giorni === 1 ? (r?.perPagamento.contanti ?? 0) : 0} />}
+          {scheda === 'sospesi' && <Sospesi />}
+          {scheda === 'caparre' && <Caparre />}
           {scheda === 'chiusure' && <SituazioneChiusure />}
           {scheda === 'fatture' && <SituazioneFatture />}
           {scheda === 'riepilogo' && <>
@@ -168,11 +174,28 @@ export function Cassa() {
             </div>
 
             <Pannello titolo={`Scontrini${giorni === 1 ? ' di oggi' : ''}`}>
+              {scontrini.some((d) => d.stato === 'emesso') && (
+                <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-border pb-3">
+                  {scelti ? (
+                    <>
+                      <span className="flex-1 text-sm text-text-muted">Scegli gli scontrini dello stesso cliente: una fattura sola per tutti.</span>
+                      <Pulsante taglia="md" onClick={() => setScelti(null)}>Annulla</Pulsante>
+                      <Pulsante taglia="md" variante="primario" disabled={scelti.length < 2}
+                        onClick={() => setFattura(scontrini.filter((d) => scelti.includes(d.id)))}>Fattura su {scelti.length} scontrini</Pulsante>
+                    </>
+                  ) : (
+                    <Pulsante taglia="md" icona={<FileText size={16} weight="bold" aria-hidden="true" />} onClick={() => setScelti([])}>Fattura riepilogativa</Pulsante>
+                  )}
+                </div>
+              )}
               {scontrini.length === 0 ? <Niente testo="Nessuno scontrino emesso." /> : (
                 <ul className="divide-y divide-border">
                   {scontrini.slice(0, 200).map((d) => (
                     <li key={d.id} className={`flex items-center gap-3 py-2.5 ${d.stato === 'annullato' ? 'opacity-50' : ''}`}>
-                      <Receipt size={20} weight="duotone" aria-hidden="true" className="flex-none text-text-muted" />
+                      {scelti && d.stato === 'emesso' ? (
+                        <input type="checkbox" aria-label={`Scegli lo scontrino ${d.rtDocNumero ?? ''} · ${nomeTavolo(d.comandaId)}`} checked={scelti.includes(d.id)}
+                          onChange={(e) => setScelti(e.target.checked ? [...scelti, d.id] : scelti.filter((x) => x !== d.id))} className="h-6 w-6 flex-none accent-[var(--c-accent)]" />
+                      ) : <Receipt size={20} weight="duotone" aria-hidden="true" className="flex-none text-text-muted" />}
                       <span className="flex-1">
                         <span className="block font-semibold">
                           {d.rtDocNumero ? `N. ${d.rtZNumero ?? '–'}-${String(d.rtDocNumero).padStart(4, '0')}` : 'Scontrino'} · {nomeTavolo(d.comandaId)}
@@ -185,7 +208,7 @@ export function Cassa() {
                         </span>
                       </span>
                       <span className={`font-semibold tabular-nums ${d.stato === 'annullato' ? 'line-through' : ''}`}>{euro(d.totaleCents)}</span>
-                      {d.stato === 'emesso' && (
+                      {d.stato === 'emesso' && !scelti && (
                         <Pulsante taglia="md" icona={<FileText size={16} weight="bold" aria-hidden="true" />} onClick={() => setFattura(d)}>Fattura</Pulsante>
                       )}
                       {d.stato === 'emesso' && giorni === 1 && responsabile && (
@@ -200,8 +223,9 @@ export function Cassa() {
           </>}
         </div>
       </main>
-      {fattura && <FoglioFattura documento={fattura} tavolo={nomeTavolo(fattura.comandaId)}
-        clienteIdIniziale={dati?.comande.find((c) => c.id === fattura.comandaId)?.clienteId} onChiudi={() => setFattura(null)} />}
+      {fattura && <FoglioFattura documento={fattura} tavolo={Array.isArray(fattura) ? `${fattura.length} scontrini` : nomeTavolo(fattura.comandaId)}
+        clienteIdIniziale={Array.isArray(fattura) ? undefined : dati?.comande.find((c) => c.id === fattura.comandaId)?.clienteId}
+        onChiudi={() => { setFattura(null); setScelti(null); }} />}
       {annulla && <FoglioAnnullo documento={annulla} tavolo={nomeTavolo(annulla.comandaId)} onChiudi={() => { setAnnulla(null); void carica(); }} />}
       {chiusura && r && <FoglioChiusura totali={totaliChiusura(r)} incasso={r.incassoCents} aperti={r.aperti.tavoli} onChiudi={() => { setChiusura(false); void carica(); }} />}
     </div>
