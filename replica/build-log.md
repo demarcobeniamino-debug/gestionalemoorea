@@ -130,3 +130,6 @@ Screenshot in `replica/clone-screens/`.
 - Ponte Rust `pos::scambio` (comando Tauri `pos_scambio`): richiesta → ACK → avanzamenti ignorati → esito → ACK; NON_INVIATO si può riprovare, INCERTO chiede a chi incassa se il POS ha approvato. 3 test con POS finto.
 - Gestione → Pagamenti → POS: UniCredit collegato (192.168.178.88:10000, terminale 31197403, "Accetta American Express"), FlatPay a mano ("per Amex usa UniCredit") già impostati per il Moorea. Al conto, Carta → scelta del POS; con quello collegato l'importo va al POS e lo scontrino esce appena approva ("Carta UniCredit" sul documento). Solo dalla cassa installata; telefoni e FlatPay a mano.
 - Test: 64 unitari; e2e prova-cassa con POS simulato.
+
+## v0.8.4
+- IP con zeri davanti (es. 192.168.178.038) ora funziona: il ponte e il salvataggio li tolgono.

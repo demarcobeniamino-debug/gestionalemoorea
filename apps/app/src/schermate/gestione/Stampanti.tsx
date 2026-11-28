@@ -42,6 +42,12 @@ function useProva() {
   return { possibile, prova };
 }
 
+/** "192.168.178.038" -> "192.168.178.38" */
+function pulisciIp(h: string): string {
+  const t = h.trim();
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(t) ? t.split('.').map((x) => String(Number(x))).join('.') : t;
+}
+
 export function Stampanti() {
   const t = useTabelle();
   const { modalita } = useApp();
@@ -243,7 +249,7 @@ function EditorStampante({ iniziale, onChiudi }: { iniziale: StampanteRiga | Par
   const [inProva, setInProva] = useState<string | null>(null);
 
   const bozza = (): StampanteRiga => ({
-    id: esistente?.id ?? 'bozza', locale_id: t.locale.id, nome: nome.trim() || 'Stampante', tipo, host: host.trim(), porta: porta ?? (tipo === 'comande_escpos' ? 9100 : 80),
+    id: esistente?.id ?? 'bozza', locale_id: t.locale.id, nome: nome.trim() || 'Stampante', tipo, host: pulisciIp(host), porta: porta ?? (tipo === 'comande_escpos' ? 9100 : 80),
     colonne: Number(colonne) as 32 | 42 | 48, codepage: Number(codepage), matricola_rt: tipo === 'comande_escpos' ? null : matricola.trim(),
     per_preconto: iniziale.per_preconto ?? false, attiva, modello: iniziale.modello ?? null,
   });

@@ -18,6 +18,8 @@ const NAK: u8 = 0x15;
 /// Scambio completo: richiesta → ACK → (messaggi di avanzamento ignorati) → esito → ACK della cassa.
 /// Restituisce il messaggio applicativo dell'esito (senza STX/ETX/LRC).
 pub fn scambio(host: &str, porta: u16, richiesta: &[u8], conferma: &[u8], attesa: Duration) -> Result<Vec<u8>, Errore> {
+    let host = crate::pulisci_host(host);
+    let host = host.as_str();
     let addr = (host, porta)
         .to_socket_addrs()
         .map_err(|e| Errore::NonInviato(format!("indirizzo {host}:{porta} non valido: {e}")))?

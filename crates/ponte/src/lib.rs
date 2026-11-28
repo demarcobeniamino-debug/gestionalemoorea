@@ -31,7 +31,20 @@ impl std::fmt::Display for Errore {
     }
 }
 
+/// "192.168.178.038" -> "192.168.178.38": gli zeri davanti farebbero fallire l'indirizzo.
+pub fn pulisci_host(host: &str) -> String {
+    let h = host.trim();
+    let parti: Vec<&str> = h.split('.').collect();
+    if parti.len() == 4 && parti.iter().all(|p| !p.is_empty() && p.len() <= 3 && p.chars().all(|c| c.is_ascii_digit())) {
+        parti.iter().map(|p| p.parse::<u16>().unwrap_or(0).to_string()).collect::<Vec<_>>().join(".")
+    } else {
+        h.to_string()
+    }
+}
+
 fn risolvi(host: &str, porta: u16) -> Result<SocketAddr, Errore> {
+    let host = pulisci_host(host);
+    let host = host.as_str();
     (host, porta)
         .to_socket_addrs()
         .map_err(|e| Errore::NonInviato(format!("indirizzo {host}:{porta} non valido: {e}")))?
@@ -178,5 +191,8 @@ mod test {
         let u = parse_url("http://192.168.1.110/cgi-bin/fpmate.cgi?devid=local_printer").unwrap();
         assert_eq!((u.host.as_str(), u.porta, u.percorso.as_str()), ("192.168.1.110", 80, "/cgi-bin/fpmate.cgi?devid=local_printer"));
         assert!(parse_url("https://x").is_err());
+        assert_eq!(pulisci_host("192.168.178.038"), "192.168.178.38");
+        assert_eq!(pulisci_host(" 10.0.0.001 "), "10.0.0.1");
+        assert_eq!(pulisci_host("stampante.local"), "stampante.local");
     }
 }
