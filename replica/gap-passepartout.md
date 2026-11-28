@@ -16,7 +16,7 @@ In più rispetto a Menu: avviso "nessuna cassa accesa" sui palmari, stampe vecch
 6. **Listini per sala o fascia oraria** (Menu: ListinoXCategoriaXSala); le promozioni coprono l'happy hour.
 7. **Fidelity**: tessere a punti, buoni sconto, gift card (Menu: Tessera, BuoniSconto, Promozioni a punti).
 8. **Timbrature** del personale (Menu: Timbrature).
-9. **Integrazione POS** (importo mandato al terminale) e **bilancia** (vendita a peso).
+9. **Bilancia** (vendita a peso). POS: UniCredit collegato con Protocollo 17 dalla v0.8.3; FlatPay a mano.
 10. **Menu multilingua / QR al tavolo**, monitor clienti, delivery con rider.
 
 ## Da fare al locale (dal 7 dicembre)

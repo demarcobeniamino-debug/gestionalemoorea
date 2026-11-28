@@ -7,6 +7,7 @@ import {
   type Caparra, type Cliente, type Comanda, type MetodoPagamento, type Pagamento, type TipoPagamento,
 } from '@gr/core';
 import { useApp, useDati } from '../dati/contesto';
+import { inTauri, pagaSulPos } from '../dati/trasporto';
 import { FoglioClienteTavolo } from './Clienti';
 import { Foglio, Icona, Pulsante, Spinner } from '../ui/primitivi';
 
@@ -41,6 +42,31 @@ export function PannelloPagamento({ comanda, cliente, daIncassare, etichetta, in
   const [altro, setAltro] = useState(false);
   const [caparre, setCaparre] = useState<Caparra[] | null>(null);
   const [clienteAperto, setClienteAperto] = useState(false);
+  // POS: quale (UniCredit, FlatPay…), attesa del pagamento sul POS collegato, dubbio se l'esito non arriva.
+  const { modalita } = useApp();
+  const posLista = setup.impostazioni?.pos ?? [];
+  const [posId, setPosId] = useState<string | undefined>(() => (posLista.find((p) => p.collegato) ?? posLista[0])?.id);
+  const pos = posLista.find((p) => p.id === posId);
+  const [attesaPos, setAttesaPos] = useState<{ nome: string; importo: number } | null>(null);
+  const [dubbioPos, setDubbioPos] = useState<{ nome: string; importo: number; risolvi: (ok: boolean) => void } | null>(null);
+  const posComandabile = !!pos?.collegato && (inTauri() || modalita === 'demo');
+
+  /** Con il POS collegato: manda l'importo e aspetta l'esito. true = pagato. */
+  const chiediPos = async (importo: number): Promise<boolean> => {
+    if (!(scelta.k === 'metodo' && scelta.m.tipo === 'carta' && pos && posComandabile)) return true;
+    setAttesaPos({ nome: pos.nome, importo });
+    try {
+      const e = await pagaSulPos(pos, importo, modalita === 'demo');
+      if (e.ok) { toast({ testo: `${pos.nome}: pagamento approvato${e.carta ? ` (${e.carta})` : ''}`, tipo: 'ok' }); return true; }
+      toast({ testo: `${pos.nome}: ${e.motivo ?? 'pagamento non riuscito'}`, tipo: 'errore' });
+      return false;
+    } catch (err) {
+      const m = (err as Error).message;
+      if (m.startsWith('INCERTO')) return new Promise<boolean>((risolvi) => setDubbioPos({ nome: pos.nome, importo, risolvi }));
+      toast({ testo: `${pos.nome}: ${m.replace(/^NON_INVIATO:\s*/, '')}. Puoi riprovare, o incassare a mano.`, tipo: 'errore' });
+      return false;
+    } finally { setAttesaPos(null); }
+  };
 
   // Nuova quota o conto: si riparte puliti.
   useEffect(() => { setParziali([]); setDigitato(''); setInParti(false); }, [daIncassare]);
@@ -64,16 +90,17 @@ export function PannelloPagamento({ comanda, cliente, daIncassare, etichetta, in
     }
     const m = scelta.m;
     if (m.tipo === 'buono_pasto' && buoni.length && !emittente) return 'Scegli l’emittente del buono pasto';
-    const descrizione = m.tipo === 'buono_pasto' ? emittente || undefined : ['contanti', 'carta', 'buono_pasto'].includes(m.id) ? undefined : m.nome;
+    const descrizione = m.tipo === 'buono_pasto' ? emittente || undefined : m.id === 'carta' && pos ? `Carta ${pos.nome}` : ['contanti', 'carta', 'buono_pasto'].includes(m.id) ? undefined : m.nome;
     return { tipo: m.tipo, importoCents: importo, descrizione };
   };
 
   const elettronico = [...parziali, ...(scelta.k === 'metodo' ? [{ tipo: scelta.m.tipo }] : [])].some((p) => PAGAMENTO_RT[p.tipo as TipoPagamento] === 'elettronico');
 
-  const aggiungiParte = () => {
+  const aggiungiParte = async () => {
     const p = pagamento(quota);
     if (typeof p === 'string') return toast({ testo: p, tipo: 'errore' });
     if (quota <= 0) return toast({ testo: 'Scrivi l’importo di questa parte', tipo: 'errore' });
+    if (!(await chiediPos(quota))) return;
     setParziali((x) => [...x, p]); setDigitato('');
   };
 
@@ -83,6 +110,7 @@ export function PannelloPagamento({ comanda, cliente, daIncassare, etichetta, in
     if (typeof finale === 'string') return toast({ testo: finale, tipo: 'errore' });
     const codice = lotteria.trim().toUpperCase();
     if (codice && !codiceLotteriaValido(codice)) return toast({ testo: 'Il codice lotteria ha 8 lettere o cifre', tipo: 'errore' });
+    if (finale && !(await chiediPos(finale.importoCents))) return;
     const ok = await onIncassa([...parziali, ...(finale ? [finale] : [])], codice && elettronico ? codice : undefined);
     if (ok) { setParziali([]); setDigitato(''); setLotteria(''); setInParti(false); }
   };
@@ -151,6 +179,19 @@ export function PannelloPagamento({ comanda, cliente, daIncassare, etichetta, in
         </button>
       </div>
 
+      {scelta.k === 'metodo' && scelta.m.id === 'carta' && posLista.length > 0 && (
+        <div>
+          <div role="radiogroup" aria-label="Quale POS" className="flex flex-wrap gap-2">
+            {posLista.map((p) => (
+              <button key={p.id} type="button" role="radio" aria-checked={posId === p.id} onClick={() => setPosId(p.id)}
+                className={`premibile h-10 rounded-pill px-4 text-sm font-semibold ${posId === p.id ? 'bg-accent text-on-accent' : 'border border-border bg-bg'}`}>
+                {p.nome}{p.collegato ? ' · collegato' : ''}
+              </button>
+            ))}
+          </div>
+          {pos?.nota && <p className="mt-1.5 text-xs text-text-muted">{pos.nome}: {pos.nota}</p>}
+        </div>
+      )}
       {scelta.k === 'metodo' && scelta.m.tipo === 'buono_pasto' && buoni.length > 0 && (
         <div role="radiogroup" aria-label="Emittente del buono" className="flex flex-wrap gap-2">
           {buoni.map((b) => (
@@ -197,7 +238,9 @@ export function PannelloPagamento({ comanda, cliente, daIncassare, etichetta, in
       {!contanti && !inParti && scelta.k === 'metodo' && (
         <p className="flex gap-2.5 rounded-md bg-bg p-3 text-sm text-text-muted">
           <Bank size={20} weight="bold" className="flex-none" aria-hidden />
-          {scelta.m.tipo === 'buono_pasto' ? 'Ritira i buoni, poi stampa lo scontrino.' : `Incassa con ${scelta.m.nome}, poi stampa lo scontrino: risulterà pagato con pagamento elettronico.`}
+          {scelta.m.tipo === 'buono_pasto' ? 'Ritira i buoni, poi stampa lo scontrino.'
+            : scelta.m.id === 'carta' && pos && posComandabile ? `L’importo va da solo sul POS ${pos.nome}: il cliente paga, e appena il POS approva esce lo scontrino.`
+            : `Incassa con ${scelta.m.id === 'carta' && pos ? `il POS ${pos.nome}` : scelta.m.nome}, poi stampa lo scontrino: risulterà pagato con pagamento elettronico.`}
         </p>
       )}
       {(scelta.k === 'sospeso' || scelta.k === 'camera') && !inParti && (
@@ -213,7 +256,7 @@ export function PannelloPagamento({ comanda, cliente, daIncassare, etichetta, in
       {inParti ? (
         <div className="grid grid-cols-2 gap-2">
           <Pulsante taglia="lg" onClick={() => { setInParti(false); setDigitato(''); }}>Fine</Pulsante>
-          <Pulsante variante="primario" taglia="lg" disabled={residuo <= 0} onClick={aggiungiParte}>Aggiungi {euro(quota)}</Pulsante>
+          <Pulsante variante="primario" taglia="lg" disabled={residuo <= 0} onClick={() => void aggiungiParte()}>Aggiungi {euro(quota)}</Pulsante>
         </div>
       ) : (
         <button type="button" disabled={bloccato || residuo <= 0} onClick={() => { setInParti(true); setDigitato(''); }}
@@ -226,6 +269,28 @@ export function PannelloPagamento({ comanda, cliente, daIncassare, etichetta, in
         {inStampa ? <span className="flex items-center gap-2"><Spinner />Scontrino in stampa</span> : 'Incassa e stampa scontrino'}
       </Pulsante>
 
+      {attesaPos && (
+        <div role="status" className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-6">
+          <div className="w-full max-w-sm rounded-xl bg-surface p-6 text-center shadow-pop">
+            <Spinner />
+            <p className="mt-4 text-lg font-bold">Il cliente paga sul POS {attesaPos.nome}</p>
+            <p className="mt-1 text-[34px] font-bold tabular-nums">{euro(attesaPos.importo)}</p>
+            <p className="mt-2 text-sm text-text-muted">Appena il POS approva, la cassa stampa lo scontrino da sola.</p>
+          </div>
+        </div>
+      )}
+      {dubbioPos && (
+        <div role="alertdialog" aria-label="Esito del POS" className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-6">
+          <div className="w-full max-w-sm rounded-xl bg-surface p-6 shadow-pop">
+            <p className="text-lg font-bold">Il POS {dubbioPos.nome} non ha dato l’esito</p>
+            <p className="mt-2 text-sm text-text-muted">Guarda lo scontrino del POS: il pagamento di {euro(dubbioPos.importo)} è approvato?</p>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <Pulsante taglia="lg" onClick={() => { dubbioPos.risolvi(false); setDubbioPos(null); }}>No</Pulsante>
+              <Pulsante taglia="lg" variante="conferma" onClick={() => { dubbioPos.risolvi(true); setDubbioPos(null); }}>Sì, approvato</Pulsante>
+            </div>
+          </div>
+        </div>
+      )}
       <Foglio aperto={altro} onChiudi={() => setAltro(false)} titolo="Altri modi di pagare">
         <div className="flex flex-col gap-2">
           {metodi.slice(5).map((m) => (

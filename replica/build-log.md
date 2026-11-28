@@ -124,3 +124,9 @@ Screenshot in `replica/clone-screens/`.
 - Ritorno della linea (due controlli riusciti): manda solo il nuovo/cambiato (`datiDaSincronizzare`) con DB 0018 `importa_offline` (idempotente: conti con il primo numero libero, righe, righe tolte, scontrini già emessi con numeri RT, sospesi e caparre dal trigger, scarico magazzino, movimenti, chiusure, audit `sync_offline`). Nessuna ristampa, nessuno scontrino ripetuto. Riavvio senza linea: riprende dallo stato salvato; riavvio con linea: prima sincronizza.
 - Senza linea non si fanno: caparre, incasso sospesi, fatture, clienti, impostazioni, Gestione.
 - Test: 62 unitari (nuovo "cassa senza internet"); importa_offline provato sul database in transazione annullata (anche ripetuto due volte: nessun doppione).
+
+## 2026-11-28 — POS collegato (v0.8.3)
+- Protocollo 17 (ECR17) dalla documentazione pubblica Nexi "Traditional POS – LAN integration": richiesta 'P' da 167 caratteri (terminale, cassa, importo in centesimi), esito 'E'/'V' (approvato con carta mascherata, tipo lettura, autorizzazione, tipo carta; rifiutato con motivo). Cornice STX/ETX/LRC (XOR da 0x7F); se il POS risponde NAK la cassa prova l'altra variante dell'LRC e la ricorda (COLLAUDO).
+- Ponte Rust `pos::scambio` (comando Tauri `pos_scambio`): richiesta → ACK → avanzamenti ignorati → esito → ACK; NON_INVIATO si può riprovare, INCERTO chiede a chi incassa se il POS ha approvato. 3 test con POS finto.
+- Gestione → Pagamenti → POS: UniCredit collegato (192.168.178.88:10000, terminale 31197403, "Accetta American Express"), FlatPay a mano ("per Amex usa UniCredit") già impostati per il Moorea. Al conto, Carta → scelta del POS; con quello collegato l'importo va al POS e lo scontrino esce appena approva ("Carta UniCredit" sul documento). Solo dalla cassa installata; telefoni e FlatPay a mano.
+- Test: 64 unitari; e2e prova-cassa con POS simulato.

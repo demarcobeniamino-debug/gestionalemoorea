@@ -51,3 +51,30 @@ export async function cercaStampantiDemo(): Promise<{ rete: string; trovate: imp
     ],
   };
 }
+
+/** Pagamento sul POS collegato (Protocollo 17). Solo dall'app di cassa; nella demo si simula. */
+export async function pagaSulPos(pos: import('@gr/core').PosConfig, importoCents: number, demo: boolean): Promise<import('@gr/core').EsitoPos> {
+  const { conferma, incornicia, leggiEsitoPos, messaggioPagamento } = await import('@gr/core');
+  if (!inTauri()) {
+    if (!demo) throw new Error('Il POS si comanda solo dalla cassa installata sul computer del locale');
+    await new Promise((r) => setTimeout(r, 1500));
+    return { ok: true, codice: '00', carta: '**** 4242', lettura: 'CLI', autorizzazione: 'DEMO01', tipoCarta: 'credito' };
+  }
+  if (!pos.host || !pos.porta) throw new Error(`Manca l'indirizzo del POS ${pos.nome} (Gestione → Pagamenti)`);
+  const { invoke } = await import('@tauri-apps/api/core');
+  const chiave = `gr.pos.lrc.${pos.id}`;
+  const prova = async (v: 'senza_stx' | 'con_stx') => {
+    const msg = messaggioPagamento({ terminale: pos.terminale, cassa: '1', importoCents });
+    const r = await invoke<number[]>('pos_scambio', { host: pos.host, port: pos.porta, richiesta: Array.from(incornicia(msg, v)), conferma: Array.from(conferma(v)), timeoutMs: 180_000 });
+    localStorage.setItem(chiave, v);
+    return leggiEsitoPos(String.fromCharCode(...r));
+  };
+  const prima = (localStorage.getItem(chiave) as 'senza_stx' | 'con_stx' | null) ?? 'senza_stx';
+  try { return await prova(prima); }
+  catch (e) {
+    const msg = String(e);
+    // Il POS ha scartato la richiesta per il controllo (NAK): si prova l'altro calcolo una volta sola.
+    if (msg.includes('NAK')) return prova(prima === 'senza_stx' ? 'con_stx' : 'senza_stx');
+    throw new Error(msg);
+  }
+}

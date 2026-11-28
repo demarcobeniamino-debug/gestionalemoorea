@@ -249,4 +249,6 @@ export interface Impostazioni {
   promozioni?: Promozione[];
   menuFissi?: Record<string, MenuFisso>;
   abbinamenti?: Record<string, string[]>;
+  /** POS bancari del locale: collegati alla cassa (Protocollo 17) o usati a mano. */
+  pos?: import('./pos17').PosConfig[];
 }

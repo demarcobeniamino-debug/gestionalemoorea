@@ -21,6 +21,17 @@ async fn http_post_xml(url: String, body: String, timeout_ms: u64) -> Result<Str
     .map_err(|e| format!("INCERTO: {e}"))?
 }
 
+/// POS bancario (Protocollo 17): manda l'importo e aspetta l'esito del pagamento.
+/// Errori: NON_INVIATO (il POS non ha preso la richiesta: si può riprovare) o INCERTO (il cliente potrebbe aver pagato).
+#[tauri::command]
+async fn pos_scambio(host: String, port: u16, richiesta: Vec<u8>, conferma: Vec<u8>, timeout_ms: u64) -> Result<Vec<u8>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        ponte::pos::scambio(&host, port, &richiesta, &conferma, Duration::from_millis(timeout_ms)).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("INCERTO: {e}"))?
+}
+
 #[derive(serde::Serialize)]
 struct Trovata { ip: String, porta: u16, genere: &'static str, marca: Option<String>, modello: Option<String>, dettaglio: Option<String> }
 
@@ -59,7 +70,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init());
     builder
-        .invoke_handler(tauri::generate_handler![tcp_send, http_post_xml, cerca_stampanti])
+        .invoke_handler(tauri::generate_handler![tcp_send, http_post_xml, cerca_stampanti, pos_scambio])
         .run(tauri::generate_context!())
         .expect("errore all'avvio dell'app di cassa");
 }

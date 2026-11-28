@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FakeDataLayer, CodaStampa, TrasportoSimulato, seedDemo, calcolaConto, calcolaFattura, xmlFattura, controllaIntestatario, controllaCedente, anteprima, riepilogo, ponteVivo, esportaCorrispettivi, giornoDiServizio, CassaOffline, datiDaSincronizzare, type Cliente } from './index';
+import { FakeDataLayer, CodaStampa, TrasportoSimulato, seedDemo, calcolaConto, calcolaFattura, xmlFattura, controllaIntestatario, controllaCedente, anteprima, riepilogo, ponteVivo, esportaCorrispettivi, giornoDiServizio, CassaOffline, datiDaSincronizzare, messaggioPagamento, incornicia, lrc, leggiEsitoPos, type Cliente } from './index';
 
 const OP = { id: 'op-aldo', nome: 'Aldo', ruolo: 'cameriere' };
 const nuovo = () => { const db = new FakeDataLayer(seedDemo()); return { db, coda: new CodaStampa(db, new TrasportoSimulato()) }; };
@@ -397,5 +397,25 @@ describe('Cassa senza internet', () => {
     const ripreso = new CassaOffline(base, async () => null);
     ripreso.ripristina(off.stato());
     expect(ripreso.comandaDelTavolo('t2')?.id).toBe(nuovo.id);
+  });
+});
+
+describe('POS Protocollo 17', () => {
+  it('richiesta di pagamento: 167 caratteri, importo in centesimi, cornice con LRC', () => {
+    const m = messaggioPagamento({ terminale: '31197403', cassa: '1', importoCents: 3850 });
+    expect(m).toHaveLength(167);
+    expect(m.slice(0, 10)).toBe('311974030P');
+    expect(m.slice(10, 18)).toBe('00000001');
+    expect(m.slice(23, 31)).toBe('00003850');
+    const f = incornicia(m);
+    expect(f[0]).toBe(0x02); expect(f[f.length - 2]).toBe(0x03);
+    expect(f[f.length - 1]).toBe(lrc([...f.slice(1, -1)]));
+    expect(() => messaggioPagamento({ importoCents: 0 })).toThrow();
+  });
+  it('esito: approvato con carta mascherata, rifiutato con motivo', () => {
+    const ok = '311974030E00' + '0000004532123412349876'.slice(-19) + 'CLI' + 'A1B2C3' + '3331520' + '2' + 'NEXI       ' + '000123' + '000045';
+    expect(leggiEsitoPos(ok)).toMatchObject({ ok: true, carta: '**** 9876', lettura: 'CLI', autorizzazione: 'A1B2C3', tipoCarta: 'credito' });
+    const ko = '311974030E01' + 'CARTA RIFIUTATA'.padEnd(24, ' ') + '00000000000' + '1' + 'NEXI       ' + '000124' + '000046';
+    expect(leggiEsitoPos(ko)).toMatchObject({ ok: false, motivo: 'CARTA RIFIUTATA', tipoCarta: 'bancomat' });
   });
 });

@@ -2,7 +2,7 @@
 // menu fissi e abbinamenti consigliati. Tutto vive in locali.impostazioni.
 import { useMemo, useState } from 'react';
 import { Plus, Trash } from '@phosphor-icons/react';
-import { euro, type Impostazioni, type MetodoPagamento, type MenuFisso, type Promozione } from '@gr/core';
+import { euro, type Impostazioni, type MetodoPagamento, type MenuFisso, type PosConfig, type Promozione } from '@gr/core';
 import { useApp, useAzione, useDati } from '../../dati/contesto';
 import { CampoEuro, CampoNumero, Cerca, Chip, Interruttore, Seleziona, Testo } from '../../ui/campi';
 import { Foglio, Pulsante } from '../../ui/primitivi';
@@ -47,6 +47,8 @@ export function Pagamenti() {
         <Pulsante variante="primario" taglia="lg" icona={<Plus size={18} weight="bold" aria-hidden />} disabled={!nomeMetodo.trim()}
           onClick={() => void salva({ metodi: [...metodi, { id: id(), nome: nomeMetodo.trim(), tipo, attivo: true }] }, `${nomeMetodo} aggiunto`).then(() => setNomeMetodo(''))}>Aggiungi</Pulsante>
       </div>
+
+      <PosLocale />
 
       <h3 className="mb-2 text-lg font-semibold">Buoni pasto: emittenti</h3>
       <p className="mb-3 text-sm text-text-muted">Al conto, scelto “Buono pasto”, si tocca l’emittente: così a fine mese sai quanto chiedere a ognuno.</p>
@@ -259,5 +261,52 @@ function EditorMenu({ iniziale, inCorso, onSalva, onElimina }: {
         <Pulsante taglia="lg" variante="primario" className="flex-1" disabled={!!errore} caricamento={inCorso} onClick={() => onSalva(articoloId, { gruppi })}>Salva</Pulsante>
       </div>
     </div>
+  );
+}
+
+/** POS bancari: collegati (la cassa manda l'importo con il Protocollo 17) o usati a mano. */
+function PosLocale() {
+  const { imp, salva, inCorso } = useImpostazioni();
+  const lista = imp.pos ?? [];
+  const [editor, setEditor] = useState<PosConfig | null>(null);
+  const salvaPos = (p: PosConfig) => void salva({ pos: lista.some((x) => x.id === p.id) ? lista.map((x) => (x.id === p.id ? p : x)) : [...lista, p] }, `${p.nome} salvato`).then((ok) => ok && setEditor(null));
+  return (
+    <section className="mb-8">
+      <div className="mb-2 flex items-end justify-between gap-3">
+        <div><h3 className="text-lg font-semibold">POS</h3>
+          <p className="text-sm text-text-muted">Al conto, scelta “Carta”, si tocca il POS. Quello collegato riceve l’importo dalla cassa e lo scontrino esce appena il POS approva.</p></div>
+        <Pulsante taglia="md" icona={<Plus size={18} weight="bold" aria-hidden />} onClick={() => setEditor({ id: id(), nome: '', collegato: false, porta: 10000 })}>Aggiungi POS</Pulsante>
+      </div>
+      <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
+        {lista.length === 0 && <li className="p-4 text-sm text-text-muted">Nessun POS. Esempio: UniCredit (collegato) e FlatPay (a mano).</li>}
+        {lista.map((p) => (
+          <li key={p.id}><button type="button" onClick={() => setEditor(p)} className="premibile flex w-full items-center gap-3 px-4 py-3 text-left">
+            <span className="flex-1"><span className="block font-semibold">{p.nome}</span>
+              <span className="block text-sm text-text-muted">{p.collegato ? `Collegato · ${p.host}:${p.porta} · terminale ${p.terminale || '—'}` : 'A mano (l’importo si batte sul POS)'}{p.nota ? ` · ${p.nota}` : ''}</span></span>
+          </button></li>
+        ))}
+      </ul>
+      {editor && (
+        <Foglio aperto onChiudi={() => setEditor(null)} titolo={editor.nome || 'Nuovo POS'}>
+          <div className="flex flex-col gap-4">
+            <Testo etichetta="Nome" value={editor.nome} onChange={(e) => setEditor({ ...editor, nome: e.target.value })} placeholder="UniCredit" />
+            <Interruttore etichetta="Collegato alla cassa" descrizione="Protocollo 17 in rete: la cassa manda l’importo e riceve l’esito." attivo={editor.collegato} onCambia={(v) => setEditor({ ...editor, collegato: v })} />
+            {editor.collegato && (
+              <div className="grid grid-cols-[1fr_7rem] gap-3">
+                <Testo etichetta="Indirizzo IP" value={editor.host ?? ''} onChange={(e) => setEditor({ ...editor, host: e.target.value.trim() })} placeholder="192.168.178.88" inputMode="decimal" />
+                <CampoNumero etichetta="Porta" valore={editor.porta ?? null} onCambia={(n) => setEditor({ ...editor, porta: n ?? undefined })} />
+                <Testo etichetta="ID terminale" aiuto="È sullo scontrino “Informazioni generali” del POS" value={editor.terminale ?? ''} onChange={(e) => setEditor({ ...editor, terminale: e.target.value.replace(/\D/g, '').slice(0, 8) })} placeholder="31197403" className="col-span-2" />
+              </div>
+            )}
+            <Testo etichetta="Nota per chi incassa (facoltativa)" value={editor.nota ?? ''} onChange={(e) => setEditor({ ...editor, nota: e.target.value })} placeholder="Accetta American Express" />
+            <div className="flex gap-2">
+              {lista.some((x) => x.id === editor.id) && <Pulsante taglia="lg" variante="pericolo" onClick={() => void salva({ pos: lista.filter((x) => x.id !== editor.id) }, 'POS tolto').then(() => setEditor(null))}>Togli</Pulsante>}
+              <Pulsante taglia="lg" variante="primario" className="flex-1" caricamento={inCorso}
+                disabled={!editor.nome.trim() || (editor.collegato && (!editor.host || !editor.porta))} onClick={() => salvaPos({ ...editor, nome: editor.nome.trim() })}>Salva</Pulsante>
+            </div>
+          </div>
+        </Foglio>
+      )}
+    </section>
   );
 }

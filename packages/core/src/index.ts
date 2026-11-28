@@ -15,3 +15,4 @@ export * from './fattura';
 export * from './servizio';
 export * from './esporta';
 export * from './offline';
+export * from './pos17';

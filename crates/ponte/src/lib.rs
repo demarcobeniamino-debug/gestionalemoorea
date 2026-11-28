@@ -5,6 +5,7 @@
 //! da "è partito ma la risposta non è arrivata" (INCERTO: lo scontrino potrebbe essere uscito).
 
 pub mod scoperta;
+pub mod pos;
 
 use std::io::{Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpStream, ToSocketAddrs};

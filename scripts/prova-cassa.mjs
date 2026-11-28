@@ -127,6 +127,26 @@ await foglio().getByRole('button', { name: /Ristampa per Cucina/ }).click();
 await p.getByText('Ristampa mandata a Cucina').waitFor();
 passo('ristampa della comanda alla cucina');
 
+// POS UniCredit collegato: l'importo va al POS (simulato nella demo), poi esce lo scontrino
+await vai('/gestione/pagamenti');
+await p.getByRole('button', { name: 'Aggiungi POS' }).click();
+await foglio().getByLabel('Nome').fill('UniCredit');
+await foglio().getByRole('switch', { name: /Collegato alla cassa/ }).click();
+await foglio().getByLabel('Indirizzo IP').fill('192.168.178.88');
+await foglio().getByLabel(/ID terminale/).fill('31197403');
+await foglio().getByLabel(/Nota per chi incassa/).fill('Accetta American Express');
+await foglio().getByRole('button', { name: 'Salva' }).click();
+await p.getByText(/Collegato · 192\.168\.178\.88:10000/).waitFor();
+await ordina(9, 'Totani e Patate');
+await p.getByRole('radio', { name: 'Carta', exact: true }).click();
+await p.getByRole('radio', { name: /UniCredit · collegato/ }).waitFor();
+await p.getByText('UniCredit: Accetta American Express').waitFor();
+await p.getByRole('button', { name: /Incassa e stampa scontrino/ }).click();
+await p.getByText(/Il cliente paga sul POS UniCredit/).waitFor();
+await p.screenshot({ path: `${OUT}/C05-pos.png` });
+await p.waitForURL(/#\/sala/, { timeout: 10000 });
+passo('POS UniCredit collegato: importo al POS, approvato, scontrino');
+
 // Promozione happy hour e menu fisso dalla Gestione
 await vai('/gestione/promozioni');
 await p.getByRole('button', { name: 'Nuova promozione' }).click();
