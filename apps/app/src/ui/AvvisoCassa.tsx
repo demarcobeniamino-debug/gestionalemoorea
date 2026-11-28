@@ -3,6 +3,7 @@
 import { Link } from 'react-router-dom';
 import { Clock, Plugs, Warning, WifiSlash } from '@phosphor-icons/react';
 import { avvisiRt, ponteVivo } from '@gr/core';
+import { rifiutatiNoti } from '../dati/rifiutati';
 import { useApp, useDati, useOra } from '../dati/contesto';
 import { puoGestire } from '../dati/ruoli';
 
@@ -53,7 +54,7 @@ export function AvvisoCassa() {
 
   // Problemi gravi del registratore (letti dalla cassa negli ultimi 15 minuti): carta, Z da fare, offline.
   const rt = vivi.find((p) => p.statoRt && p.statoRtAt && adesso.getTime() - new Date(p.statoRtAt).getTime() < 15 * 60_000)?.statoRt;
-  const grave = rt ? avvisiRt(rt, adesso).find((a) => a.livello === 'errore') : undefined;
+  const grave = rt ? avvisiRt(rt, adesso, rifiutatiNoti(rt)).find((a) => a.livello === 'errore') : undefined;
   if (grave && capo) {
     return (
       <div role="status" className="flex flex-none items-center gap-3 bg-warning px-4 py-2 text-sm font-semibold text-on-warning">

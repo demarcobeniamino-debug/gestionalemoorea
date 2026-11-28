@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle, Clock, FileText, Printer, Receipt, Vault, Warning, XCircle } from '@phosphor-icons/react';
+import { rifiutatiNoti, segnaRifiutatiControllati } from '../dati/rifiutati';
 import { avvisiRt, esportaCorrispettivi, euro, nomeConto, ponteVivo, type ChiusuraFiscale, type DatiPeriodo, type Documento, type Fattura, type PrintJob, type StatoLavoro } from '@gr/core';
 import { useApp, useAzione, useDati } from '../dati/contesto';
 import { scaricaFile } from './Fattura';
@@ -259,7 +260,9 @@ function StatoRegistratore() {
   const vivi = ponti.filter((p) => ponteVivo(p, adesso.getTime()));
   const p = [...ponti].filter((x) => x.statoRt).sort((a, b) => (b.statoRtAt ?? '').localeCompare(a.statoRtAt ?? ''))[0];
   const s = p?.statoRt;
-  const avvisi = s ? avvisiRt(s, adesso) : [];
+  const [, aggiorna] = useState(0);
+  const avvisi = s ? avvisiRt(s, adesso, rifiutatiNoti(s)) : [];
+  const nuoviScarti = !!s?.fileRifiutati && s.fileRifiutati > (rifiutatiNoti(s) ?? 0);
   const leggi = leggiRt ? () => void esegui(async () => {
     const st = await leggiRt();
     if (st) await db.battito(vivi[0]?.nome ?? 'Cassa', vivi[0]?.versione ?? '', st);
@@ -280,7 +283,10 @@ function StatoRegistratore() {
             <ul className="mb-3 flex flex-col gap-1.5">
               {avvisi.map((a) => (
                 <li key={a.testo} className={`flex items-start gap-2 rounded-md px-3 py-2 text-sm font-semibold ${a.livello === 'errore' ? 'bg-danger text-on-danger' : a.livello === 'attenzione' ? 'bg-warning text-on-warning' : 'bg-bg text-text'}`}>
-                  <Warning size={16} weight="fill" aria-hidden className="mt-0.5 flex-none" />{a.testo}
+                  <Warning size={16} weight="fill" aria-hidden className="mt-0.5 flex-none" /><span className="flex-1">{a.testo}</span>
+                  {nuoviScarti && a.testo.includes('rifiutat') && (
+                    <button type="button" className="premibile flex-none rounded-md bg-on-danger px-2 py-0.5 text-xs text-danger" onClick={() => { segnaRifiutatiControllati(s); aggiorna((n) => n + 1); }}>Segna come controllati</button>
+                  )}
                 </li>
               ))}
             </ul>

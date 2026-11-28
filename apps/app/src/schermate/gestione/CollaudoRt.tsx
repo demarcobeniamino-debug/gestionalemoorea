@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle, Circle, Warning, XCircle } from '@phosphor-icons/react';
+import { rifiutatiNoti } from '../../dati/rifiutati';
 import { avvisiRt, leggiStato, urlFpMate, xmlImpostaData, xmlLeggiData, xmlStampaNonFiscale, xmlStato, type StampanteRiga, type StatoRt } from '@gr/core';
 import { nuovaChiave, useApp } from '../../dati/contesto';
 import { creaTrasporto, inTauri } from '../../dati/trasporto';
@@ -34,7 +35,7 @@ export function CollaudoRt({ rt, onChiudi }: { rt: StampanteRiga; onChiudi: () =
     s = leggiStato(await trasporto().postXml(url, xmlStato(1), 10000), s);
     s = leggiStato(await trasporto().postXml(url, xmlLeggiData(), 10000), s);
     setStato(s);
-    const gravi = avvisiRt(s).filter((a) => a.livello === 'errore');
+    const gravi = avvisiRt(s, new Date(), rifiutatiNoti(s)).filter((a) => a.livello === 'errore');
     if (gravi.length) throw new Error(gravi.map((a) => a.testo).join(' '));
     return 'Il registratore risponde.';
   });
@@ -86,7 +87,7 @@ export function CollaudoRt({ rt, onChiudi }: { rt: StampanteRiga; onChiudi: () =
     throw new Error('Nessuna risposta dopo 30 secondi.');
   });
 
-  const avvisi = stato ? avvisiRt(stato) : [];
+  const avvisi = stato ? avvisiRt(stato, new Date(), rifiutatiNoti(stato)) : [];
   const diffMin = stato?.orologio ? Math.round((new Date(stato.orologio).getTime() - Date.now()) / 60000) : null;
 
   return (

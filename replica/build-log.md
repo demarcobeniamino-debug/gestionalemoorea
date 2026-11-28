@@ -133,3 +133,4 @@ Screenshot in `replica/clone-screens/`.
 
 ## v0.8.4
 - IP con zeri davanti (es. 192.168.178.038) ora funziona: il ponte e il salvataggio li tolgono.
+- v0.8.5: "invii rifiutati" dell'Epson trattato come contatore storico: avviso rosso solo se cresce.

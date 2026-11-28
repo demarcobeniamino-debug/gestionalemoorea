@@ -12,7 +12,9 @@ describe('Epson RT: interrogazioni e avvisi', () => {
     expect(s).toMatchObject({ stampante: 'carta_in_esaurimento', giornale: 'quasi_pieno', cassettoAperto: false, giornataAperta: true, serveZ: false, fileDaInviare: 3, fileRifiutati: 18, firmware: '04.30' });
     const a = avvisiRt(s, new Date(2026, 10, 27, 12, 40)).map((x) => x.testo).join('\n');
     expect(a).toMatch(/Carta in esaurimento/);
-    expect(a).toMatch(/18 invii rifiutati/);
+    expect(a).toMatch(/18 nuovi invii rifiutati/);
+    expect(avvisiRt(s, new Date(2026, 10, 27, 12, 40), 18).find((x) => x.testo.includes('rifiutat'))).toMatchObject({ livello: 'info' });
+    expect(avvisiRt(s, new Date(2026, 10, 27, 12, 40), 16).find((x) => x.testo.includes('rifiutat'))).toMatchObject({ livello: 'errore', testo: expect.stringMatching(/^2 nuovi invii/) });
     expect(a).toMatch(/certificato del registratore scade tra 1[78] giorni/);
     expect(a).toMatch(/avanti di 10 minuti/);
     expect(a).not.toMatch(/Agenzia scade/);

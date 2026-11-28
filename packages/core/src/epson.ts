@@ -215,7 +215,11 @@ export function leggiStato(xml: string, prima: StatoRt = { letto: new Date().toI
 export interface AvvisoRt { livello: 'errore' | 'attenzione' | 'info'; testo: string }
 
 /** Cosa deve sapere chi sta alla cassa, in italiano semplice. `adesso` per i confronti di orologio e scadenze. */
-export function avvisiRt(s: StatoRt, adesso = new Date()): AvvisoRt[] {
+/**
+ * `rifiutatiNoti`: quanti scarti l'RT aveva già quando li abbiamo controllati.
+ * Il contatore dell'Epson è storico (non si azzera): avvisiamo solo se cresce.
+ */
+export function avvisiRt(s: StatoRt, adesso = new Date(), rifiutatiNoti?: number): AvvisoRt[] {
   const a: AvvisoRt[] = [];
   if (s.errore) a.push({ livello: 'errore', testo: `Registratore non raggiungibile: ${s.errore}` });
   if (s.stampante === 'offline') a.push({ livello: 'errore', testo: 'Registratore offline: carta finita o coperchio aperto.' });
@@ -223,7 +227,11 @@ export function avvisiRt(s: StatoRt, adesso = new Date()): AvvisoRt[] {
   if (s.giornale === 'pieno') a.push({ livello: 'errore', testo: 'Giornale elettronico pieno: chiama l’assistenza Epson.' });
   if (s.giornale === 'quasi_pieno') a.push({ livello: 'attenzione', testo: 'Giornale elettronico quasi pieno: avvisa l’assistenza.' });
   if (s.serveZ) a.push({ livello: 'errore', testo: 'Il registratore chiede la chiusura giornaliera (Z) prima di fare scontrini.' });
-  if (s.fileRifiutati) a.push({ livello: 'errore', testo: `${s.fileRifiutati} invii rifiutati dall’Agenzia delle Entrate: vanno controllati con l’assistenza Epson o il commercialista.` });
+  if (s.fileRifiutati) {
+    const nuovi = rifiutatiNoti === undefined ? s.fileRifiutati : s.fileRifiutati - rifiutatiNoti;
+    if (nuovi > 0) a.push({ livello: 'errore', testo: `${nuovi === 1 ? '1 nuovo invio rifiutato' : `${nuovi} nuovi invii rifiutati`} dall’Agenzia delle Entrate: vanno controllati con l’assistenza Epson o il commercialista.` });
+    else a.push({ livello: 'info', testo: `${s.fileRifiutati} invii rifiutati in passato (contatore storico del registratore). Nessuno nuovo.` });
+  }
   if (s.fileVecchiDaInviare) a.push({ livello: 'attenzione', testo: `${s.fileVecchiDaInviare} invii all’Agenzia in ritardo: controlla che il registratore sia collegato a internet.` });
   else if (s.fileDaInviare) a.push({ livello: 'info', testo: `${s.fileDaInviare} invii all’Agenzia in attesa (partono da soli).` });
   if (s.formazione) a.push({ livello: 'errore', testo: 'Registratore in modalità formazione: gli scontrini non hanno valore fiscale.' });
