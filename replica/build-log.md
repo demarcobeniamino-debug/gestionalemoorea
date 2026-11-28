@@ -134,3 +134,4 @@ Screenshot in `replica/clone-screens/`.
 ## v0.8.4
 - IP con zeri davanti (es. 192.168.178.038) ora funziona: il ponte e il salvataggio li tolgono.
 - v0.8.5: "invii rifiutati" dell'Epson trattato come contatore storico: avviso rosso solo se cresce.
+- v0.8.6: comande non uscite: riprova ogni 10 s per 10 minuti, banner rosso "Cucina non risponde" per tutti, Riprova / Stampa su altra stampante (rimanda_lavoro).

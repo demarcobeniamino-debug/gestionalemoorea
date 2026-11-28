@@ -1,7 +1,9 @@
 // Fascia d'avviso sotto la testata: nessuna cassa accesa (le comande non escono), stampe rimaste in coda,
 // problemi del registratore. Compare su ogni schermata, perché chi prende la comanda deve saperlo subito.
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, Plugs, Warning, WifiSlash } from '@phosphor-icons/react';
+import { FoglioStampeNonUscite, useStampeNonUscite } from './StampeNonUscite';
+import { Clock, Plugs, Printer, Warning, WifiSlash } from '@phosphor-icons/react';
 import { avvisiRt, ponteVivo } from '@gr/core';
 import { rifiutatiNoti } from '../dati/rifiutati';
 import { useApp, useDati, useOra } from '../dati/contesto';
@@ -15,6 +17,9 @@ export function AvvisoCassa() {
   const { ponti, sospesi } = useDati((d) => ({ ponti: d.ponti(), sospesi: d.lavori().filter((j) => j.stato === 'sospeso').length }));
   const vivi = ponti.filter((p) => ponteVivo(p, adesso.getTime()));
   const capo = puoGestire(operatore?.ruolo) || operatore?.ruolo === 'cassiere';
+  const nonUscite = useStampeNonUscite();
+  const nomiStampanti = useDati((d) => d.setup().stampanti);
+  const [apriNonUscite, setApriNonUscite] = useState(false);
 
   if (offline) {
     return (
@@ -38,6 +43,23 @@ export function AvvisoCassa() {
           {ultimo ? <span className="font-normal opacity-90"> Ultimo segnale: {ora(ultimo.vistoAt)}.</span> : null}
         </span>
       </div>
+    );
+  }
+
+  if (nonUscite.length > 0 || apriNonUscite) {
+    const dove = [...new Set(nonUscite.map((j) => nomiStampanti.find((x) => x.id === j.stampanteId)?.nome ?? 'Una stampante'))].join(', ');
+    const quante = nonUscite.length === 1 ? '1 stampa non è uscita' : `${nonUscite.length} stampe non sono uscite`;
+    return (
+      <>
+        {nonUscite.length > 0 && (
+          <div role="alert" className="flex flex-none items-center gap-3 bg-danger px-4 py-2.5 text-sm font-semibold text-on-danger">
+            <Printer size={20} weight="bold" aria-hidden className="flex-none" />
+            <span className="flex-1">{dove} non risponde: {quante}. Riprovo da sola ogni 10 secondi.</span>
+            <button type="button" onClick={() => setApriNonUscite(true)} className="premibile flex-none rounded-md bg-on-danger px-3 py-1.5 text-danger">Risolvi</button>
+          </div>
+        )}
+        <FoglioStampeNonUscite aperto={apriNonUscite} onChiudi={() => setApriNonUscite(false)} />
+      </>
     );
   }
 

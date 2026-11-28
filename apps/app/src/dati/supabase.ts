@@ -44,6 +44,8 @@ const MESSAGGI: Record<string, string> = {
   CONTO_CON_SCONTRINO: 'Su questo conto c’è già uno scontrino: annullalo prima dalla Cassa.',
   TAVOLO_OCCUPATO: 'Uno dei tavoli è già occupato o unito a un altro conto.',
   SOLO_AL_TAVOLO: 'Solo un conto al tavolo può avere tavoli uniti.',
+  SOLO_NON_FISCALI: 'Solo le stampe non fiscali si possono rimandare così.',
+  STAMPANTE_NON_VALIDA: 'Scegli una stampante per comande del locale.',
   RESO_OLTRE_IL_TOTALE: 'Il reso supera quello che resta dello scontrino.',
   RESO_VUOTO: 'Scegli cosa rendere.',
   CONTO_VUOTO: 'Il conto è vuoto: usa “Elimina conto”.',
@@ -759,6 +761,12 @@ export class SupabaseDataLayer implements DataLayer {
   }
   async decidiLavoro(jobId: string, stampa: boolean) {
     const { error } = await this.sb.rpc('decidi_lavoro', { p_job: jobId, p_stampa: stampa });
+    if (error) errore(error);
+    await this.caricaServizio();
+  }
+
+  async rimandaLavoro(jobId: string, stampanteId?: string) {
+    const { error } = await this.sb.rpc('rimanda_lavoro', { p_job: jobId, p_stampante: stampanteId ?? null });
     if (error) errore(error);
     await this.caricaServizio();
   }

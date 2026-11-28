@@ -149,7 +149,25 @@ describe('servizio completo (fetta verticale)', () => {
     expect(db.lavori()[0].errore).toContain('Cucina');
     delete tr.guasti['192.168.1.101'];
     await coda.elabora();
+    expect(db.lavori()[0].stato).toBe('errore');                      // riprova da sola ogni 10 secondi, non a raffica
+    await db.rimandaLavoro(db.lavori()[0].id);                         // "Riprova" dal banner
+    await coda.elabora();
     expect(db.lavori()[0].stato).toBe('stampato');
+  });
+
+  it('stampante guasta: la comanda si manda su un’altra stampante', async () => {
+    const { db, tr, coda } = nuovo();
+    const c = await db.apriTavolo('t2', 2, OP);
+    await db.aggiungiRiga(c.id, { articoloId: db.setup().articoli[0].id });
+    await db.invia(c.id, 'k1');
+    tr.guasti['192.168.1.101'] = 'offline';
+    await coda.elabora();
+    const j = db.lavori()[0];
+    const altra = db.setup().stampanti.find((s) => s.tipo === 'comande_escpos' && s.id !== j.stampanteId)!;
+    await db.rimandaLavoro(j.id, altra.id);
+    await coda.elabora();
+    expect(db.lavori()[0]).toMatchObject({ stato: 'stampato', stampanteId: altra.id });
+    await expect(db.rimandaLavoro(j.id, 'boh')).resolves.toBeUndefined();   // già stampato: non fa niente
   });
 
   it('risposta Epson persa: scontrino "da verificare", nessuna ristampa automatica', async () => {

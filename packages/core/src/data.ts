@@ -14,6 +14,8 @@ import type { CalcoloFattura } from './fattura';
 import type { DatiPeriodo } from './report';
 import { calcolaConto } from './conto';
 
+const NON_FISCALI = new Set(['comanda', 'preconto', 'non_fiscale']);
+
 export { ErroreDominio, type Incasso };
 
 export interface NuovaRiga {
@@ -152,6 +154,8 @@ export interface DataLayer {
   battito(nome: string, versione: string, statoRt?: StatoRt): Promise<void>;
   /** Lavoro rimasto in coda a cassa spenta: stampalo adesso o scartalo. */
   decidiLavoro(jobId: string, stampa: boolean): Promise<void>;
+  /** Rimanda subito una stampa non fiscale, sulla stessa stampante o su un'altra. */
+  rimandaLavoro(jobId: string, stampanteId?: string): Promise<void>;
   esitoLavoro(jobId: string, esito: EsitoLavoro): Promise<void>;
 
   subscribe(fn: () => void): () => void;
@@ -366,15 +370,29 @@ export class FakeDataLayer implements DataLayer {
     const limite = this.now().getTime() - MINUTI_SOSPENSIONE * 60_000;
     for (const j of this.lavori()) {
       const da = new Date(((j as { confermatoAt?: string }).confermatoAt ?? j.createdAt).replace(/(Z)\d+$/, '$1')).getTime();
-      if (da < limite && (j.stato === 'in_coda' || (j.stato === 'errore' && (j.tipo === 'comanda' || j.tipo === 'preconto') && j.tentativi < 3))) {
-        j.stato = 'sospeso'; j.errore = 'Rimasto in coda mentre nessuna cassa stampava: scegli se stamparlo o scartarlo';
+      if (da < limite && (j.stato === 'in_coda' || (j.stato === 'errore' && NON_FISCALI.has(j.tipo)))) {
+        j.stato = 'sospeso'; j.errore = 'Non è uscito per 10 minuti: scegli se stamparlo o scartarlo';
       }
     }
+    // Le comande che non escono si riprovano da sole ogni 10 secondi (fino ai 10 minuti qui sopra).
+    const adesso = this.now().getTime();
     const presi = this.lavori()
-      .filter((x) => x.stato === 'in_coda' || (x.stato === 'errore' && (x.tipo === 'comanda' || x.tipo === 'preconto') && x.tentativi < 3))
+      .filter((x) => x.stato === 'in_coda' || (x.stato === 'errore' && NON_FISCALI.has(x.tipo) && adesso - ((x as { presoAt?: number }).presoAt ?? 0) >= 10_000))
       .slice(0, max);
-    for (const j of presi) j.stato = 'preso';
+    for (const j of presi) { j.stato = 'preso'; (j as { presoAt?: number }).presoAt = adesso; }
     return presi;
+  }
+
+  async rimandaLavoro(jobId: string, stampanteId?: string) {
+    const j = this._lavori.get(jobId);
+    if (!j) return;
+    if (!NON_FISCALI.has(j.tipo)) throw new ErroreDominio('Solo le stampe non fiscali si possono rimandare così.');
+    if (!['errore', 'sospeso', 'in_coda'].includes(j.stato)) return;
+    if (stampanteId && !this.s.stampanti.some((x) => x.id === stampanteId && x.tipo === 'comande_escpos')) throw new ErroreDominio('Stampante non valida.');
+    j.stato = 'in_coda'; j.errore = undefined; j.tentativi = 0; (j as { presoAt?: number }).presoAt = undefined;
+    (j as { confermatoAt?: string }).confermatoAt = this.now().toISOString();
+    if (stampanteId) j.stampanteId = stampanteId;
+    this.emit();
   }
 
   async esitoLavoro(jobId: string, e: EsitoLavoro) {
